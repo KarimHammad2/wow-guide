@@ -7,21 +7,17 @@ import { CategoryTile } from '@/components/guide/category-tile'
 import { EmergencyBanner } from '@/components/guide/emergency-banner'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
 import { Footer } from '@/components/guide/footer'
-import { buildings, categories } from '@/lib/data'
+import { getBuildingById, getBuildingCategories } from '@/lib/admin-store'
 
 interface BuildingPageProps {
   params: Promise<{ slug: string }>
 }
 
-export async function generateStaticParams() {
-  return buildings.map((building) => ({
-    slug: building.id,
-  }))
-}
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: BuildingPageProps) {
   const { slug } = await params
-  const building = buildings.find((b) => b.id === slug)
+  const building = getBuildingById(slug)
 
   if (!building) {
     return {
@@ -37,17 +33,19 @@ export async function generateMetadata({ params }: BuildingPageProps) {
 
 export default async function BuildingPage({ params }: BuildingPageProps) {
   const { slug } = await params
-  const building = buildings.find((b) => b.id === slug)
+  const building = getBuildingById(slug)
 
   if (!building) {
     notFound()
   }
 
+  const categories = getBuildingCategories(slug)
+
   return (
     <div className="min-h-screen bg-background">
       <Header buildingName={building.name} buildingSlug={building.id} />
 
-      <main className="pt-20 pb-24 md:pb-10 space-y-6">
+      <main className="pt-24 pb-24 md:pb-10 space-y-6">
         <section className="guide-shell pt-4">
           <BuildingHero building={building} className="w-full" />
         </section>

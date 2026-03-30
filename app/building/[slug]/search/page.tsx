@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo, use } from 'react'
+import { useState, useMemo, use, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Search, Clock, TrendingUp, X } from 'lucide-react'
 import { Header } from '@/components/guide/header'
 import { CategoryTile } from '@/components/guide/category-tile'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { categories, popularTopics, categoryContent, buildings, type Category } from '@/lib/data'
+import type { Building, Category } from '@/lib/data'
 import { cn } from '@/lib/utils'
 import { getLucideIcon } from '@/lib/icons'
 
@@ -19,9 +19,15 @@ interface SearchPageProps {
 
 export default function BuildingSearchPage({ params }: SearchPageProps) {
   const { slug } = use(params)
-  const building = buildings.find((b) => b.id === slug)
   const [query, setQuery] = useState('')
   const [recentItems, setRecentItems] = useState(recentSearches)
+  const [building, setBuilding] = useState<Building | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [popularTopics, setPopularTopics] = useState<string[]>([])
+  const [categoryContent, setCategoryContent] = useState<Record<string, {
+    intro: string
+    sections: Array<{ title?: string; content?: string }>
+  }>>({})
 
   type ContentSearchResult = {
     categorySlug: string
@@ -33,6 +39,17 @@ export default function BuildingSearchPage({ params }: SearchPageProps) {
     categories: Category[]
     content: ContentSearchResult[]
   }
+
+  useEffect(() => {
+    void fetch(`/api/public/buildings/${slug}/guide`)
+      .then((response) => response.json())
+      .then((data) => {
+        setBuilding(data.building ?? null)
+        setCategories(data.categories ?? [])
+        setPopularTopics(data.popularTopics ?? [])
+        setCategoryContent(data.categoryContent ?? {})
+      })
+  }, [slug])
 
   // Search results based on query
   const searchResults = useMemo<SearchResults | null>(() => {
@@ -78,7 +95,7 @@ export default function BuildingSearchPage({ params }: SearchPageProps) {
     })
 
     return { categories: categoryResults, content: contentResults }
-  }, [query])
+  }, [query, categories, categoryContent])
 
   const hasResults =
     (searchResults?.categories.length ?? 0) > 0 || (searchResults?.content.length ?? 0) > 0
@@ -96,7 +113,7 @@ export default function BuildingSearchPage({ params }: SearchPageProps) {
     <div className="min-h-screen bg-background">
       <Header buildingName={building.name} buildingSlug={building.id} />
 
-      <main className="pt-20 pb-24 md:pb-10 space-y-5">
+      <main className="pt-24 pb-24 md:pb-10 space-y-5">
         <section className="guide-shell pt-2">
           <Link
             href={`/building/${slug}`}

@@ -1,6 +1,7 @@
 import { HelpCircle, Phone, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supportContacts } from '@/lib/data'
+import { getEffectiveSupportContact } from '@/lib/admin-store'
 import { cn } from '@/lib/utils'
 
 interface NeedHelpCardProps {
@@ -8,6 +9,8 @@ interface NeedHelpCardProps {
 }
 
 export function NeedHelpCard({ className }: NeedHelpCardProps) {
+  const emergencyContact = getEffectiveSupportContact()
+
   return (
     <div
       className={cn(
@@ -28,22 +31,22 @@ export function NeedHelpCard({ className }: NeedHelpCardProps) {
       </div>
 
       <div className="space-y-3">
-        <a href={`tel:${supportContacts.general.phone.replace(/\s/g, '')}`}>
+        <a href={`tel:${emergencyContact.phone.replace(/\s/g, '')}`}>
           <Button
             variant="outline"
             className="w-full justify-start gap-3 bg-card border-border hover:bg-secondary"
           >
             <Phone className="w-4 h-4 text-primary" />
-            <span>{supportContacts.general.phone}</span>
+            <span>{emergencyContact.phone}</span>
           </Button>
         </a>
-        <a href={`mailto:${supportContacts.general.email}`}>
+        <a href={`mailto:${emergencyContact.email}`}>
           <Button
             variant="outline"
             className="w-full justify-start gap-3 bg-card border-border hover:bg-secondary mt-2"
           >
             <Mail className="w-4 h-4 text-primary" />
-            <span>{supportContacts.general.email}</span>
+            <span>{emergencyContact.email}</span>
           </Button>
         </a>
       </div>

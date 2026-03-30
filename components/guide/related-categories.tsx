@@ -1,5 +1,5 @@
 import { CategoryTile } from './category-tile'
-import { getRelatedCategories, categories as allCategories } from '@/lib/data'
+import { getRelatedCategories, categories as allCategories, type Category } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 interface StaticCategoryLink {
@@ -10,6 +10,7 @@ interface StaticCategoryLink {
 interface RelatedCategoriesProps {
   currentSlug?: string
   categories?: StaticCategoryLink[]
+  categoryObjects?: Category[]
   buildingSlug?: string
   className?: string
 }
@@ -17,10 +18,13 @@ interface RelatedCategoriesProps {
 export function RelatedCategories({
   currentSlug,
   categories,
+  categoryObjects,
   buildingSlug,
   className,
 }: RelatedCategoriesProps) {
-  const relatedCategories = categories
+  const relatedCategories = categoryObjects
+    ? categoryObjects.filter((category) => category.slug !== currentSlug).slice(0, 3)
+    : categories
     ? categories
         .map((item) => allCategories.find((category) => category.slug === item.slug))
         .filter((category): category is (typeof allCategories)[number] => Boolean(category))

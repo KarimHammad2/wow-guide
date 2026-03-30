@@ -44,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn(montserrat.variable, display.variable)}>
-      <body className="font-sans antialiased min-h-screen">
+      <body suppressHydrationWarning className="font-sans antialiased min-h-screen">
         {children}
         <BackToTopButton />
         <Analytics />

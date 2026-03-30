@@ -12,10 +12,10 @@ import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
 import { Footer } from '@/components/guide/footer'
 import {
-  getCategoryBySlug,
-  getCategoryContent,
-  buildings,
-} from '@/lib/data'
+  getBuildingById,
+  getBuildingCategories,
+  getBuildingCategoryContent,
+} from '@/lib/admin-store'
 import { cn } from '@/lib/utils'
 import { getLucideIcon } from '@/lib/icons'
 
@@ -23,13 +23,21 @@ interface CategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string }>
 }
 
+export const dynamic = 'force-dynamic'
+
 export default async function BuildingCategoryPage({ params }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const building = buildings.find((b) => b.id === slug)
-  const category = getCategoryBySlug(categorySlug)
-  const content = getCategoryContent(categorySlug)
+  const building = getBuildingById(slug)
 
-  if (!building || !category || !content) {
+  if (!building) {
+    notFound()
+  }
+
+  const buildingCategories = getBuildingCategories(slug)
+  const category = buildingCategories.find((item) => item.slug === categorySlug)
+  const content = getBuildingCategoryContent(slug, categorySlug)
+
+  if (!category || !content) {
     notFound()
   }
 
@@ -40,7 +48,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
     <div className="min-h-screen bg-background">
       <Header buildingName={building.name} buildingSlug={building.id} />
 
-      <main className="pt-20 pb-24 md:pb-10 space-y-5">
+      <main className="pt-24 pb-24 md:pb-10 space-y-5">
         <section className="guide-shell pt-2">
           <Link
             href={`/building/${building.id}`}
@@ -152,6 +160,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
           <NeedHelpCard />
           <RelatedCategories
             currentSlug={categorySlug}
+            categoryObjects={buildingCategories}
             buildingSlug={building.id}
           />
         </section>
@@ -235,10 +244,17 @@ function ScheduleCard({
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const building = buildings.find((b) => b.id === slug)
-  const category = getCategoryBySlug(categorySlug)
+  const building = getBuildingById(slug)
 
-  if (!building || !category) {
+  if (!building) {
+    return {
+      title: 'Not Found | WOW Guide',
+    }
+  }
+
+  const category = getBuildingCategories(slug).find((item) => item.slug === categorySlug)
+
+  if (!category) {
     return {
       title: 'Not Found | WOW Guide',
     }

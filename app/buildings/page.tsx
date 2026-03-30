@@ -2,10 +2,13 @@ import Link from 'next/link'
 import { ArrowLeft, MapPin, ChevronRight, Building2 } from 'lucide-react'
 import { Header } from '@/components/guide/header'
 import { Footer } from '@/components/guide/footer'
-import { buildings } from '@/lib/data'
+import { getBuildings } from '@/lib/admin-store'
 import { cn } from '@/lib/utils'
 
 export default function BuildingsPage() {
+  const buildings = getBuildings()
+  const currentBuilding = buildings[0]
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -43,7 +46,7 @@ export default function BuildingsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Currently viewing</p>
                 <p className="font-semibold text-foreground">
-                  {buildings[0].name}, {buildings[0].city}
+                  {currentBuilding ? `${currentBuilding.name}, ${currentBuilding.city}` : 'No building selected'}
                 </p>
               </div>
             </div>
