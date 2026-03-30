@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [showAllCities, setShowAllCities] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -35,7 +36,7 @@ export default function LandingPage() {
       building.address.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const locationSummary = Object.entries(
+  const computedLocationSummary = Object.entries(
     buildings.reduce<Record<string, { count: number; addresses: string[] }>>((acc, building) => {
       if (!acc[building.city]) {
         acc[building.city] = { count: 0, addresses: [] }
@@ -51,10 +52,27 @@ export default function LandingPage() {
       count: info.count,
       addresses: info.addresses,
     }))
-    .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city))
+
+  const featuredLocations = ['Zurich', 'Train Basel', 'Schwyz', 'Lucerne', 'Basel']
+
+  const locationSummary = featuredLocations.map((city) => {
+    const existing = computedLocationSummary.find((location) => location.city === city)
+    return (
+      existing ?? {
+        city,
+        count: 0,
+        addresses: [],
+      }
+    )
+  })
+  const visibleLocations = showAllCities ? locationSummary : locationSummary.slice(0, 3)
 
   const locationHighlights: Record<string, string> = {
     Basel: 'Business district access and vibrant city life.',
+    Zurich: 'Global finance center with premium urban connectivity.',
+    'Train Basel': 'Direct transit-oriented access for frequent commuters.',
+    Schwyz: 'Scenic central Switzerland location with calm surroundings.',
+    Lucerne: 'Lakeside city lifestyle with strong business travel links.',
     Zug: 'International business hub with lakefront calm.',
     'Pfäffikon SZ': 'Modern, tranquil setting with fast rail links.',
   }
@@ -276,7 +294,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-7">
-            {locationSummary.map((location) => (
+            {visibleLocations.map((location) => (
               <article
                 key={location.city}
                 className="group overflow-hidden rounded-3xl border border-border/80 bg-card/95 shadow-[0_14px_35px_-24px_rgba(49,16,38,0.4)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_45px_-24px_rgba(49,16,38,0.5)]"
@@ -300,28 +318,45 @@ export default function LandingPage() {
                   </p>
 
                   <div className="space-y-2.5 mb-6">
-                    {location.addresses.slice(0, 2).map((address) => (
-                      <p key={address} className="inline-flex items-center gap-2 text-sm text-foreground/90">
-                        <MapPin className="h-4 w-4 text-primary/80" />
-                        {address}
-                      </p>
-                    ))}
-                    {location.addresses.length > 2 && (
-                      <p className="text-xs text-muted-foreground">+ {location.addresses.length - 2} additional address(es)</p>
+                    {location.addresses.length > 0 ? (
+                      <>
+                        {location.addresses.slice(0, 2).map((address) => (
+                          <p key={address} className="inline-flex items-center gap-2 text-sm text-foreground/90">
+                            <MapPin className="h-4 w-4 text-primary/80" />
+                            {address}
+                          </p>
+                        ))}
+                        {location.addresses.length > 2 && (
+                          <p className="text-xs text-muted-foreground">+ {location.addresses.length - 2} additional address(es)</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Location details coming soon.</p>
                     )}
                   </div>
 
                   <Link
-                    href="#buildings"
+                    href={`/buildings?city=${encodeURIComponent(location.city)}`}
                     className="inline-flex items-center gap-2 rounded-full border border-primary/30 px-4 py-2 text-sm font-medium text-primary transition-all group-hover:border-primary/55 group-hover:bg-primary/5 group-hover:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
                   >
-                    Explore apartments
+                    Explore buildings
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </article>
             ))}
           </div>
+          {locationSummary.length > 3 && (
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAllCities((prev) => !prev)}
+                className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-5 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
+              >
+                {showAllCities ? 'Show fewer cities' : 'Show more cities'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

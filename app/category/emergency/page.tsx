@@ -2,8 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, AlertTriangle, Phone, CheckCircle, XCircle, Droplet, Flame, Zap, Shield } from 'lucide-react'
 import { Header } from '@/components/guide/header'
 import { AlertBox } from '@/components/guide/alert-box'
-import { InstructionStepper } from '@/components/guide/instruction-stepper'
-import { NeedHelpCard } from '@/components/guide/need-help-card'
+import { ContactCard } from '@/components/guide/contact-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
 import { Footer } from '@/components/guide/footer'
@@ -72,193 +71,172 @@ export default function EmergencyPage() {
     <div className="min-h-screen bg-background">
       <Header buildingName={currentBuilding.name} />
 
-      <main className="pt-16 pb-24 md:pb-8">
-        <div className="max-w-2xl mx-auto px-4 py-6">
-          {/* Back navigation */}
+      <main className="pt-24 pb-24 md:pb-10 space-y-5">
+        {/* Back navigation */}
+        <section className="guide-shell pt-2">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Guide
           </Link>
+        </section>
 
-          {/* Page Header */}
-          <header className="mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-destructive text-destructive-foreground flex items-center justify-center mb-4">
-              <AlertTriangle className="w-7 h-7" />
+        <section className="guide-shell">
+          <div className="guide-grid">
+            {/* Main column */}
+            <div className="space-y-6">
+              {/* Page Header */}
+              <header className="guide-section p-5 md:p-7">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-destructive text-destructive-foreground flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-7 h-7" />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">
+                      Emergency
+                    </h1>
+                    <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                      We&apos;re here to help 24/7. Use this page to understand when and how to reach us in case of emergencies.
+                    </p>
+                  </div>
+                </div>
+              </header>
+
+              {/* Critical Alert */}
+              <AlertBox
+                type="danger"
+                message="For life-threatening emergencies, call 144 (ambulance), 117 (police), or 118 (fire) IMMEDIATELY. Do not wait."
+              />
+
+              {/* When to Call */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* When TO call */}
+                <div className="guide-section p-5">
+                  <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-destructive" />
+                    When to Call Us
+                  </h2>
+                  <ul className="space-y-2">
+                    {whenToCall.map((item, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-destructive mt-1">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* When NOT to call */}
+                <div className="guide-section p-5">
+                  <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-muted-foreground" />
+                    When NOT to Call
+                  </h2>
+                  <ul className="space-y-2">
+                    {whenNotToCall.map((item, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-muted-foreground mt-1">•</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-primary mt-4">
+                    For non-urgent matters, email mail@wowliving.ch
+                  </p>
+                </div>
+              </div>
+
+              {/* Urgent Actions */}
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Urgent Actions
+                </h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {urgentActions.map((action) => {
+                    const Icon = action.icon
+                    return (
+                      <div
+                        key={action.id}
+                        className="guide-section p-5"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={cn(
+                              'w-12 h-12 rounded-xl flex items-center justify-center shrink-0',
+                              action.color
+                            )}
+                          >
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-foreground mb-1">
+                              {action.title}
+                            </h3>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {action.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+
+              <RelatedCategories currentSlug="emergency" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-              Emergency
-            </h1>
-            <p className="text-muted-foreground leading-relaxed">
-              We&apos;re here to help 24/7. Use this page to understand when and how to reach us in case of emergencies.
-            </p>
-          </header>
 
-          {/* Critical Alert */}
-          <AlertBox
-            type="danger"
-            message="For life-threatening emergencies, call 144 (ambulance), 117 (police), or 118 (fire) IMMEDIATELY. Do not wait."
-            className="mb-6"
-          />
+            {/* Sidebar */}
+            <aside className="space-y-4">
+              <ContactCard
+                variant="emergency"
+                title="24/7 Emergency Hotline"
+                phone={currentBuilding.emergencyPhone}
+                className="sticky top-24"
+              />
 
-          {/* WOW Emergency Hotline */}
-          <div className="rounded-2xl bg-destructive text-destructive-foreground p-6 mb-8">
-            <div className="text-center">
-              <p className="text-destructive-foreground/80 text-sm uppercase tracking-wider mb-2">
-                24/7 Emergency Hotline
-              </p>
-              <p className="text-3xl md:text-4xl font-bold mb-2">
-                {currentBuilding.emergencyPhone}
-              </p>
-              <p className="text-destructive-foreground/80 text-sm mb-5">
-                Available around the clock, every day
-              </p>
+              <section className="guide-section p-5">
+                <h2 className="font-semibold text-foreground mb-3">
+                  Swiss Emergency Numbers
+                </h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {emergencyNumbers.map((item) => (
+                    <a
+                      key={item.number}
+                      href={`tel:${item.number}`}
+                      className="group flex flex-col items-center p-3 rounded-2xl bg-card border border-border hover:border-destructive/30 hover:shadow-md transition-all"
+                    >
+                      <span className="text-xl font-bold text-destructive mb-1">
+                        {item.number}
+                      </span>
+                      <span className="font-medium text-foreground text-xs">
+                        {item.label}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground text-center mt-1 leading-snug">
+                        {item.description}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-xl bg-destructive/5 border border-destructive/15 p-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    If there&apos;s <span className="font-medium text-foreground">smoke or fire</span>, call <span className="font-semibold text-destructive">118</span> first, then call our hotline.
+                  </p>
+                </div>
+              </section>
+
               <a
                 href={`tel:${currentBuilding.emergencyPhone.replace(/\s/g, '')}`}
-                className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-destructive font-semibold text-lg hover:bg-white/90 transition-colors"
+                className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 transition-colors"
               >
                 <Phone className="w-5 h-5" />
-                Call Now
+                Call WOW Now
               </a>
-            </div>
+            </aside>
           </div>
-
-          {/* Swiss Emergency Numbers */}
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Swiss Emergency Numbers
-            </h2>
-            <div className="grid grid-cols-3 gap-3">
-              {emergencyNumbers.map((item) => (
-                <a
-                  key={item.number}
-                  href={`tel:${item.number}`}
-                  className="flex flex-col items-center p-4 rounded-2xl bg-card border border-border hover:border-destructive/30 hover:shadow-md transition-all"
-                >
-                  <span className="text-2xl font-bold text-destructive mb-1">
-                    {item.number}
-                  </span>
-                  <span className="font-medium text-foreground text-sm">
-                    {item.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground text-center mt-1">
-                    {item.description}
-                  </span>
-                </a>
-              ))}
-            </div>
-          </section>
-
-          {/* When to Call */}
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
-            {/* When TO call */}
-            <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-5">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-destructive" />
-                When to Call Us
-              </h3>
-              <ul className="space-y-2">
-                {whenToCall.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="text-destructive mt-1">•</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* When NOT to call */}
-            <div className="rounded-2xl bg-card border border-border p-5">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-muted-foreground" />
-                When NOT to Call
-              </h3>
-              <ul className="space-y-2">
-                {whenNotToCall.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="text-muted-foreground mt-1">•</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-primary mt-4">
-                For non-urgent matters, email mail@wowliving.ch
-              </p>
-            </div>
-          </div>
-
-          {/* Urgent Actions */}
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Urgent Actions
-            </h2>
-            <div className="space-y-4">
-              {urgentActions.map((action) => {
-                const Icon = action.icon
-                return (
-                  <div
-                    key={action.id}
-                    className="rounded-2xl bg-card border border-border p-5"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={cn(
-                          'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
-                          action.color
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground mb-1">
-                          {action.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {action.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-          {/* Important Locations */}
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Important Locations in Your Apartment
-            </h2>
-            <div className="rounded-2xl bg-secondary p-5">
-              <ul className="space-y-4">
-                <li className="flex justify-between items-start">
-                  <span className="text-muted-foreground">Main Water Shut-Off</span>
-                  <span className="font-medium text-foreground text-right">Under kitchen sink</span>
-                </li>
-                <li className="flex justify-between items-start">
-                  <span className="text-muted-foreground">Fuse Box</span>
-                  <span className="font-medium text-foreground text-right">Hallway cabinet</span>
-                </li>
-                <li className="flex justify-between items-start">
-                  <span className="text-muted-foreground">Fire Extinguisher</span>
-                  <span className="font-medium text-foreground text-right">Building hallway, each floor</span>
-                </li>
-                <li className="flex justify-between items-start">
-                  <span className="text-muted-foreground">Emergency Exit</span>
-                  <span className="font-medium text-foreground text-right">Stairway, follow green signs</span>
-                </li>
-              </ul>
-            </div>
-          </section>
-
-          {/* Need Help Card */}
-          <NeedHelpCard className="mt-8" />
-
-          {/* Related Categories */}
-          <RelatedCategories currentSlug="emergency" className="mt-8" />
-        </div>
+        </section>
       </main>
 
       <Footer />
