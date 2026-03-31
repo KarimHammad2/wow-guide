@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { requireAdmin, requireFullAccess } from '@/lib/admin-api'
+import { requireAdmin, requireMutableAdmin } from '@/lib/admin-api'
 import {
   createEmergencyInfo,
   deleteEmergencyInfo,
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireFullAccess(request)
+  const auth = requireMutableAdmin(request)
   if (!auth.ok) return auth.response
   const body = await request.json()
   const created = createEmergencyInfo({
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const auth = requireFullAccess(request)
+  const auth = requireMutableAdmin(request)
   if (!auth.ok) return auth.response
   const body = await request.json()
   const updated = updateEmergencyInfo(body)
@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = requireFullAccess(request)
+  const auth = requireMutableAdmin(request)
   if (!auth.ok) return auth.response
   const body = await request.json()
   deleteEmergencyInfo(body.id)

@@ -6,7 +6,7 @@ function isPublicAdminPath(pathname: string) {
   return pathname === '/admin/login' || pathname === '/api/admin/auth/login'
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hasSession = Boolean(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
 

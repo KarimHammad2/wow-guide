@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils'
 export function AdminLoginClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState('admin@wowliving.ch')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,7 +121,7 @@ export function AdminLoginClient() {
           <CardHeader>
             <CardTitle className="text-2xl">Admin Login</CardTitle>
             <CardDescription className="text-foreground/70">
-              Development sign-in — replace with SSO or IdP before production.
+              Sign in with your configured admin credentials.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -173,9 +173,7 @@ export function AdminLoginClient() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
 
-              <p className="text-sm text-foreground/70">
-                Demo credentials are prefilled. This authentication layer is intentionally temporary for MVP.
-              </p>
+              <p className="text-sm text-foreground/70">Credentials are managed through environment configuration.</p>
             </form>
           </CardContent>
         </Card>

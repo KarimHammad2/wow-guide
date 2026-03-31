@@ -18,3 +18,21 @@ export function requireFullAccess(request: NextRequest) {
   }
   return auth
 }
+
+export function requireMutableAdmin(request: NextRequest) {
+  const auth = requireFullAccess(request)
+  if (!auth.ok) return auth
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_ADMIN_WRITES !== 'true') {
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error:
+            'Admin mutations are disabled in production for in-memory storage. Configure persistence or set ALLOW_IN_MEMORY_ADMIN_WRITES=true.',
+        },
+        { status: 503 },
+      ),
+    }
+  }
+  return auth
+}
