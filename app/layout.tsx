@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Montserrat, Cormorant_Garamond } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { cookies } from 'next/headers'
 import './globals.css'
 import { cn } from '@/lib/utils'
 import { BackToTopButton } from '@/components/site/back-to-top-button'
+import { ConsentAwareAnalytics, CookieConsentBanner } from '@/components/site/cookie-consent-banner'
+import { COOKIE_CONSENT_KEY, isCookieConsentStatus } from '@/lib/cookie-consent'
 
 const montserrat = Montserrat({ 
   subsets: ["latin"],
@@ -37,17 +39,22 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const cookieStore = await cookies()
+  const consentCookie = cookieStore.get(COOKIE_CONSENT_KEY)?.value
+  const initialConsent = isCookieConsentStatus(consentCookie) ? consentCookie : null
+
   return (
     <html lang="en" className={cn(montserrat.variable, display.variable)}>
       <body suppressHydrationWarning className="font-sans antialiased min-h-screen">
         {children}
         <BackToTopButton />
-        <Analytics />
+        <CookieConsentBanner />
+        <ConsentAwareAnalytics initialConsent={initialConsent} />
       </body>
     </html>
   )

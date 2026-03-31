@@ -3,16 +3,19 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Hotel, Plus } from 'lucide-react'
+import { ArrowLeft, Hotel } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
 import { adminRequest } from '@/components/admin/admin-api'
+import { BlockCanvas } from '@/components/admin/builder/block-canvas'
+import { BlockInspector } from '@/components/admin/builder/block-inspector'
+import { BlockToolbar } from '@/components/admin/builder/block-toolbar'
+import { PreviewToggle } from '@/components/admin/builder/preview-toggle'
+import { SectionListPanel } from '@/components/admin/builder/section-list-panel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { Building, Category, ContentSection } from '@/lib/data'
 
@@ -33,15 +36,10 @@ export default function BuildingSectionsPage() {
   const [saving, setSaving] = useState(false)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [sections, setSections] = useState<BuildingSectionRecord[]>([])
-  const [newSection, setNewSection] = useState({
-    slug: '',
-    title: '',
-    subtitle: '',
-    icon: 'BookOpen',
-    color: 'primary' as Category['color'],
-    intro: '',
-    sectionsJson: '[]',
-  })
+  const [activeSectionSlug, setActiveSectionSlug] = useState<string | null>(null)
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
+  const [newSectionName, setNewSectionName] = useState('')
+  const [preview, setPreview] = useState(false)
   const [deletingSectionSlug, setDeletingSectionSlug] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,6 +51,7 @@ export default function BuildingSectionsPage() {
       .then(([buildingsData, sectionsData]) => {
         setBuildings(buildingsData)
         setSections(sectionsData)
+        setActiveSectionSlug(sectionsData[0]?.category.slug ?? null)
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load sections data'
@@ -64,6 +63,117 @@ export default function BuildingSectionsPage() {
     () => buildings.find((item) => item.id === buildingId),
     [buildings, buildingId]
   )
+  const activeSection = useMemo(
+    () => sections.find((section) => section.category.slug === activeSectionSlug) ?? null,
+    [sections, activeSectionSlug]
+  )
+  const activeBlock = useMemo(
+    () =>
+      activeSection?.content.sections.find((section) => (section.blockId ?? section.id) === activeBlockId) ??
+      null,
+    [activeSection, activeBlockId]
+  )
+
+  function slugify(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
+  function moveSection(slug: string, direction: 'up' | 'down') {
+    setSections((prev) => {
+      const currentIndex = prev.findIndex((item) => item.category.slug === slug)
+      if (currentIndex < 0) return prev
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev
+      const next = [...prev]
+      const [removed] = next.splice(currentIndex, 1)
+      next.splice(targetIndex, 0, removed)
+      return next.map((item, index) => ({
+        ...item,
+        category: { ...item.category, order: index + 1 },
+      }))
+    })
+  }
+
+  function moveSectionTo(sectionSlug: string, targetSlug: string) {
+    setSections((prev) => {
+      const sourceIndex = prev.findIndex((item) => item.category.slug === sectionSlug)
+      const targetIndex = prev.findIndex((item) => item.category.slug === targetSlug)
+      if (sourceIndex < 0 || targetIndex < 0) return prev
+      const next = [...prev]
+      const [removed] = next.splice(sourceIndex, 1)
+      next.splice(targetIndex, 0, removed)
+      return next.map((item, index) => ({
+        ...item,
+        category: { ...item.category, order: index + 1 },
+      }))
+    })
+  }
+
+  function moveBlock(blockId: string, direction: 'up' | 'down') {
+    if (!activeSectionSlug) return
+    setSections((prev) =>
+      prev.map((section) => {
+        if (section.category.slug !== activeSectionSlug) return section
+        const blocks = [...section.content.sections]
+        const currentIndex = blocks.findIndex((item) => (item.blockId ?? item.id) === blockId)
+        if (currentIndex < 0) return section
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+        if (targetIndex < 0 || targetIndex >= blocks.length) return section
+        const [removed] = blocks.splice(currentIndex, 1)
+        blocks.splice(targetIndex, 0, removed)
+        return { ...section, content: { ...section.content, sections: blocks } }
+      })
+    )
+  }
+
+  function moveBlockTo(sourceBlockId: string, targetBlockId: string) {
+    if (!activeSectionSlug) return
+    setSections((prev) =>
+      prev.map((section) => {
+        if (section.category.slug !== activeSectionSlug) return section
+        const blocks = [...section.content.sections]
+        const sourceIndex = blocks.findIndex((item) => (item.blockId ?? item.id) === sourceBlockId)
+        const targetIndex = blocks.findIndex((item) => (item.blockId ?? item.id) === targetBlockId)
+        if (sourceIndex < 0 || targetIndex < 0) return section
+        const [removed] = blocks.splice(sourceIndex, 1)
+        blocks.splice(targetIndex, 0, removed)
+        return { ...section, content: { ...section.content, sections: blocks } }
+      })
+    )
+  }
+
+  function createEmptyBlock(type: ContentSection['type']): ContentSection {
+    const id = `block-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+    return {
+      id,
+      blockId: id,
+      type,
+      title: `${type[0].toUpperCase()}${type.slice(1)} block`,
+      content: '',
+      items: [],
+    }
+  }
+
+  function saveSection(section: BuildingSectionRecord) {
+    return mutate(async () => {
+      await adminRequest(`/api/admin/buildings/${buildingId}/sections`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          slug: section.category.slug,
+          title: section.category.title,
+          subtitle: section.category.subtitle,
+          icon: section.category.icon,
+          color: section.category.color,
+          intro: section.content.intro,
+          sections: section.content.sections,
+          order: section.category.order,
+        }),
+      })
+    })
+  }
 
   async function mutate(action: () => Promise<void>) {
     setSaving(true)
@@ -113,194 +223,186 @@ export default function BuildingSectionsPage() {
       <Card className="rounded-3xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Hotel className="w-5 h-5" />{building?.name ?? buildingId}</CardTitle>
-          <CardDescription>Update titles, intros, icons, color theme, and raw JSON sections.</CardDescription>
+          <CardDescription>Visual builder: reorder sections, add blocks, and edit content without JSON.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {sections.map((section) => (
-            <div key={section.category.slug} className="rounded-2xl border border-border p-4 space-y-3">
-              <div className="grid md:grid-cols-4 gap-2">
-                <Input
-                  value={section.category.title}
-                  onChange={(e) =>
-                    setSections((prev) =>
-                      prev.map((p) =>
-                        p.category.slug === section.category.slug
-                          ? { ...p, category: { ...p.category, title: e.target.value } }
-                          : p
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Builder style editor for non-technical admins.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                disabled={!canEdit || saving}
+                onClick={() =>
+                  void mutate(async () => {
+                    await Promise.all(
+                      sections.map((section) =>
+                        adminRequest(`/api/admin/buildings/${buildingId}/sections`, {
+                          method: 'PUT',
+                          body: JSON.stringify({
+                            slug: section.category.slug,
+                            title: section.category.title,
+                            subtitle: section.category.subtitle,
+                            icon: section.category.icon,
+                            color: section.category.color,
+                            intro: section.content.intro,
+                            sections: section.content.sections,
+                            order: section.category.order,
+                          }),
+                        })
                       )
                     )
-                  }
-                  placeholder="Title"
-                />
-                <Input
-                  value={section.category.subtitle}
-                  onChange={(e) =>
-                    setSections((prev) =>
-                      prev.map((p) =>
-                        p.category.slug === section.category.slug
-                          ? { ...p, category: { ...p.category, subtitle: e.target.value } }
-                          : p
-                      )
-                    )
-                  }
-                  placeholder="Subtitle"
-                />
-                <Input
-                  value={section.category.icon}
-                  onChange={(e) =>
-                    setSections((prev) =>
-                      prev.map((p) =>
-                        p.category.slug === section.category.slug
-                          ? { ...p, category: { ...p.category, icon: e.target.value } }
-                          : p
-                      )
-                    )
-                  }
-                  placeholder="Icon"
-                />
-                <Select
-                  value={section.category.color}
-                  onValueChange={(value: Category['color']) =>
-                    setSections((prev) =>
-                      prev.map((p) =>
-                        p.category.slug === section.category.slug
-                          ? { ...p, category: { ...p.category, color: value } }
-                          : p
-                      )
-                    )
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="primary">primary</SelectItem>
-                    <SelectItem value="accent">accent</SelectItem>
-                    <SelectItem value="muted">muted</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Textarea
-                value={section.content.intro}
-                onChange={(e) =>
-                  setSections((prev) =>
-                    prev.map((p) =>
-                      p.category.slug === section.category.slug
-                        ? { ...p, content: { ...p.content, intro: e.target.value } }
-                        : p
-                    )
-                  )
+                  })
                 }
-                rows={2}
-                placeholder="Intro text"
-              />
+              >
+                Save All
+              </Button>
+              <PreviewToggle preview={preview} onToggle={() => setPreview((p) => !p)} />
+            </div>
+          </div>
 
-              <Textarea
-                value={JSON.stringify(section.content.sections, null, 2)}
-                onChange={(e) => {
-                  setSections((prev) =>
-                    prev.map((p) => {
-                      if (p.category.slug !== section.category.slug) return p
-                      try {
-                        const parsed = JSON.parse(e.target.value) as ContentSection[]
-                        return { ...p, content: { ...p.content, sections: parsed } }
-                      } catch {
-                        return p
-                      }
-                    })
+          <div className="grid lg:grid-cols-[280px_1fr_320px] gap-4">
+            <SectionListPanel
+              sections={sections}
+              activeSlug={activeSectionSlug}
+              onSelect={(slug) => {
+                setActiveSectionSlug(slug)
+                setActiveBlockId(null)
+              }}
+              onReorder={moveSection}
+              onDropMove={moveSectionTo}
+              newSectionName={newSectionName}
+              onNewSectionNameChange={setNewSectionName}
+              onCreateSection={() =>
+                void mutate(async () => {
+                  if (!newSectionName.trim()) return
+                  const slug = slugify(newSectionName)
+                  const created = await adminRequest<BuildingSectionRecord>(
+                    `/api/admin/buildings/${buildingId}/sections`,
+                    {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        slug,
+                        title: newSectionName.trim(),
+                        subtitle: 'New section',
+                        icon: 'BookOpen',
+                        color: 'primary',
+                        intro: '',
+                        sections: [],
+                      }),
+                    }
                   )
-                }}
-                rows={8}
-                placeholder="Sections JSON"
-              />
-
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={!canEdit || saving}
-                  onClick={() =>
-                    mutate(async () => {
-                      await adminRequest(`/api/admin/buildings/${buildingId}/sections`, {
-                        method: 'PUT',
-                        body: JSON.stringify({
-                          slug: section.category.slug,
-                          title: section.category.title,
-                          subtitle: section.category.subtitle,
-                          icon: section.category.icon,
-                          color: section.category.color,
-                          intro: section.content.intro,
-                          sections: section.content.sections,
-                        }),
-                      })
-                    })
-                  }
-                >
-                  Save Section
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={!canEdit || saving}
-                  onClick={() => setDeletingSectionSlug(section.category.slug)}
-                >
-                  Delete Section
-                </Button>
-              </div>
-            </div>
-          ))}
-
-          <div className="rounded-2xl border border-dashed border-border p-4 space-y-2">
-            <p className="font-medium text-sm">Add new section</p>
-            <div className="grid md:grid-cols-3 gap-2">
-              <Input placeholder="Slug (ex: wifi)" value={newSection.slug} onChange={(e) => setNewSection((p) => ({ ...p, slug: e.target.value }))} />
-              <Input placeholder="Title" value={newSection.title} onChange={(e) => setNewSection((p) => ({ ...p, title: e.target.value }))} />
-              <Input placeholder="Subtitle" value={newSection.subtitle} onChange={(e) => setNewSection((p) => ({ ...p, subtitle: e.target.value }))} />
-              <Input placeholder="Icon" value={newSection.icon} onChange={(e) => setNewSection((p) => ({ ...p, icon: e.target.value }))} />
-              <Select value={newSection.color} onValueChange={(value: Category['color']) => setNewSection((p) => ({ ...p, color: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="primary">primary</SelectItem>
-                  <SelectItem value="accent">accent</SelectItem>
-                  <SelectItem value="muted">muted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Textarea placeholder="Intro" rows={2} value={newSection.intro} onChange={(e) => setNewSection((p) => ({ ...p, intro: e.target.value }))} />
-            <Textarea placeholder="Sections JSON" rows={6} value={newSection.sectionsJson} onChange={(e) => setNewSection((p) => ({ ...p, sectionsJson: e.target.value }))} />
-            <Button
-              size="sm"
-              className="gap-1.5"
-              disabled={!canEdit || saving}
-              onClick={() =>
-                mutate(async () => {
-                  const parsed = JSON.parse(newSection.sectionsJson) as ContentSection[]
-                  const created = await adminRequest<BuildingSectionRecord>(`/api/admin/buildings/${buildingId}/sections`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      slug: newSection.slug || newSection.title,
-                      title: newSection.title || newSection.slug,
-                      subtitle: newSection.subtitle,
-                      icon: newSection.icon,
-                      color: newSection.color,
-                      intro: newSection.intro,
-                      sections: parsed,
-                    }),
-                  })
                   setSections((prev) => [...prev, created])
-                  setNewSection({
-                    slug: '',
-                    title: '',
-                    subtitle: '',
-                    icon: 'BookOpen',
-                    color: 'primary',
-                    intro: '',
-                    sectionsJson: '[]',
-                  })
+                  setActiveSectionSlug(created.category.slug)
+                  setNewSectionName('')
                 })
               }
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Section
-            </Button>
+            />
+
+            <div className="space-y-3">
+              {activeSection && (
+                <>
+                  <Textarea
+                    value={activeSection.content.intro}
+                    onChange={(event) =>
+                      setSections((prev) =>
+                        prev.map((item) =>
+                          item.category.slug === activeSection.category.slug
+                            ? { ...item, content: { ...item.content, intro: event.target.value } }
+                            : item
+                        )
+                      )
+                    }
+                    rows={2}
+                    placeholder="Section intro"
+                  />
+
+                  {!preview && (
+                    <BlockToolbar
+                      onAddBlock={(type) =>
+                        setSections((prev) =>
+                          prev.map((item) => {
+                            if (item.category.slug !== activeSection.category.slug) return item
+                            const nextBlock = createEmptyBlock(type)
+                            return {
+                              ...item,
+                              content: { ...item.content, sections: [...item.content.sections, nextBlock] },
+                            }
+                          })
+                        )
+                      }
+                    />
+                  )}
+
+                  <BlockCanvas
+                    blocks={activeSection.content.sections}
+                    activeBlockId={activeBlockId}
+                    onSelectBlock={setActiveBlockId}
+                    onReorderBlock={moveBlock}
+                    onDropMoveBlock={moveBlockTo}
+                    onDeleteBlock={(blockId) =>
+                      setSections((prev) =>
+                        prev.map((item) => {
+                          if (item.category.slug !== activeSection.category.slug) return item
+                          return {
+                            ...item,
+                            content: {
+                              ...item.content,
+                              sections: item.content.sections.filter(
+                                (block) => (block.blockId ?? block.id) !== blockId
+                              ),
+                            },
+                          }
+                        })
+                      )
+                    }
+                  />
+                </>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {!preview && (
+                <BlockInspector
+                  block={activeBlock}
+                  onUpdate={(patch) =>
+                    setSections((prev) =>
+                      prev.map((item) => {
+                        if (item.category.slug !== activeSectionSlug) return item
+                        return {
+                          ...item,
+                          content: {
+                            ...item.content,
+                            sections: item.content.sections.map((block) =>
+                              (block.blockId ?? block.id) === activeBlockId ? { ...block, ...patch } : block
+                            ),
+                          },
+                        }
+                      })
+                    )
+                  }
+                />
+              )}
+              <Button
+                className="w-full"
+                disabled={!canEdit || saving || !activeSection}
+                onClick={() => {
+                  if (!activeSection) return
+                  void saveSection(activeSection)
+                }}
+              >
+                Save Active Section
+              </Button>
+              <Button
+                className="w-full"
+                variant="destructive"
+                disabled={!canEdit || saving || !activeSection}
+                onClick={() => setDeletingSectionSlug(activeSection?.category.slug ?? null)}
+              >
+                Delete Active Section
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

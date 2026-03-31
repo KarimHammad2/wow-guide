@@ -22,12 +22,16 @@ const DEFAULT_GUIDE_SECTIONS: Array<{
   icon: string
   color: Category['color']
 }> = [
-  { slug: 'wifi', title: 'WiFi', subtitle: 'Network and connectivity', icon: 'Wifi', color: 'accent' },
-  { slug: 'check-in', title: 'Check-In', subtitle: 'Arrival and access', icon: 'Key', color: 'primary' },
-  { slug: 'parking', title: 'Parking', subtitle: 'Parking and access', icon: 'Car', color: 'muted' },
-  { slug: 'security', title: 'Security', subtitle: 'Safety and building rules', icon: 'ShieldAlert', color: 'primary' },
-  { slug: 'emergency', title: 'Emergency', subtitle: 'Urgent support contacts', icon: 'AlertTriangle', color: 'primary' },
-  { slug: 'cleaning', title: 'Cleaning', subtitle: 'Cleaning services and rules', icon: 'Sparkles', color: 'accent' },
+  { slug: 'check-in', title: 'Check-In', subtitle: 'Arrival and access', icon: 'KeyRound', color: 'primary' },
+  { slug: 'check-out', title: 'Check-Out', subtitle: 'Departure steps', icon: 'LogOut', color: 'muted' },
+  { slug: 'internet', title: 'Internet', subtitle: 'WiFi and connectivity', icon: 'Wifi', color: 'accent' },
+  { slug: 'e-scooter', title: 'E-Scooter', subtitle: 'Usage and parking', icon: 'Bike', color: 'muted' },
+  { slug: 'home-devices', title: 'Home Devices', subtitle: 'Appliances and controls', icon: 'HousePlug', color: 'primary' },
+  { slug: 'cleaning', title: 'Cleaning', subtitle: 'Housekeeping and standards', icon: 'Sparkles', color: 'accent' },
+  { slug: 'laundry', title: 'Laundry', subtitle: 'Washer and dryer guidance', icon: 'Shirt', color: 'muted' },
+  { slug: 'waste-plan', title: 'Waste Plan', subtitle: 'Waste sorting and pickup', icon: 'Trash2', color: 'primary' },
+  { slug: 'sport-activity', title: 'Sport and Activity', subtitle: 'Fitness and outdoor activity', icon: 'Dumbbell', color: 'accent' },
+  { slug: 'checkout', title: 'Checkout', subtitle: 'Final verification', icon: 'CheckCircle2', color: 'primary' },
 ]
 
 function slugify(value: string) {
@@ -46,21 +50,182 @@ function cloneSections(sections: ContentSection[]): ContentSection[] {
 }
 
 function getSeedGuideContent(slug: string): GuideContent {
-  const mappedSlug = slug === 'wifi' ? 'internet-tv' : slug === 'check-in' ? 'check-in-out' : slug
-  const seed = seedCategoryContent[mappedSlug]
+  const defaults: Record<string, GuideContent> = {
+    'check-in': {
+      intro: 'Follow these steps for a smooth and fast arrival.',
+      sections: [
+        {
+          id: 'check-in-hero',
+          blockId: 'check-in-hero',
+          type: 'hero',
+          title: 'Welcome to your building',
+          content: 'Your access details are available from 15:00 on your arrival date.',
+          styleVariant: 'highlighted',
+        },
+        {
+          id: 'check-in-steps',
+          blockId: 'check-in-steps',
+          type: 'steps',
+          title: 'Arrival steps',
+          items: [
+            { id: '1', title: 'Open your guest portal link', description: 'Use the secure link sent by email.' },
+            { id: '2', title: 'Verify your booking code', description: 'Enter the code exactly as received.' },
+            { id: '3', title: 'Collect keys / digital access', description: 'Follow on-screen instructions for entry.' },
+          ],
+        },
+      ],
+    },
+    'check-out': {
+      intro: 'Prepare your departure quickly with this checklist.',
+      sections: [
+        {
+          id: 'check-out-list',
+          blockId: 'check-out-list',
+          type: 'checklist',
+          title: 'Before leaving',
+          items: [
+            { id: '1', title: 'Close all windows and switch off lights' },
+            { id: '2', title: 'Leave used towels in the bathroom' },
+            { id: '3', title: 'Place keys/access card at the return point' },
+          ],
+        },
+      ],
+    },
+    internet: {
+      intro: 'Everything you need to get online quickly.',
+      sections: [
+        {
+          id: 'internet-card',
+          blockId: 'internet-card',
+          type: 'card',
+          title: 'WiFi access',
+          content: 'Network: WOW_Guest | Password: Provided at check-in.',
+          styleVariant: 'highlighted',
+        },
+      ],
+    },
+    'e-scooter': {
+      intro: 'Use shared mobility safely and responsibly.',
+      sections: [
+        {
+          id: 'escooter-steps',
+          blockId: 'escooter-steps',
+          type: 'steps',
+          title: 'How to use',
+          items: [
+            { id: '1', title: 'Unlock from app', description: 'Scan the QR code on the scooter.' },
+            { id: '2', title: 'Wear protection', description: 'Helmet strongly recommended.' },
+            { id: '3', title: 'Park in marked zone', description: 'Avoid blocking doors and walkways.' },
+          ],
+        },
+      ],
+    },
+    'home-devices': {
+      intro: 'Quick references for apartment devices.',
+      sections: [
+        {
+          id: 'home-devices-links',
+          blockId: 'home-devices-links',
+          type: 'links',
+          title: 'Device guides',
+          items: [
+            { id: '1', title: 'Cooktop Manual', link: 'https://example.com/cooktop' },
+            { id: '2', title: 'Heating Thermostat Guide', link: 'https://example.com/thermostat' },
+          ],
+        },
+      ],
+    },
+    cleaning: {
+      intro: 'Cleaning standards and service timing.',
+      sections: [
+        {
+          id: 'cleaning-schedule',
+          blockId: 'cleaning-schedule',
+          type: 'schedule',
+          title: 'Cleaning slots',
+          items: [
+            { id: '1', title: 'Weekly standard cleaning', description: 'Every Tuesday 09:00 - 12:00' },
+            { id: '2', title: 'Additional requests', description: 'Book at least 24h in advance' },
+          ],
+        },
+      ],
+    },
+    laundry: {
+      intro: 'Laundry room usage and etiquette.',
+      sections: [
+        {
+          id: 'laundry-tabs',
+          blockId: 'laundry-tabs',
+          type: 'tabs',
+          title: 'Laundry options',
+          items: [
+            { id: '1', title: 'In-building machines', description: 'Available 07:00 - 22:00' },
+            { id: '2', title: 'Nearby laundromat', description: '3 minutes walk from entrance' },
+          ],
+        },
+      ],
+    },
+    'waste-plan': {
+      intro: 'Please follow local recycling rules.',
+      sections: [
+        {
+          id: 'waste-plan-accordion',
+          blockId: 'waste-plan-accordion',
+          type: 'accordion',
+          title: 'Waste sorting',
+          items: [
+            { id: '1', title: 'General waste', description: 'Use official city waste bags only.' },
+            { id: '2', title: 'Paper & cardboard', description: 'Flatten and place in recycling room.' },
+            { id: '3', title: 'Glass', description: 'Use public glass collection points.' },
+          ],
+        },
+      ],
+    },
+    'sport-activity': {
+      intro: 'Discover nearby sport and activity options.',
+      sections: [
+        {
+          id: 'sport-media',
+          blockId: 'sport-media',
+          type: 'media',
+          title: 'Recommended places',
+          mediaUrl: '/images/buildings/kannenfeldstrasse.jpg',
+          caption: 'Walking routes, gym, and sport fields around the building.',
+        },
+      ],
+    },
+    checkout: {
+      intro: 'Final handover details for a successful closure.',
+      sections: [
+        {
+          id: 'checkout-links',
+          blockId: 'checkout-links',
+          type: 'links',
+          title: 'Final actions',
+          items: [
+            { id: '1', title: 'Report issue before leaving', link: 'mailto:mail@wowliving.ch' },
+            { id: '2', title: 'Open departure form', link: 'https://example.com/checkout' },
+          ],
+        },
+      ],
+    },
+  }
 
-  if (seed) {
+  const direct = defaults[slug]
+  if (direct) {
     return {
-      intro: seed.intro,
-      alert: seed.alert,
-      sections: cloneSections(seed.sections),
+      intro: direct.intro,
+      alert: direct.alert,
+      sections: cloneSections(direct.sections),
     }
   }
 
-  return {
-    intro: 'Add your guide information here.',
-    sections: [],
+  const seed = seedCategoryContent[slug]
+  if (seed) {
+    return { intro: seed.intro, alert: seed.alert, sections: cloneSections(seed.sections) }
   }
+
+  return { intro: 'Add your guide information here.', sections: [] }
 }
 
 function makeGuideCategory(
@@ -88,17 +253,13 @@ function createDefaultGuidesForBuilding(buildingId: string) {
   }, {})
 }
 
-const initialCitiesMap = new Map<string, City>()
-seedBuildings.forEach((building) => {
-  const key = `${building.city}-${building.country}`
-  if (!initialCitiesMap.has(key)) {
-    initialCitiesMap.set(key, {
-      id: slugify(key),
-      name: building.city,
-      country: building.country,
-    })
-  }
-})
+const defaultSwissCities: City[] = [
+  { id: 'city-basel', name: 'Basel', country: 'Switzerland' },
+  { id: 'city-luzern', name: 'Luzern', country: 'Switzerland' },
+  { id: 'city-schwyz', name: 'Schwyz', country: 'Switzerland' },
+  { id: 'city-zug', name: 'Zug', country: 'Switzerland' },
+  { id: 'city-zurich', name: 'Zürich', country: 'Switzerland' },
+]
 
 const store: AdminStoreShape = {
   emergencyInfos: [
@@ -117,7 +278,7 @@ const store: AdminStoreShape = {
       access: 'full-access',
     },
   ],
-  cities: Array.from(initialCitiesMap.values()),
+  cities: defaultSwissCities,
   buildings: seedBuildings.map((building) => ({ ...building })),
   buildingGuides: seedBuildings.reduce<AdminStoreShape['buildingGuides']>((acc, building) => {
     acc[building.id] = createDefaultGuidesForBuilding(building.id)
@@ -221,7 +382,15 @@ export function createBuilding(input: Omit<Building, 'id'>) {
     suffix += 1
   }
 
-  const created: Building = { ...input, id }
+  const supportContact = getEffectiveSupportContact()
+  const created: Building = {
+    ...input,
+    id,
+    appPath: /^\/building\/[a-z0-9-]+$/i.test(input.appPath) ? input.appPath : `/building/${id}`,
+    country: 'Switzerland',
+    emergencyPhone: supportContact.phone,
+    supportEmail: supportContact.email,
+  }
   store.buildings.push(created)
   store.buildingGuides[id] = createDefaultGuidesForBuilding(id)
   return created
@@ -311,6 +480,7 @@ export function updateBuildingGuideCategory(
     subtitle: string
     icon: string
     color: Category['color']
+    order?: number
     intro: string
     alert?: GuideContent['alert']
     sections: ContentSection[]
@@ -329,6 +499,7 @@ export function updateBuildingGuideCategory(
       subtitle: input.subtitle,
       icon: input.icon,
       color: input.color,
+      order: input.order ?? existing.category.order,
     },
     content: {
       intro: input.intro,

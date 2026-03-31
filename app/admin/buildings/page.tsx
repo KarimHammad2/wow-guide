@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Hotel, ArrowRight, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Hotel, ArrowRight, Pencil, Trash2, QrCode } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
 import { adminRequest } from '@/components/admin/admin-api'
+import { BuildingQrDialog } from '@/components/admin/builder/building-qr-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -29,15 +30,18 @@ import {
 } from '@/components/ui/table'
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { Building } from '@/lib/data'
+import type { City } from '@/lib/admin-types'
 
 export default function AdminBuildingsPage() {
   const { access, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [buildings, setBuildings] = useState<Building[]>([])
+  const [cities, setCities] = useState<City[]>([])
   const [newBuilding, setNewBuilding] = useState<Omit<Building, 'id'>>({
     name: '',
     address: '',
     city: '',
+    appPath: '',
     country: 'Switzerland',
     imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
     emergencyPhone: '',
@@ -48,16 +52,27 @@ export default function AdminBuildingsPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null)
   const [deletingBuilding, setDeletingBuilding] = useState<Building | null>(null)
+  const [qrBuilding, setQrBuilding] = useState<Building | null>(null)
 
   useEffect(() => {
     if (loading) return
-    void adminRequest<Building[]>('/api/admin/buildings')
-      .then(setBuildings)
+    void Promise.all([
+      adminRequest<Building[]>('/api/admin/buildings'),
+      adminRequest<City[]>('/api/admin/cities'),
+    ])
+      .then(([buildingsData, citiesData]) => {
+        setBuildings(buildingsData)
+        setCities(citiesData)
+      })
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Unable to load buildings'
+        const message = err instanceof Error ? err.message : 'Unable to load buildings and cities'
         setError(message)
       })
   }, [loading, setError])
+
+  function isValidAppPath(value: string) {
+    return /^\/building\/[a-z0-9-]+$/i.test(value.trim())
+  }
 
   async function mutate(action: () => Promise<void>) {
     setSaving(true)
@@ -110,9 +125,7 @@ export default function AdminBuildingsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>City</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Support Email</TableHead>
-                <TableHead>Emergency Phone</TableHead>
+                <TableHead>URL</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -121,9 +134,7 @@ export default function AdminBuildingsPage() {
                 <TableRow key={building.id}>
                   <TableCell className="font-medium">{building.name}</TableCell>
                   <TableCell>{building.city}</TableCell>
-                  <TableCell>{building.country}</TableCell>
-                  <TableCell>{building.supportEmail}</TableCell>
-                  <TableCell>{building.emergencyPhone}</TableCell>
+                  <TableCell>{building.appPath}</TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex items-center gap-2">
                       <Link href={`/admin/buildings/${building.id}/sections`}>
@@ -132,6 +143,16 @@ export default function AdminBuildingsPage() {
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Button>
                       </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setQrBuilding(building)}
+                        className="h-8 w-8 p-0"
+                        title="Generate building QR code"
+                        aria-label="Generate building QR code"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -176,18 +197,32 @@ export default function AdminBuildingsPage() {
             <Input placeholder="Building name" value={newBuilding.name} onChange={(e) => setNewBuilding((p) => ({ ...p, name: e.target.value }))} />
             <div className="grid sm:grid-cols-2 gap-2">
               <Input placeholder="Address" value={newBuilding.address} onChange={(e) => setNewBuilding((p) => ({ ...p, address: e.target.value }))} />
-              <Input placeholder="City" value={newBuilding.city} onChange={(e) => setNewBuilding((p) => ({ ...p, city: e.target.value }))} />
-              <Input placeholder="Country" value={newBuilding.country} onChange={(e) => setNewBuilding((p) => ({ ...p, country: e.target.value }))} />
-              <Input placeholder="Image URL" value={newBuilding.imageUrl} onChange={(e) => setNewBuilding((p) => ({ ...p, imageUrl: e.target.value }))} />
-              <Input placeholder="Emergency phone" value={newBuilding.emergencyPhone} onChange={(e) => setNewBuilding((p) => ({ ...p, emergencyPhone: e.target.value }))} />
-              <Input placeholder="Support email" value={newBuilding.supportEmail} onChange={(e) => setNewBuilding((p) => ({ ...p, supportEmail: e.target.value }))} />
+              <Select value={newBuilding.city} onValueChange={(value) => setNewBuilding((p) => ({ ...p, city: value }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="City" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.name}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input placeholder="/building/your-slug" value={newBuilding.appPath} onChange={(e) => setNewBuilding((p) => ({ ...p, appPath: e.target.value }))} />
             </div>
-            <Textarea placeholder="Welcome message" rows={3} value={newBuilding.welcomeMessage} onChange={(e) => setNewBuilding((p) => ({ ...p, welcomeMessage: e.target.value }))} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button
-              disabled={!canEdit || saving || !newBuilding.name.trim() || !newBuilding.city.trim() || !newBuilding.address.trim()}
+              disabled={
+                !canEdit ||
+                saving ||
+                !newBuilding.name.trim() ||
+                !newBuilding.city.trim() ||
+                !newBuilding.address.trim() ||
+                !isValidAppPath(newBuilding.appPath)
+              }
               onClick={() =>
                 mutate(async () => {
                   const created = await adminRequest<Building>('/api/admin/buildings', {
@@ -199,6 +234,7 @@ export default function AdminBuildingsPage() {
                     name: '',
                     address: '',
                     city: '',
+                    appPath: '',
                     country: 'Switzerland',
                     imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
                     emergencyPhone: '',
@@ -226,19 +262,36 @@ export default function AdminBuildingsPage() {
               <Input value={editingBuilding.name} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, name: e.target.value } : prev))} placeholder="Building name" />
               <div className="grid sm:grid-cols-2 gap-2">
                 <Input value={editingBuilding.address} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, address: e.target.value } : prev))} placeholder="Address" />
-                <Input value={editingBuilding.city} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, city: e.target.value } : prev))} placeholder="City" />
-                <Input value={editingBuilding.country} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, country: e.target.value } : prev))} placeholder="Country" />
-                <Input value={editingBuilding.imageUrl} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, imageUrl: e.target.value } : prev))} placeholder="Image URL" />
-                <Input value={editingBuilding.emergencyPhone} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, emergencyPhone: e.target.value } : prev))} placeholder="Emergency phone" />
-                <Input value={editingBuilding.supportEmail} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, supportEmail: e.target.value } : prev))} placeholder="Support email" />
+                <Select
+                  value={editingBuilding.city}
+                  onValueChange={(value) => setEditingBuilding((prev) => (prev ? { ...prev, city: value } : prev))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="City" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.name}>
+                        {city.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input value={editingBuilding.appPath} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, appPath: e.target.value } : prev))} placeholder="/building/your-slug" />
               </div>
-              <Textarea rows={3} value={editingBuilding.welcomeMessage} onChange={(e) => setEditingBuilding((prev) => (prev ? { ...prev, welcomeMessage: e.target.value } : prev))} placeholder="Welcome message" />
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button
-              disabled={!canEdit || saving || !editingBuilding?.name.trim() || !editingBuilding?.city.trim() || !editingBuilding?.address.trim()}
+              disabled={
+                !canEdit ||
+                saving ||
+                !editingBuilding?.name.trim() ||
+                !editingBuilding?.city.trim() ||
+                !editingBuilding?.address.trim() ||
+                !isValidAppPath(editingBuilding?.appPath ?? '')
+              }
               onClick={() =>
                 mutate(async () => {
                   if (!editingBuilding) return
@@ -279,6 +332,13 @@ export default function AdminBuildingsPage() {
             setBuildings((prev) => prev.filter((p) => p.id !== deletingBuilding.id))
             setDeletingBuilding(null)
           })
+        }}
+      />
+      <BuildingQrDialog
+        building={qrBuilding}
+        open={Boolean(qrBuilding)}
+        onOpenChange={(open) => {
+          if (!open) setQrBuilding(null)
         }}
       />
     </AdminShell>

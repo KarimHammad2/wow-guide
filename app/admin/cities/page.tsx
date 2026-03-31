@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, MapPinned, Pencil, Trash2 } from 'lucide-react'
+import { Plus, MapPinned, MapPin, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
@@ -18,13 +18,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { City } from '@/lib/admin-types'
 
@@ -33,7 +31,6 @@ export default function AdminCitiesPage() {
   const [saving, setSaving] = useState(false)
   const [cities, setCities] = useState<City[]>([])
   const [newCityName, setNewCityName] = useState('')
-  const [newCityCountry, setNewCityCountry] = useState('Switzerland')
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editingCity, setEditingCity] = useState<City | null>(null)
@@ -74,7 +71,7 @@ export default function AdminCitiesPage() {
     >
       <ModuleHeader
         title="Cities"
-        description="Maintain your supported city list used in building records."
+        description="Manage Swiss cities for your properties."
       />
 
       {error && (
@@ -95,52 +92,59 @@ export default function AdminCitiesPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>City</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {cities.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No cities yet. Add your first city.</p>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {cities.map((city) => (
-                <TableRow key={city.id}>
-                  <TableCell className="font-medium">{city.name}</TableCell>
-                  <TableCell>{city.country}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!canEdit}
-                        onClick={() => {
-                          setEditingCity(city)
-                          setEditOpen(true)
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Edit city"
-                        aria-label="Edit city"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={!canEdit || saving}
-                        onClick={() => setDeletingCity(city)}
-                        className="h-8 w-8 p-0"
-                        title="Delete city"
-                        aria-label="Delete city"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <div
+                  key={city.id}
+                  className="group relative rounded-2xl border border-border/70 bg-card px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <MapPin className="h-4 w-4" />
+                    </span>
+                    <p className="font-semibold text-base">{city.name}</p>
+                  </div>
+
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="absolute right-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-muted/70 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100 focus-visible:opacity-100"
+                          aria-label={`Open actions for ${city.name}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditingCity(city)
+                            setEditOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          disabled={saving}
+                          onClick={() => setDeletingCity(city)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -152,21 +156,19 @@ export default function AdminCitiesPage() {
           </DialogHeader>
           <div className="space-y-3">
             <Input value={newCityName} onChange={(e) => setNewCityName(e.target.value)} placeholder="City name" />
-            <Input value={newCityCountry} onChange={(e) => setNewCityCountry(e.target.value)} placeholder="Country" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button
-              disabled={!canEdit || saving || !newCityName.trim() || !newCityCountry.trim()}
+              disabled={!canEdit || saving || !newCityName.trim()}
               onClick={() =>
                 mutate(async () => {
                   const created = await adminRequest<City>('/api/admin/cities', {
                     method: 'POST',
-                    body: JSON.stringify({ name: newCityName, country: newCityCountry }),
+                    body: JSON.stringify({ name: newCityName, country: 'Switzerland' }),
                   })
                   setCities((prev) => [...prev, created])
                   setNewCityName('')
-                  setNewCityCountry('Switzerland')
                   setAddOpen(false)
                 })
               }
@@ -181,24 +183,23 @@ export default function AdminCitiesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit City</DialogTitle>
-            <DialogDescription>Update city and country details.</DialogDescription>
+            <DialogDescription>Update city name.</DialogDescription>
           </DialogHeader>
           {editingCity && (
             <div className="space-y-3">
               <Input value={editingCity.name} onChange={(e) => setEditingCity((prev) => (prev ? { ...prev, name: e.target.value } : prev))} placeholder="City name" />
-              <Input value={editingCity.country} onChange={(e) => setEditingCity((prev) => (prev ? { ...prev, country: e.target.value } : prev))} placeholder="Country" />
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button
-              disabled={!canEdit || saving || !editingCity?.name.trim() || !editingCity?.country.trim()}
+              disabled={!canEdit || saving || !editingCity?.name.trim()}
               onClick={() =>
                 mutate(async () => {
                   if (!editingCity) return
                   const updated = await adminRequest<City>('/api/admin/cities', {
                     method: 'PUT',
-                    body: JSON.stringify(editingCity),
+                    body: JSON.stringify({ ...editingCity, country: 'Switzerland' }),
                   })
                   setCities((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
                   setEditOpen(false)

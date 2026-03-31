@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { AlertTriangle, Hotel, MapPinned, Users, ArrowRight, Activity, ShieldCheck } from 'lucide-react'
+import { MapPinned, Activity, ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
@@ -43,41 +42,6 @@ export default function AdminDashboardPage() {
       .finally(() => setDataLoading(false))
   }, [loading, setError])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <p className="text-muted-foreground">Loading admin dashboard...</p>
-      </div>
-    )
-  }
-
-  const moduleCards = [
-    {
-      href: '/admin/emergency',
-      title: 'Emergency',
-      description: 'Manage emergency phone numbers and emails.',
-      icon: AlertTriangle,
-    },
-    {
-      href: '/admin/team',
-      title: 'Team Access',
-      description: 'Add team members and set read-only or full access.',
-      icon: Users,
-    },
-    {
-      href: '/admin/cities',
-      title: 'Cities',
-      description: 'Add and edit cities used by buildings.',
-      icon: MapPinned,
-    },
-    {
-      href: '/admin/buildings',
-      title: 'Buildings',
-      description: 'Manage buildings and jump to their guide sections.',
-      icon: Hotel,
-    },
-  ]
-
   const snapshotData = useMemo(
     () => [
       { name: 'Buildings', value: buildings.length },
@@ -115,6 +79,14 @@ export default function AdminDashboardPage() {
     ],
     [teamMembers]
   )
+
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <p className="text-muted-foreground">Loading admin dashboard...</p>
+      </div>
+    )
+  }
 
   return (
     <AdminShell access={access} onLogout={logout}>
@@ -172,7 +144,7 @@ export default function AdminDashboardPage() {
               <ChartContainer
                 className="h-[280px] w-full"
                 config={{
-                  value: { label: 'Count', color: 'hsl(var(--primary))' },
+                  value: { label: 'Count', color: '#9b5a74' },
                 }}
               >
                 <BarChart data={snapshotData}>
@@ -202,8 +174,8 @@ export default function AdminDashboardPage() {
               <ChartContainer
                 className="h-[280px] w-full"
                 config={{
-                  fullAccess: { label: 'Full Access', color: 'hsl(var(--primary))' },
-                  readOnly: { label: 'Read Only', color: 'hsl(var(--muted-foreground))' },
+                  fullAccess: { label: 'Full Access', color: '#9b5a74' },
+                  readOnly: { label: 'Read Only', color: '#faf085' },
                 }}
               >
                 <PieChart>
@@ -242,7 +214,7 @@ export default function AdminDashboardPage() {
             <ChartContainer
               className="h-[320px] w-full"
               config={{
-                value: { label: 'Buildings', color: 'hsl(var(--primary))' },
+                value: { label: 'Buildings', color: '#faf085' },
               }}
             >
               <BarChart data={buildingsByCity} layout="vertical" margin={{ left: 20 }}>
@@ -257,27 +229,6 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {moduleCards.map((card) => (
-          <Link key={card.href} href={card.href} className="block">
-            <Card className="rounded-3xl h-full border-border/70 hover:border-primary/40 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <card.icon className="w-5 h-5" />
-                  {card.title}
-                </CardTitle>
-                <CardDescription>{card.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="inline-flex items-center gap-2 text-sm font-medium text-primary">
-                  Open module
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
     </AdminShell>
   )
 }

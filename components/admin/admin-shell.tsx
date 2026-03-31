@@ -35,8 +35,8 @@ export function AdminShell({
   }, [collapsed])
 
   return (
-    <main className="w-full px-3 py-4 md:px-6 md:py-6">
-      <div className="grid w-full gap-5 lg:grid-cols-[auto_1fr]">
+    <main className="w-full px-3 py-4 md:px-6 md:py-6 lg:min-h-screen">
+      <div className="grid w-full gap-5 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[auto_1fr] lg:items-stretch">
         <div className="lg:hidden flex items-center justify-between rounded-2xl border border-border/70 bg-card/90 px-3 py-2">
           <div className="inline-flex items-center gap-2">
             <div className="relative h-7 w-20">
@@ -66,8 +66,8 @@ export function AdminShell({
         <aside
           className={cn(
             'z-40 lg:z-auto',
-            'lg:sticky lg:top-0 lg:self-start',
-            'fixed lg:relative left-0 top-0 h-screen lg:h-dvh',
+            'lg:sticky lg:top-0 lg:self-stretch',
+            'fixed lg:relative left-0 top-0 h-screen lg:h-full',
             'transition-all duration-200',
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}

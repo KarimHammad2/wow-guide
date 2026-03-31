@@ -6,6 +6,7 @@ export interface Building {
   name: string
   address: string
   city: string
+  appPath: string
   country: string
   imageUrl: string
   emergencyPhone: string
@@ -25,11 +26,33 @@ export interface Category {
 
 export interface ContentSection {
   id: string
-  type: 'text' | 'steps' | 'alert' | 'card' | 'accordion' | 'schedule' | 'contact' | 'manual' | 'image' | 'tabs'
+  blockId?: string
+  type:
+    | 'text'
+    | 'steps'
+    | 'alert'
+    | 'card'
+    | 'accordion'
+    | 'schedule'
+    | 'contact'
+    | 'manual'
+    | 'image'
+    | 'tabs'
+    | 'hero'
+    | 'checklist'
+    | 'media'
+    | 'video'
+    | 'links'
+    | 'gallery'
   title?: string
   content?: string
   items?: ContentItem[]
   variant?: 'info' | 'warning' | 'success' | 'danger'
+  mediaUrl?: string
+  videoUrl?: string
+  caption?: string
+  layout?: 'default' | 'split' | 'full-bleed'
+  styleVariant?: 'default' | 'highlighted' | 'minimal'
 }
 
 export interface ContentItem {
@@ -73,6 +96,7 @@ export const buildings: Building[] = [
     name: 'Kannenfeldstrasse 12',
     address: 'Kannenfeldstrasse 12',
     city: 'Basel',
+    appPath: '/building/kannenfeldstrasse-12',
     country: 'Switzerland',
     imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
     emergencyPhone: '+41 61 000 00 00',
@@ -84,6 +108,7 @@ export const buildings: Building[] = [
     name: 'Industriestrasse 70',
     address: 'Industriestrasse 70',
     city: 'Zug',
+    appPath: '/building/industriestrasse-70',
     country: 'Switzerland',
     imageUrl: '/images/buildings/industriestrasse.jpg',
     emergencyPhone: '+41 41 000 00 00',
@@ -95,6 +120,7 @@ export const buildings: Building[] = [
     name: 'Strassburgerallee 1',
     address: 'Strassburgerallee 1',
     city: 'Basel',
+    appPath: '/building/strassburgerallee-1',
     country: 'Switzerland',
     imageUrl: '/images/buildings/strassburgerallee.jpg',
     emergencyPhone: '+41 61 000 00 01',
@@ -106,6 +132,7 @@ export const buildings: Building[] = [
     name: 'Hüöbli 7',
     address: 'Hüöbli 7',
     city: 'Pfäffikon SZ',
+    appPath: '/building/huobli-7',
     country: 'Switzerland',
     imageUrl: '/images/buildings/huobli.jpg',
     emergencyPhone: '+41 55 000 00 00',
