@@ -11,26 +11,29 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+const baseNavItems = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/emergency', label: 'Emergency', icon: AlertTriangle },
   { href: '/admin/team', label: 'Team Access', icon: Users },
   { href: '/admin/cities', label: 'Cities', icon: MapPinned },
   { href: '/admin/buildings', label: 'Buildings', icon: Hotel },
-]
+] as const
 
 export function AdminSidebarNav() {
-  return <AdminSidebarNavItems collapsed={false} />
+  return <AdminSidebarNavItems collapsed={false} canManageTeam />
 }
 
 export function AdminSidebarNavItems({
   collapsed,
+  canManageTeam,
   onNavigate,
 }: {
   collapsed: boolean
+  canManageTeam: boolean
   onNavigate?: () => void
 }) {
   const pathname = usePathname()
+  const navItems = canManageTeam ? baseNavItems : baseNavItems.filter((item) => item.href !== '/admin/team')
 
   return (
     <nav className="space-y-1">

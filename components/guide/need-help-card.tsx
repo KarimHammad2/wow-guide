@@ -1,7 +1,10 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { HelpCircle, Phone, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supportContacts } from '@/lib/data'
-import { getEffectiveSupportContact } from '@/lib/admin-store'
+import { DEFAULT_SUPPORT_EMAIL, DEFAULT_SUPPORT_PHONE } from '@/lib/emergency-defaults'
 import { cn } from '@/lib/utils'
 
 interface NeedHelpCardProps {
@@ -9,7 +12,25 @@ interface NeedHelpCardProps {
 }
 
 export function NeedHelpCard({ className }: NeedHelpCardProps) {
-  const emergencyContact = getEffectiveSupportContact()
+  const [contact, setContact] = useState({
+    phone: DEFAULT_SUPPORT_PHONE,
+    email: DEFAULT_SUPPORT_EMAIL,
+  })
+
+  useEffect(() => {
+    void fetch('/api/public/emergency')
+      .then((res) => res.json())
+      .then(
+        (data: { primary?: { phone: string; email: string } }) => {
+          if (data?.primary?.phone && data?.primary?.email) {
+            setContact({ phone: data.primary.phone, email: data.primary.email })
+          }
+        },
+        () => {
+          /* keep defaults */
+        }
+      )
+  }, [])
 
   return (
     <div
@@ -31,22 +52,22 @@ export function NeedHelpCard({ className }: NeedHelpCardProps) {
       </div>
 
       <div className="space-y-3">
-        <a href={`tel:${emergencyContact.phone.replace(/\s/g, '')}`}>
+        <a href={`tel:${contact.phone.replace(/\s/g, '')}`}>
           <Button
             variant="outline"
             className="w-full justify-start gap-3 bg-card border-border hover:bg-secondary"
           >
             <Phone className="w-4 h-4 text-primary" />
-            <span>{emergencyContact.phone}</span>
+            <span>{contact.phone}</span>
           </Button>
         </a>
-        <a href={`mailto:${emergencyContact.email}`}>
+        <a href={`mailto:${contact.email}`}>
           <Button
             variant="outline"
             className="w-full justify-start gap-3 bg-card border-border hover:bg-secondary mt-2"
           >
             <Mail className="w-4 h-4 text-primary" />
-            <span>{emergencyContact.email}</span>
+            <span>{contact.email}</span>
           </Button>
         </a>
       </div>

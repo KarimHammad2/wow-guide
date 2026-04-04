@@ -99,9 +99,10 @@ export const buildings: Building[] = [
     appPath: '/building/kannenfeldstrasse-12',
     country: 'Switzerland',
     imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
-    emergencyPhone: '+41 61 000 00 00',
+    emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
-    welcomeMessage: 'Welcome to your home at Kannenfeldstrasse 12. We hope you enjoy your stay in Basel!',
+    welcomeMessage:
+      'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
   },
   {
     id: 'industriestrasse-70',
@@ -111,9 +112,10 @@ export const buildings: Building[] = [
     appPath: '/building/industriestrasse-70',
     country: 'Switzerland',
     imageUrl: '/images/buildings/industriestrasse.jpg',
-    emergencyPhone: '+41 41 000 00 00',
+    emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
-    welcomeMessage: 'Welcome to Industriestrasse 70 in Zug!',
+    welcomeMessage:
+      'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
   },
   {
     id: 'strassburgerallee-1',
@@ -123,9 +125,10 @@ export const buildings: Building[] = [
     appPath: '/building/strassburgerallee-1',
     country: 'Switzerland',
     imageUrl: '/images/buildings/strassburgerallee.jpg',
-    emergencyPhone: '+41 61 000 00 01',
+    emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
-    welcomeMessage: 'Welcome to Strassburgerallee 1 in Basel!',
+    welcomeMessage:
+      'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
   },
   {
     id: 'huobli-7',
@@ -135,9 +138,10 @@ export const buildings: Building[] = [
     appPath: '/building/huobli-7',
     country: 'Switzerland',
     imageUrl: '/images/buildings/huobli.jpg',
-    emergencyPhone: '+41 55 000 00 00',
+    emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
-    welcomeMessage: 'Welcome to Hüöbli 7 in Pfäffikon!',
+    welcomeMessage:
+      'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
   },
 ]
 
@@ -218,8 +222,8 @@ export const categories: Category[] = [
   {
     id: 'emergency',
     slug: 'emergency',
-    title: 'Emergency',
-    subtitle: '24/7 urgent support',
+    title: 'Emergency?',
+    subtitle: 'Urgent issues outside office hours',
     icon: 'AlertTriangle',
     color: 'primary',
     order: 9,
@@ -550,67 +554,9 @@ export const categoryContent: Record<string, {
     ],
   },
   'emergency': {
-    intro: 'We are here to help 24/7. Please use this page to understand when and how to reach us in case of emergencies.',
-    alert: {
-      type: 'danger',
-      message: 'For life-threatening emergencies, call 144 (ambulance), 117 (police), or 118 (fire) immediately.',
-    },
-    sections: [
-      {
-        id: 'emergency-contact',
-        type: 'contact',
-        title: '24/7 Emergency Hotline',
-        content: '+41 61 000 00 00',
-        items: [
-          { id: '1', title: 'Available', description: '24 hours a day, 7 days a week' },
-        ],
-      },
-      {
-        id: 'when-to-call',
-        type: 'card',
-        title: 'When to Call Our Emergency Line',
-        items: [
-          { id: '1', title: 'Water leaks or flooding' },
-          { id: '2', title: 'No heating in winter (below 18°C)' },
-          { id: '3', title: 'Locked out of your apartment' },
-          { id: '4', title: 'Security concerns' },
-          { id: '5', title: 'Fire or smoke (after calling 118)' },
-        ],
-      },
-      {
-        id: 'when-not-to-call',
-        type: 'card',
-        title: 'When NOT to Call Emergency',
-        items: [
-          { id: '1', title: 'General questions about your stay' },
-          { id: '2', title: 'WiFi or TV issues' },
-          { id: '3', title: 'Cleaning requests' },
-          { id: '4', title: 'Feedback or complaints' },
-        ],
-      },
-      {
-        id: 'urgent-actions',
-        type: 'steps',
-        title: 'Urgent Actions',
-        items: [
-          {
-            id: '1',
-            title: 'Water Emergency',
-            description: 'Locate the main water shut-off valve under the kitchen sink. Turn clockwise to close.',
-          },
-          {
-            id: '2',
-            title: 'Gas Smell',
-            description: 'Do not use electrical switches. Open windows and leave the building. Call emergency services.',
-          },
-          {
-            id: '3',
-            title: 'Power Outage',
-            description: 'Check the fuse box in the hallway. If the entire building is dark, contact emergency line.',
-          },
-        ],
-      },
-    ],
+    intro:
+      'Please only call for urgent issues, outside The office hours.',
+    sections: [],
   },
   'parking': {
     intro: 'Parking is available for residents. Here is everything you need to know about accessing and using the parking facilities.',
@@ -684,12 +630,12 @@ export const popularTopics = [
 export const supportContacts = {
   general: {
     email: 'mail@wowliving.ch',
-    phone: '+41 61 123 45 67',
+    phone: '+41 552 33 33',
     hours: 'Monday - Friday, 09:00 - 18:00',
   },
   emergency: {
-    phone: '+41 61 000 00 00',
-    available: '24/7',
+    phone: '+41 552 33 33',
+    available: 'Outside office hours (urgent only)',
   },
 }
 

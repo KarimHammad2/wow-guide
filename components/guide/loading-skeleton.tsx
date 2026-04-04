@@ -17,7 +17,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function CategoryTileSkeleton() {
   return (
-    <div className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border">
+    <div className="flex items-center gap-4 p-4 rounded-2xl bg-primary/10 border border-primary/15 dark:bg-primary/20 dark:border-primary/25">
       <Skeleton className="w-12 h-12 rounded-xl" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-5 w-3/4" />

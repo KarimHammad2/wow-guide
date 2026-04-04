@@ -29,7 +29,7 @@ import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { EmergencyInfo } from '@/lib/admin-types'
 
 export default function AdminEmergencyPage() {
-  const { access, canEdit, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [items, setItems] = useState<EmergencyInfo[]>([])
   const [newItem, setNewItem] = useState<Omit<EmergencyInfo, 'id'>>({
@@ -70,11 +70,7 @@ export default function AdminEmergencyPage() {
   }
 
   return (
-    <AdminShell
-      access={access}
-      onLogout={logout}
-      summary={[{ label: 'Emergency records', value: items.length }]}
-    >
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Emergency Management"
         description="Create, edit, and delete emergency records with phone and email details."
@@ -254,13 +250,14 @@ export default function AdminEmergencyPage() {
         }
         disabled={saving}
         onConfirm={() => {
-          if (!deletingItem) return
+          const id = deletingItem?.id
+          if (!id) return
           void mutate(async () => {
             await adminRequest('/api/admin/emergency', {
               method: 'DELETE',
-              body: JSON.stringify({ id: deletingItem.id }),
+              body: JSON.stringify({ id }),
             })
-            setItems((prev) => prev.filter((p) => p.id !== deletingItem.id))
+            setItems((prev) => prev.filter((p) => p.id !== id))
             setDeletingItem(null)
           })
         }}

@@ -6,7 +6,6 @@ import { QuickActions } from '@/components/guide/quick-actions'
 import { CategoryTile } from '@/components/guide/category-tile'
 import { EmergencyBanner } from '@/components/guide/emergency-banner'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { Footer } from '@/components/guide/footer'
 import { getBuildingById, getBuildingCategories } from '@/lib/admin-store'
 
 interface BuildingPageProps {
@@ -117,7 +116,6 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
         </section>
       </main>
 
-      <Footer />
       <StickyBottomBar buildingSlug={building.id} />
     </div>
   )

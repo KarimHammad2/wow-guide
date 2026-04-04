@@ -30,10 +30,11 @@ export function AdminLoginClient() {
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, access: 'full-access' }),
+        body: JSON.stringify({ email, password }),
       })
       if (!response.ok) {
-        setError('Unable to sign in. Check credentials and try again.')
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null
+        setError(payload?.error || 'Unable to sign in. Check credentials and try again.')
         return
       }
       router.push(next)
@@ -47,7 +48,7 @@ export function AdminLoginClient() {
 
   return (
     <main className="min-h-screen grid place-items-center px-4 py-10">
-      <div className="w-full max-w-6xl grid gap-8 lg:grid-cols-[1.1fr_0.9fr] xl:gap-10">
+      <div className="w-full max-w-6xl grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] xl:gap-10">
         <section
           className={cn(
             'rounded-3xl border border-border/60 bg-card/80 backdrop-blur-md p-8 md:p-10 shadow-[0_35px_80px_-60px_rgba(83,35,56,0.85)]',
@@ -121,7 +122,7 @@ export function AdminLoginClient() {
           <CardHeader>
             <CardTitle className="text-2xl">Admin Login</CardTitle>
             <CardDescription className="text-foreground/70">
-              Sign in with your configured admin credentials.
+              Sign in with your staff email and password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -135,6 +136,7 @@ export function AdminLoginClient() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
+                    placeholder="Enter your email"
                     className="h-11 rounded-lg pl-10"
                     aria-invalid={invalid}
                     required
@@ -151,6 +153,7 @@ export function AdminLoginClient() {
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter your password"
                     className="h-11 rounded-lg pl-10"
                     aria-invalid={invalid}
                     required
@@ -172,8 +175,6 @@ export function AdminLoginClient() {
                 {loading ? 'Signing in...' : 'Sign in to Dashboard'}
                 <ArrowRight className="w-4 h-4" />
               </Button>
-
-              <p className="text-sm text-foreground/70">Credentials are managed through environment configuration.</p>
             </form>
           </CardContent>
         </Card>

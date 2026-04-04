@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Phone, AlertTriangle } from 'lucide-react'
+import { Mail, Search } from 'lucide-react'
+import { buildings } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 interface StickyBottomBarProps {
@@ -11,6 +12,8 @@ interface StickyBottomBarProps {
 
 export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProps) {
   const basePath = buildingSlug ? `/building/${buildingSlug}` : ''
+  const supportEmail =
+    (buildingSlug && buildings.find((b) => b.id === buildingSlug)?.supportEmail) ?? 'mail@wowliving.ch'
 
   return (
     <div
@@ -21,7 +24,7 @@ export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProp
         className
       )}
     >
-      <div className="flex items-center justify-around py-2 px-4">
+      <div className="flex items-center justify-center gap-12 py-2 px-4">
         <Link
           href={`${basePath}/search`}
           className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-secondary transition-colors"
@@ -31,20 +34,12 @@ export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProp
         </Link>
 
         <a
-          href="tel:+41611234567"
+          href={`mailto:${supportEmail}`}
           className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-secondary transition-colors"
         >
-          <Phone className="w-5 h-5 text-primary" />
-          <span className="text-xs font-medium text-primary">Call</span>
+          <Mail className="w-5 h-5 text-primary" />
+          <span className="text-xs font-medium text-primary">Contact</span>
         </a>
-
-        <Link
-          href={`${basePath}/category/emergency`}
-          className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-destructive/10 transition-colors"
-        >
-          <AlertTriangle className="w-5 h-5 text-destructive" />
-          <span className="text-xs font-medium text-destructive">Emergency</span>
-        </Link>
       </div>
     </div>
   )

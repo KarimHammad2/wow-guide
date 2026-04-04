@@ -27,7 +27,7 @@ import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { City } from '@/lib/admin-types'
 
 export default function AdminCitiesPage() {
-  const { access, canEdit, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [cities, setCities] = useState<City[]>([])
   const [newCityName, setNewCityName] = useState('')
@@ -64,11 +64,7 @@ export default function AdminCitiesPage() {
   }
 
   return (
-    <AdminShell
-      access={access}
-      onLogout={logout}
-      summary={[{ label: 'Cities', value: cities.length }]}
-    >
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Cities"
         description="Manage Swiss cities for your properties."
@@ -225,13 +221,14 @@ export default function AdminCitiesPage() {
         }
         disabled={saving}
         onConfirm={() => {
-          if (!deletingCity) return
+          const id = deletingCity?.id
+          if (!id) return
           void mutate(async () => {
             await adminRequest('/api/admin/cities', {
               method: 'DELETE',
-              body: JSON.stringify({ id: deletingCity.id }),
+              body: JSON.stringify({ id }),
             })
-            setCities((prev) => prev.filter((p) => p.id !== deletingCity.id))
+            setCities((prev) => prev.filter((p) => p.id !== id))
             setDeletingCity(null)
           })
         }}

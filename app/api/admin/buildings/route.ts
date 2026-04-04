@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { requireAdmin, requireMutableAdmin } from '@/lib/admin-api'
-import {
-  createBuilding,
-  deleteBuilding,
-  getEffectiveSupportContact,
-  getBuildings,
-  updateBuilding,
-} from '@/lib/admin-store'
+import { requireAdminSession, requireMutableAdmin } from '@/lib/admin-api'
+import { createBuilding, deleteBuilding, getBuildings, updateBuilding } from '@/lib/admin-store'
+import { getPrimarySupportContact } from '@/lib/emergency-repository'
 
 function toSlug(value: string) {
   return value
@@ -24,34 +19,37 @@ function toAppPath(value: unknown, fallbackName: string) {
   return `/building/${toSlug(fallbackName || 'new-building')}`
 }
 
-export async function GET(request: NextRequest) {
-  const auth = requireAdmin(request)
+export async function GET() {
+  const auth = await requireAdminSession()
   if (!auth.ok) return auth.response
   return NextResponse.json(getBuildings())
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const body = await request.json()
-  const supportContact = getEffectiveSupportContact()
+  const supportContact = await getPrimarySupportContact()
   const name = body.name ?? 'New Building'
-  const created = createBuilding({
-    name,
-    address: body.address ?? '',
-    city: body.city ?? '',
-    appPath: toAppPath(body.appPath, name),
-    country: 'Switzerland',
-    imageUrl: body.imageUrl ?? '/images/buildings/kannenfeldstrasse.jpg',
-    emergencyPhone: supportContact.phone,
-    supportEmail: supportContact.email,
-    welcomeMessage: '',
-  })
+  const created = createBuilding(
+    {
+      name,
+      address: body.address ?? '',
+      city: body.city ?? '',
+      appPath: toAppPath(body.appPath, name),
+      country: 'Switzerland',
+      imageUrl: body.imageUrl ?? '/images/buildings/kannenfeldstrasse.jpg',
+      emergencyPhone: supportContact.phone,
+      supportEmail: supportContact.email,
+      welcomeMessage: '',
+    },
+    { support: supportContact }
+  )
   return NextResponse.json(created)
 }
 
 export async function PUT(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const body = await request.json()
   const updated = updateBuilding(body)
@@ -59,7 +57,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const body = await request.json()
   deleteBuilding(body.id)

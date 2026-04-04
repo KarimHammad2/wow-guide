@@ -21,6 +21,7 @@ export function Header({ buildingName, buildingSlug, transparent = false }: Head
   return (
     <>
       <Navbar
+        brandHref="/"
         brandLabel="WOW Living"
         logoSrc="/apple-icon.png"
         transparent={transparent}

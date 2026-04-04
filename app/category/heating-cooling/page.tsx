@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/guide/header"
-import { Footer } from "@/components/guide/footer"
 import { InfoCard } from "@/components/guide/info-card"
 import { InstructionStepper } from "@/components/guide/instruction-stepper"
 import { AlertBox } from "@/components/guide/alert-box"
@@ -172,8 +171,6 @@ export default function HeatingCoolingPage() {
           <NeedHelpCard />
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

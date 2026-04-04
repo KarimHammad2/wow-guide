@@ -2,24 +2,24 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { LogOut, PanelLeftClose, PanelLeftOpen, Shield } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { LogOut, Mail, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AdminSidebarNavItems } from '@/components/admin/admin-sidebar-nav'
 import { cn } from '@/lib/utils'
 
 export function AdminShell({
-  access,
+  userEmail,
+  canManageTeam,
   onLogout,
   summary,
   children,
 }: {
-  access: 'read-only' | 'full-access'
+  userEmail: string | null
+  canManageTeam: boolean
   onLogout: () => void
   summary?: Array<{ label: string; value: string | number }>
   children: ReactNode
 }) {
-  const canEdit = access === 'full-access'
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -108,32 +108,69 @@ export function AdminShell({
             </div>
 
             <div className={cn('mt-4', collapsed && 'mt-5')}>
-              <AdminSidebarNavItems collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
+              <AdminSidebarNavItems
+                collapsed={collapsed}
+                canManageTeam={canManageTeam}
+                onNavigate={() => setMobileOpen(false)}
+              />
             </div>
 
-            <div className={cn('mt-auto pt-4 flex items-center gap-2 px-1', collapsed ? 'flex-col' : '')}>
-              <Badge
-                variant={canEdit ? 'default' : 'secondary'}
-                className={cn('h-8', collapsed ? 'w-full justify-center px-0' : 'px-3')}
-                title={collapsed ? access : undefined}
-              >
-                <Shield className={cn('w-3.5 h-3.5', !collapsed && 'mr-1.5')} />
-                {!collapsed && access}
-              </Badge>
-              <Button
-                variant="outline"
-                onClick={onLogout}
-                className={cn('gap-2', collapsed ? 'w-full px-0' : 'flex-1')}
-                title={collapsed ? 'Logout' : undefined}
-              >
-                <LogOut className="w-4 h-4" />
-                {!collapsed && 'Logout'}
-              </Button>
+            <div
+              className={cn(
+                'mt-auto border-t border-border/50 pt-4',
+                collapsed ? 'flex flex-col items-center gap-3 px-0' : 'flex flex-col gap-3 px-1'
+              )}
+            >
+              {!collapsed ? (
+                <>
+                  <p
+                    className="text-center text-sm font-medium text-foreground leading-snug break-words"
+                    title={userEmail ?? undefined}
+                  >
+                    {userEmail ?? '—'}
+                  </p>
+                  <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onLogout} type="button">
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-center" title={userEmail ?? undefined}>
+                    <Mail className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={onLogout}
+                    type="button"
+                    title="Sign out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </aside>
 
-        <div className="space-y-6 min-w-0">{children}</div>
+        <div className="space-y-6 min-w-0">
+          {summary && summary.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {summary.map((item, index) => (
+                <div
+                  key={`${item.label}-${index}`}
+                  className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3 shadow-sm"
+                >
+                  <div className="text-xs font-medium text-muted-foreground">{item.label}</div>
+                  <div className="text-lg font-semibold tabular-nums">{item.value}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {children}
+        </div>
       </div>
     </main>
   )

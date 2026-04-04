@@ -5,7 +5,6 @@ import { AlertBox } from '@/components/guide/alert-box'
 import { NeedHelpCard } from '@/components/guide/need-help-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { Footer } from '@/components/guide/footer'
 import { buildings } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -239,7 +238,6 @@ export default function WastePlanPage() {
         </div>
       </main>
 
-      <Footer />
       <StickyBottomBar />
     </div>
   )

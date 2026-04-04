@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, MapPin, ChevronRight, Hotel, Search, X } from 'lucide-react'
 import { Header } from '@/components/guide/header'
-import { Footer } from '@/components/guide/footer'
 import type { Building } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -173,8 +172,6 @@ export function BuildingsClient({ buildings, initialCity }: BuildingsClientProps
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

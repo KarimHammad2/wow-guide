@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/guide/header"
-import { Footer } from "@/components/guide/footer"
 import { AlertBox } from "@/components/guide/alert-box"
 import { FAQAccordion } from "@/components/guide/faq-accordion"
 import { RelatedCategories } from "@/components/guide/related-categories"
@@ -162,8 +161,6 @@ export default function HouseRulesPage() {
           <NeedHelpCard />
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

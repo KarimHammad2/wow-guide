@@ -13,7 +13,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts'
 
 export default function AdminDashboardPage() {
-  const { access, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, loading, error, setError, logout } = useAdminSession()
   const [dataLoading, setDataLoading] = useState(true)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [cities, setCities] = useState<City[]>([])
@@ -64,17 +64,17 @@ export default function AdminDashboardPage() {
       .slice(0, 8)
   }, [buildings])
 
-  const accessDistribution = useMemo(
+  const roleDistribution = useMemo(
     () => [
       {
-        name: 'Full Access',
-        value: teamMembers.filter((member) => member.access === 'full-access').length,
-        fill: 'var(--color-fullAccess)',
+        name: 'Owner',
+        value: teamMembers.filter((member) => member.isOwner).length,
+        fill: 'var(--color-owner)',
       },
       {
-        name: 'Read Only',
-        value: teamMembers.filter((member) => member.access === 'read-only').length,
-        fill: 'var(--color-readOnly)',
+        name: 'Team',
+        value: teamMembers.filter((member) => !member.isOwner).length,
+        fill: 'var(--color-team)',
       },
     ],
     [teamMembers]
@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <AdminShell access={access} onLogout={logout}>
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Admin Dashboard"
         description="Choose a module from the sidebar or cards below to manage your platform."
@@ -174,20 +174,20 @@ export default function AdminDashboardPage() {
               <ChartContainer
                 className="h-[280px] w-full"
                 config={{
-                  fullAccess: { label: 'Full Access', color: '#9b5a74' },
-                  readOnly: { label: 'Read Only', color: '#faf085' },
+                  owner: { label: 'Owner', color: '#9b5a74' },
+                  team: { label: 'Team', color: '#faf085' },
                 }}
               >
                 <PieChart>
                   <Pie
-                    data={accessDistribution}
+                    data={roleDistribution}
                     dataKey="value"
                     nameKey="name"
                     innerRadius={55}
                     outerRadius={90}
                     strokeWidth={3}
                   >
-                    {accessDistribution.map((entry) => (
+                    {roleDistribution.map((entry) => (
                       <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Pie>

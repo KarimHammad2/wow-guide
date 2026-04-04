@@ -15,17 +15,10 @@ interface CategoryTileProps {
 export function CategoryTile({ category, size = 'default', buildingSlug }: CategoryTileProps) {
   const Icon = getLucideIcon(category.icon)
 
-  const colorClasses = {
-    primary: 'bg-primary/5 hover:bg-primary/10 border-primary/10',
-    accent: 'bg-accent/30 hover:bg-accent/50 border-accent/30',
-    muted: 'bg-secondary hover:bg-secondary/80 border-secondary',
-  }
-
-  const iconColorClasses = {
-    primary: 'bg-primary text-primary-foreground',
-    accent: 'bg-accent text-accent-foreground',
-    muted: 'bg-muted-foreground/20 text-foreground',
-  }
+  /** One cohesive look for all topics: soft plum tint + solid brand icon (matches WOW primary). */
+  const tileClass =
+    'bg-primary/10 hover:bg-primary/15 border-primary/15 dark:bg-primary/20 dark:hover:bg-primary/30 dark:border-primary/25'
+  const iconClass = 'bg-primary text-primary-foreground'
 
   const href = buildingSlug 
     ? `/building/${buildingSlug}/category/${category.slug}`
@@ -37,14 +30,14 @@ export function CategoryTile({ category, size = 'default', buildingSlug }: Categ
       className={cn(
         'group flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200',
         'active:scale-[0.98]',
-        colorClasses[category.color],
+        tileClass,
         size === 'large' && 'p-5'
       )}
     >
       <div
         className={cn(
           'flex items-center justify-center rounded-xl transition-transform group-hover:scale-105',
-          iconColorClasses[category.color],
+          iconClass,
           size === 'large' ? 'w-14 h-14' : 'w-12 h-12'
         )}
       >

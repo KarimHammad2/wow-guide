@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/guide/header"
-import { Footer } from "@/components/guide/footer"
 import { NeedHelpCard } from "@/components/guide/need-help-card"
 import { 
   MapPin, 
@@ -169,8 +168,6 @@ export default function LocalAreaPage() {
           <NeedHelpCard />
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

@@ -1,15 +1,11 @@
 import { timingSafeEqual } from 'node:crypto'
 
 function getConfiguredEmail() {
-  const raw = process.env.ADMIN_EMAIL?.trim()
-  if (raw) return raw
-  return process.env.NODE_ENV === 'production' ? '' : 'admin@wowliving.ch'
+  return process.env.ADMIN_EMAIL?.trim() ?? ''
 }
 
 function getConfiguredPassword() {
-  const raw = process.env.ADMIN_PASSWORD ?? ''
-  if (raw) return raw
-  return process.env.NODE_ENV === 'production' ? '' : 'admin123'
+  return process.env.ADMIN_PASSWORD ?? ''
 }
 
 function safeEqual(left: string, right: string) {
@@ -21,6 +17,7 @@ function safeEqual(left: string, right: string) {
   return timingSafeEqual(leftBuffer, rightBuffer)
 }
 
+/** When set, these credentials can bootstrap or sign in as the primary owner (see login route). */
 export function isAdminAuthConfigured() {
   return Boolean(getConfiguredEmail() && getConfiguredPassword())
 }

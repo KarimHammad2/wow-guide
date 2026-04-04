@@ -7,13 +7,13 @@ import { ContactCard } from '@/components/guide/contact-card'
 import { NeedHelpCard } from '@/components/guide/need-help-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { Footer } from '@/components/guide/footer'
 import { GuideBlockRenderer } from '@/components/guide/blocks/guide-block-renderer'
 import {
   getBuildingById,
   getBuildingCategories,
   getBuildingCategoryContent,
 } from '@/lib/admin-store'
+import { supportContacts } from '@/lib/data'
 import { cn } from '@/lib/utils'
 import { getLucideIcon } from '@/lib/icons'
 
@@ -91,8 +91,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
           {isEmergency && (
             <ContactCard
               variant="emergency"
-              title="24/7 Emergency Hotline"
-              phone={building.emergencyPhone}
+              phone={supportContacts.emergency.phone}
             />
           )}
 
@@ -107,7 +106,6 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
         </section>
       </main>
 
-      <Footer />
       <StickyBottomBar buildingSlug={building.id} />
     </div>
   )

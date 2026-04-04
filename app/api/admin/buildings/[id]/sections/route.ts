@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { requireAdmin, requireMutableAdmin } from '@/lib/admin-api'
+import { requireAdminSession, requireMutableAdmin } from '@/lib/admin-api'
 import {
   createBuildingGuideCategory,
   deleteBuildingGuideCategory,
@@ -85,8 +85,8 @@ function normalizeSections(sections: z.infer<typeof contentSectionSchema>[]): Co
   })) as ContentSection[]
 }
 
-export async function GET(request: NextRequest, context: RouteContext) {
-  const auth = requireAdmin(request)
+export async function GET(_request: NextRequest, context: RouteContext) {
+  const auth = await requireAdminSession()
   if (!auth.ok) return auth.response
   const { id } = await context.params
   const categories = getBuildingCategories(id)
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const { id } = await context.params
   const body = sectionMutationSchema.safeParse(await request.json())
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const { id } = await context.params
   const body = sectionMutationSchema.safeParse(await request.json())
@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableAdmin()
   if (!auth.ok) return auth.response
   const { id } = await context.params
   const body = await request.json()

@@ -32,7 +32,7 @@ export default function BuildingSectionsPage() {
   const params = useParams<{ id: string }>()
   const buildingId = params.id
 
-  const { access, canEdit, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [sections, setSections] = useState<BuildingSectionRecord[]>([])
@@ -193,14 +193,7 @@ export default function BuildingSectionsPage() {
   }
 
   return (
-    <AdminShell
-      access={access}
-      onLogout={logout}
-      summary={[
-        { label: 'Building', value: building?.name ?? buildingId },
-        { label: 'Sections', value: sections.length },
-      ]}
-    >
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Building Guide Sections"
         description="Edit all guide categories and content for this building."

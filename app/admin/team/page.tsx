@@ -1,15 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Users, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, Copy, KeyRound } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
-import { useAdminSession, type AdminAccess } from '@/components/admin/use-admin-session'
+import { useAdminSession } from '@/components/admin/use-admin-session'
 import { adminRequest } from '@/components/admin/admin-api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -29,19 +28,20 @@ import {
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { TeamMember } from '@/lib/admin-types'
 
+type InviteResponse = TeamMember & { password: string }
+
 export default function AdminTeamPage() {
-  const { access, canEdit, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [items, setItems] = useState<TeamMember[]>([])
-  const [newItem, setNewItem] = useState<Omit<TeamMember, 'id'>>({
-    name: '',
-    email: '',
-    access: 'read-only',
-  })
+  const [newEmail, setNewEmail] = useState('')
+  const [newDisplayName, setNewDisplayName] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<TeamMember | null>(null)
   const [deletingItem, setDeletingItem] = useState<TeamMember | null>(null)
+  const [invitePassword, setInvitePassword] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading) return
@@ -71,14 +71,10 @@ export default function AdminTeamPage() {
   }
 
   return (
-    <AdminShell
-      access={access}
-      onLogout={logout}
-      summary={[{ label: 'Team members', value: items.length }]}
-    >
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Team Access"
-        description="Manage team members and set access level to read-only or full-access."
+        description="Owners invite staff by email and can set a new login password when needed."
       />
 
       {error && (
@@ -90,59 +86,84 @@ export default function AdminTeamPage() {
       <Card className="rounded-3xl">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" />Team Members</CardTitle>
-            <CardDescription>Full-access members can edit and delete records in admin modules.</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Staff accounts
+            </CardTitle>
+            <CardDescription>All listed users can sign in and manage guide content.</CardDescription>
           </div>
-          <Button size="sm" className="gap-1.5" disabled={!canEdit} onClick={() => setAddOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            Add Team Member
-          </Button>
+          {canManageTeam && (
+            <Button size="sm" className="gap-1.5" disabled={!canEdit} onClick={() => setAddOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Invite member
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Access</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Name</TableHead>
+                {canManageTeam && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>{member.access}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!canEdit}
-                        onClick={() => {
-                          setEditingItem(member)
-                          setEditOpen(true)
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Edit team member"
-                        aria-label="Edit team member"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={!canEdit || saving}
-                        onClick={() => setDeletingItem(member)}
-                        className="h-8 w-8 p-0"
-                        title="Delete team member"
-                        aria-label="Delete team member"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                <TableRow key={member.userId}>
+                  <TableCell className="font-medium">{member.email}</TableCell>
+                  <TableCell>{member.displayName ?? '—'}</TableCell>
+                  {canManageTeam && (
+                    <TableCell className="text-right">
+                      <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!canEdit || saving}
+                          title="Set a new password and copy it"
+                          onClick={() =>
+                            mutate(async () => {
+                              const res = await adminRequest<{ password: string; email: string }>(
+                                '/api/admin/teams/reset-password',
+                                {
+                                  method: 'POST',
+                                  body: JSON.stringify({ userId: member.userId }),
+                                }
+                              )
+                              setInvitePassword(res.password)
+                              setInviteEmail(res.email)
+                            })
+                          }
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Password</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!canEdit || saving}
+                          title="Edit display name"
+                          onClick={() => {
+                            setEditingItem(member)
+                            setEditOpen(true)
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        {!member.isOwner && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={!canEdit || saving}
+                            title="Remove member"
+                            onClick={() => setDeletingItem(member)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -153,38 +174,78 @@ export default function AdminTeamPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
-            <DialogDescription>Create a new team member and assign access level.</DialogDescription>
+            <DialogTitle>Invite team member</DialogTitle>
+            <DialogDescription>
+              We create their account and show their login password here once so you can pass it to them.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Input value={newItem.name} onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))} placeholder="Name" />
-            <Input value={newItem.email} onChange={(e) => setNewItem((p) => ({ ...p, email: e.target.value }))} placeholder="Email" />
-            <Select value={newItem.access} onValueChange={(value: AdminAccess) => setNewItem((p) => ({ ...p, access: value }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="read-only">read-only</SelectItem>
-                <SelectItem value="full-access">full-access</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              type="email"
+              placeholder="Email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              autoComplete="off"
+            />
+            <Input
+              placeholder="Display name (optional)"
+              value={newDisplayName}
+              onChange={(e) => setNewDisplayName(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
             <Button
-              disabled={!canEdit || saving || !newItem.name.trim() || !newItem.email.trim()}
+              disabled={saving || !newEmail.trim()}
               onClick={() =>
                 mutate(async () => {
-                  const created = await adminRequest<TeamMember>('/api/admin/teams', {
+                  const created = await adminRequest<InviteResponse>('/api/admin/teams', {
                     method: 'POST',
-                    body: JSON.stringify(newItem),
+                    body: JSON.stringify({
+                      email: newEmail.trim(),
+                      displayName: newDisplayName.trim() || undefined,
+                    }),
                   })
-                  setItems((prev) => [...prev, created])
-                  setNewItem({ name: '', email: '', access: 'read-only' })
+                  const { password: pw, ...member } = created
+                  setItems((prev) => [...prev.filter((m) => m.userId !== member.userId), member])
+                  setInvitePassword(pw)
+                  setInviteEmail(member.email)
+                  setNewEmail('')
+                  setNewDisplayName('')
                   setAddOpen(false)
                 })
               }
             >
-              Create
+              Create account
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(invitePassword)} onOpenChange={(open) => !open && setInvitePassword(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password</DialogTitle>
+            <DialogDescription>
+              Use this password to sign in. Share it with {inviteEmail ?? 'them'} securely. It stays valid for
+              ongoing login until they change it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input readOnly value={invitePassword ?? ''} className="font-mono text-sm" />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => invitePassword && void navigator.clipboard.writeText(invitePassword)}
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setInvitePassword(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -192,42 +253,40 @@ export default function AdminTeamPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Team Member</DialogTitle>
-            <DialogDescription>Update member details and access level.</DialogDescription>
+            <DialogTitle>Edit display name</DialogTitle>
           </DialogHeader>
           {editingItem && (
-            <div className="space-y-3">
-              <Input value={editingItem.name} onChange={(e) => setEditingItem((prev) => (prev ? { ...prev, name: e.target.value } : prev))} placeholder="Name" />
-              <Input value={editingItem.email} onChange={(e) => setEditingItem((prev) => (prev ? { ...prev, email: e.target.value } : prev))} placeholder="Email" />
-              <Select
-                value={editingItem.access}
-                onValueChange={(value: AdminAccess) => setEditingItem((prev) => (prev ? { ...prev, access: value } : prev))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="read-only">read-only</SelectItem>
-                  <SelectItem value="full-access">full-access</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Input
+              value={editingItem.displayName ?? ''}
+              onChange={(e) =>
+                setEditingItem((prev) => (prev ? { ...prev, displayName: e.target.value || null } : prev))
+              }
+              placeholder="Display name"
+            />
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
             <Button
-              disabled={!canEdit || saving || !editingItem?.name.trim() || !editingItem?.email.trim()}
+              disabled={saving || !editingItem}
               onClick={() =>
                 mutate(async () => {
                   if (!editingItem) return
                   const updated = await adminRequest<TeamMember>('/api/admin/teams', {
                     method: 'PUT',
-                    body: JSON.stringify(editingItem),
+                    body: JSON.stringify({
+                      userId: editingItem.userId,
+                      displayName: editingItem.displayName,
+                    }),
                   })
-                  setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+                  setItems((prev) => prev.map((m) => (m.userId === updated.userId ? updated : m)))
                   setEditOpen(false)
+                  setEditingItem(null)
                 })
               }
             >
-              Save Changes
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -235,24 +294,19 @@ export default function AdminTeamPage() {
 
       <DeleteConfirmDialog
         open={Boolean(deletingItem)}
-        onOpenChange={(open) => {
-          if (!open) setDeletingItem(null)
-        }}
-        title="Delete team member?"
-        description={
-          deletingItem
-            ? `Delete ${deletingItem.name}? This action cannot be undone.`
-            : 'This action cannot be undone.'
-        }
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+        title="Remove team member"
+        description="This will delete their login. They will no longer access the admin app."
         disabled={saving}
         onConfirm={() => {
-          if (!deletingItem) return
+          const userId = deletingItem?.userId
+          if (!userId) return
           void mutate(async () => {
             await adminRequest('/api/admin/teams', {
               method: 'DELETE',
-              body: JSON.stringify({ id: deletingItem.id }),
+              body: JSON.stringify({ userId }),
             })
-            setItems((prev) => prev.filter((p) => p.id !== deletingItem.id))
+            setItems((prev) => prev.filter((m) => m.userId !== userId))
             setDeletingItem(null)
           })
         }}

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Home, Search, HelpCircle } from 'lucide-react'
 import { Header } from '@/components/guide/header'
-import { Footer } from '@/components/guide/footer'
 import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
@@ -41,8 +40,6 @@ export default function NotFound() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

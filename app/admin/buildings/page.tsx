@@ -33,7 +33,7 @@ import type { Building } from '@/lib/data'
 import type { City } from '@/lib/admin-types'
 
 export default function AdminBuildingsPage() {
-  const { access, canEdit, loading, error, setError, logout } = useAdminSession()
+  const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [cities, setCities] = useState<City[]>([])
@@ -92,11 +92,7 @@ export default function AdminBuildingsPage() {
   }
 
   return (
-    <AdminShell
-      access={access}
-      onLogout={logout}
-      summary={[{ label: 'Buildings', value: buildings.length }]}
-    >
+    <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Buildings"
         description="Create and manage buildings. New buildings automatically get default guide sections."

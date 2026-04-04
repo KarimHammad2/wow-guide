@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Hotel,
@@ -12,7 +13,6 @@ import {
   Plus,
   Save,
   Trash2,
-  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,11 +20,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import type { Building as BuildingType, Category, ContentSection } from '@/lib/data'
 import type { City, EmergencyInfo, TeamMember } from '@/lib/admin-types'
-
-type Access = 'read-only' | 'full-access'
 
 type BuildingSectionRecord = {
   category: Category
@@ -45,7 +42,7 @@ const sidebarItems = [
 
 export function AdminDashboardClient() {
   const router = useRouter()
-  const [access, setAccess] = useState<Access>('full-access')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,11 +67,6 @@ export function AdminDashboardClient() {
     supportEmail: '',
     welcomeMessage: '',
   })
-  const [newTeam, setNewTeam] = useState<Omit<TeamMember, 'id'>>({
-    name: '',
-    email: '',
-    access: 'read-only',
-  })
   const [newEmergency, setNewEmergency] = useState<Omit<EmergencyInfo, 'id'>>({
     label: 'Emergency contact',
     phone: '',
@@ -90,7 +82,7 @@ export function AdminDashboardClient() {
     sectionsJson: '[]',
   })
 
-  const canEdit = access === 'full-access'
+  const canEdit = true
 
   const selectedBuilding = useMemo(
     () => buildings.find((building) => building.id === selectedBuildingId),
@@ -122,14 +114,12 @@ export function AdminDashboardClient() {
     setLoading(true)
     setError(null)
     try {
-      const me = await request<{ loggedIn: boolean; access: Access | null }>('/api/admin/me')
+      const me = await request<{ loggedIn: boolean; email?: string | null }>('/api/admin/me')
       if (!me.loggedIn) {
         router.push('/admin/login')
         return
       }
-      if (me.access) {
-        setAccess(me.access)
-      }
+      setUserEmail(typeof me.email === 'string' ? me.email : null)
 
       const [emergencyData, teamsData, citiesData, buildingsData] = await Promise.all([
         request<EmergencyInfo[]>('/api/admin/emergency'),
@@ -228,14 +218,13 @@ export function AdminDashboardClient() {
               <p className="font-medium">Team members: {teams.length}</p>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 px-2">
-              <Badge variant={canEdit ? 'default' : 'secondary'} className="h-8 px-3">
-                <Shield className="w-3.5 h-3.5 mr-1.5" />
-                {access}
-              </Badge>
-              <Button variant="outline" onClick={logout} className="gap-2 flex-1">
-                <LogOut className="w-4 h-4" />
-                Logout
+            <div className="mt-4 flex flex-col gap-3 border-t border-border/50 pt-4 px-2">
+              <p className="text-center text-sm font-medium text-foreground leading-snug break-words">
+                {userEmail ?? '—'}
+              </p>
+              <Button variant="outline" onClick={logout} className="w-full gap-2 rounded-lg" type="button">
+                <LogOut className="w-4 h-4 shrink-0" />
+                Sign Out
               </Button>
             </div>
           </div>
@@ -299,50 +288,21 @@ export function AdminDashboardClient() {
 
             <Card id="section-team" className="rounded-3xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" />Team Access</CardTitle>
-              <CardDescription>Manage team members and grant read-only/full access.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5" />Team</CardTitle>
+              <CardDescription>Staff accounts use Supabase login. Invite and manage users on the Team Access page.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {teams.map((member) => (
-                <div key={member.id} className="rounded-2xl border border-border p-3 space-y-2">
-                  <Input value={member.name} onChange={(e) => setTeams((prev) => prev.map((p) => p.id === member.id ? { ...p, name: e.target.value } : p))} />
-                  <Input value={member.email} onChange={(e) => setTeams((prev) => prev.map((p) => p.id === member.id ? { ...p, email: e.target.value } : p))} />
-                  <Select value={member.access} onValueChange={(value: Access) => setTeams((prev) => prev.map((p) => p.id === member.id ? { ...p, access: value } : p))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="read-only">read-only</SelectItem>
-                      <SelectItem value="full-access">full-access</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex gap-2">
-                    <Button size="sm" disabled={!canEdit || saving} onClick={() => mutate(async () => {
-                      const updated = await request<TeamMember>('/api/admin/teams', { method: 'PUT', body: JSON.stringify(member) })
-                      setTeams((prev) => prev.map((p) => p.id === updated.id ? updated : p))
-                    })}>Save</Button>
-                    <Button size="sm" variant="destructive" disabled={!canEdit || saving} onClick={() => mutate(async () => {
-                      await request('/api/admin/teams', { method: 'DELETE', body: JSON.stringify({ id: member.id }) })
-                      setTeams((prev) => prev.filter((p) => p.id !== member.id))
-                    })}>Delete</Button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="rounded-2xl border border-dashed border-border p-3 space-y-2">
-                <Input value={newTeam.name} onChange={(e) => setNewTeam((p) => ({ ...p, name: e.target.value }))} placeholder="Name" />
-                <Input value={newTeam.email} onChange={(e) => setNewTeam((p) => ({ ...p, email: e.target.value }))} placeholder="Email" />
-                <Select value={newTeam.access} onValueChange={(value: Access) => setNewTeam((p) => ({ ...p, access: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="read-only">read-only</SelectItem>
-                    <SelectItem value="full-access">full-access</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" className="gap-1.5" disabled={!canEdit || saving} onClick={() => mutate(async () => {
-                  const created = await request<TeamMember>('/api/admin/teams', { method: 'POST', body: JSON.stringify(newTeam) })
-                  setTeams((prev) => [...prev, created])
-                  setNewTeam({ name: '', email: '', access: 'read-only' })
-                })}><Plus className="w-3.5 h-3.5" />Add Team Member</Button>
-              </div>
+              <ul className="space-y-2 text-sm">
+                {teams.map((member) => (
+                  <li key={member.userId} className="rounded-2xl border border-border px-3 py-2 flex flex-wrap justify-between gap-2">
+                    <span className="font-medium">{member.email}</span>
+                    <span className="text-muted-foreground">{member.isOwner ? 'Owner' : 'Team'}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/team">Open Team Access</Link>
+              </Button>
             </CardContent>
             </Card>
 

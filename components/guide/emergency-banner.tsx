@@ -22,7 +22,7 @@ export function EmergencyBanner({ phone, className }: EmergencyBannerProps) {
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground">Emergency?</h3>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Available 24/7 for urgent issues
+            For urgent issues, outside office hours
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { MapPin } from 'lucide-react'
 import type { Building } from '@/lib/data'
+import { getBuildingGoogleMapsUrl } from '@/lib/maps'
 import { cn } from '@/lib/utils'
 
 interface BuildingHeroProps {
@@ -8,6 +9,8 @@ interface BuildingHeroProps {
 }
 
 export function BuildingHero({ building, className }: BuildingHeroProps) {
+  const mapsUrl = getBuildingGoogleMapsUrl(building)
+
   return (
     <section
       className={cn(
@@ -22,26 +25,20 @@ export function BuildingHero({ building, className }: BuildingHeroProps) {
       </div>
 
       <div className="relative px-6 py-8 md:px-8 md:py-10">
-        {/* Welcome badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/20 text-sm font-medium mb-4">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-          <span>Welcome to your home</span>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2 text-balance">WOW Guide</h1>
 
-        {/* Building name */}
-        <h1 className="text-2xl md:text-3xl font-bold mb-2 text-balance">
-          {building.name}
-        </h1>
-
-        {/* Address */}
         <div className="flex items-center gap-2 text-primary-foreground/80">
-          <MapPin className="w-4 h-4" />
-          <span>
+          <MapPin className="w-4 h-4 shrink-0" aria-hidden />
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 decoration-primary-foreground/40 hover:decoration-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground rounded-sm"
+          >
             {building.address}, {building.city}
-          </span>
+          </a>
         </div>
 
-        {/* Welcome message */}
         <p className="mt-4 text-primary-foreground/90 leading-relaxed max-w-2xl">
           {building.welcomeMessage}
         </p>

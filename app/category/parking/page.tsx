@@ -2,12 +2,10 @@ import Link from 'next/link'
 import { ArrowLeft, Car, MapPin, Key, CreditCard, Zap, AlertCircle, CheckCircle } from 'lucide-react'
 import { Header } from '@/components/guide/header'
 import { InstructionStepper } from '@/components/guide/instruction-stepper'
-import { InfoCard } from '@/components/guide/info-card'
 import { ImageCard } from '@/components/guide/image-card'
 import { NeedHelpCard } from '@/components/guide/need-help-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { Footer } from '@/components/guide/footer'
 import { buildings } from '@/lib/data'
 
 const currentBuilding = buildings[0]
@@ -200,7 +198,6 @@ export default function ParkingPage() {
         </div>
       </main>
 
-      <Footer />
       <StickyBottomBar />
     </div>
   )

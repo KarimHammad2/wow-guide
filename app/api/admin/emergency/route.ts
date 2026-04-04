@@ -1,43 +1,69 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { requireAdmin, requireMutableAdmin } from '@/lib/admin-api'
+import { requireAdminSession, requireMutableEmergency } from '@/lib/admin-api'
 import {
-  createEmergencyInfo,
-  deleteEmergencyInfo,
-  getEmergencyInfos,
-  updateEmergencyInfo,
-} from '@/lib/admin-store'
+  deleteEmergencyContact,
+  insertEmergencyContact,
+  listEmergencyContacts,
+  updateEmergencyContact,
+} from '@/lib/emergency-repository'
+import type { EmergencyInfo } from '@/lib/admin-types'
 
-export async function GET(request: NextRequest) {
-  const auth = requireAdmin(request)
+export async function GET() {
+  const auth = await requireAdminSession()
   if (!auth.ok) return auth.response
-  return NextResponse.json(getEmergencyInfos())
+  try {
+    const rows = await listEmergencyContacts()
+    return NextResponse.json(rows)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to load emergency contacts'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableEmergency()
   if (!auth.ok) return auth.response
   const body = await request.json()
-  const created = createEmergencyInfo({
-    label: body.label ?? 'Emergency',
-    phone: body.phone ?? '',
-    email: body.email ?? '',
-  })
-  return NextResponse.json(created)
+  try {
+    const created = await insertEmergencyContact({
+      label: body.label ?? 'Emergency',
+      phone: body.phone ?? '',
+      email: body.email ?? '',
+    })
+    return NextResponse.json(created)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to create'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function PUT(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableEmergency()
   if (!auth.ok) return auth.response
-  const body = await request.json()
-  const updated = updateEmergencyInfo(body)
-  return NextResponse.json(updated)
+  const body = (await request.json()) as EmergencyInfo
+  try {
+    const updated = await updateEmergencyContact(body)
+    return NextResponse.json(updated)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = requireMutableAdmin(request)
+  const auth = await requireMutableEmergency()
   if (!auth.ok) return auth.response
   const body = await request.json()
-  deleteEmergencyInfo(body.id)
-  return NextResponse.json({ ok: true })
+  const id = typeof body.id === 'string' ? body.id : ''
+  if (!id) {
+    return NextResponse.json({ error: 'id is required.' }, { status: 400 })
+  }
+  try {
+    await deleteEmergencyContact(id)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

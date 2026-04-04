@@ -1,7 +1,5 @@
 import type { Building, Category, ContentSection } from '@/lib/data'
 
-export type TeamAccess = 'read-only' | 'full-access'
-
 export interface EmergencyInfo {
   id: string
   label: string
@@ -9,11 +7,12 @@ export interface EmergencyInfo {
   email: string
 }
 
+/** Staff row from Supabase (`staff_directory` / API). */
 export interface TeamMember {
-  id: string
-  name: string
+  userId: string
   email: string
-  access: TeamAccess
+  displayName: string | null
+  isOwner: boolean
 }
 
 export interface City {
@@ -37,9 +36,6 @@ export interface BuildingGuideCategory {
 }
 
 export interface AdminStoreShape {
-  emergencyInfos: EmergencyInfo[]
-  teamMembers: TeamMember[]
-  cities: City[]
   buildings: Building[]
   buildingGuides: Record<string, Record<string, BuildingGuideCategory>>
 }

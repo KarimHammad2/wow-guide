@@ -1,11 +1,9 @@
 import Link from 'next/link'
 import { ArrowLeft, Sparkles, Calendar, CheckCircle, Clock, Star } from 'lucide-react'
 import { Header } from '@/components/guide/header'
-import { InfoCard } from '@/components/guide/info-card'
 import { NeedHelpCard } from '@/components/guide/need-help-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
-import { Footer } from '@/components/guide/footer'
 import { buildings } from '@/lib/data'
 
 const currentBuilding = buildings[0]
@@ -179,7 +177,6 @@ export default function CleaningPage() {
         </div>
       </main>
 
-      <Footer />
       <StickyBottomBar />
     </div>
   )

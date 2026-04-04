@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
-import { X, Phone, AlertTriangle, Globe } from 'lucide-react'
+import { Mail, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { categories } from '@/lib/data'
+import { buildings, categories } from '@/lib/data'
 import { cn } from '@/lib/utils'
 import { getLucideIcon } from '@/lib/icons'
+import { setMobileMenuOpen } from '@/lib/mobile-menu-open'
 
 interface MobileMenuProps {
   open: boolean
@@ -16,19 +18,23 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ open, onClose, buildingName, buildingSlug }: MobileMenuProps) {
-  // Prevent body scroll when menu is open
+  // Prevent body scroll when menu is open; hide global UI (e.g. back-to-top) while open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
+    setMobileMenuOpen(open)
     return () => {
       document.body.style.overflow = ''
+      setMobileMenuOpen(false)
     }
   }, [open])
 
   const basePath = buildingSlug ? `/building/${buildingSlug}` : ''
+  const supportEmail =
+    (buildingSlug && buildings.find((b) => b.id === buildingSlug)?.supportEmail) ?? 'mail@wowliving.ch'
 
   return (
     <>
@@ -52,16 +58,21 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-primary-foreground/10">
             <div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent text-accent-foreground font-bold text-sm">
-                  W
-                </div>
-                <span className="font-bold text-primary-foreground">
-                  WOW Guide
-                </span>
-              </div>
+              <Link
+                href="/"
+                onClick={onClose}
+                className="block relative h-8 w-18 shrink-0 min-w-0"
+              >
+                <Image
+                  src="/wow-logo-white.png"
+                  alt="WOW"
+                  fill
+                  sizes="72px"
+                  className="object-contain object-left"
+                />
+              </Link>
               {buildingName && (
-                <p className="text-sm text-primary-foreground/70 mt-1">
+                <p className="text-sm text-primary-foreground/70 mt-2">
                   {buildingName}
                 </p>
               )}
@@ -74,29 +85,6 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
             >
               <X className="w-5 h-5" />
             </Button>
-          </div>
-
-          {/* Language Selector */}
-          <div className="px-4 py-3 border-b border-primary-foreground/10">
-            <div className="flex items-center gap-2 text-sm text-primary-foreground/70">
-              <Globe className="w-4 h-4" />
-              <span>Language</span>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <Button
-                size="sm"
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
-              >
-                English
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-              >
-                Deutsch
-              </Button>
-            </div>
           </div>
 
           {/* Categories */}
@@ -138,21 +126,15 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
                 Search Guide
               </Button>
             </Link>
-            <a href="tel:+41610000000">
+            <a href={`mailto:${supportEmail}`} onClick={onClose}>
               <Button
                 variant="outline"
-                className="w-full border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 gap-2 mt-2"
+                className="w-full border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 gap-2 mt-2 mb-3"
               >
-                <Phone className="w-4 h-4" />
-                Contact Support
+                <Mail className="w-4 h-4" />
+                Contact
               </Button>
             </a>
-            <Link href={`${basePath}/category/emergency`} onClick={onClose}>
-              <Button className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2 mt-2 mb-3">
-                <AlertTriangle className="w-4 h-4" />
-                Emergency
-              </Button>
-            </Link>
           </div>
         </div>
       </div>

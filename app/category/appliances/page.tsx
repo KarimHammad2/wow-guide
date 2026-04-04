@@ -1,7 +1,6 @@
 "use client"
 
 import { Header } from "@/components/guide/header"
-import { Footer } from "@/components/guide/footer"
 import { InfoCard } from "@/components/guide/info-card"
 import { InstructionStepper } from "@/components/guide/instruction-stepper"
 import { FAQAccordion } from "@/components/guide/faq-accordion"
@@ -209,8 +208,6 @@ export default function AppliancesPage() {
           <NeedHelpCard />
         </div>
       </main>
-
-      <Footer />
     </div>
   )
 }

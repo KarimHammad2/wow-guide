@@ -5,15 +5,8 @@ import {
   type Category,
   type ContentSection,
 } from '@/lib/data'
-import type {
-  AdminStoreShape,
-  BuildingGuideCategory,
-  City,
-  EmergencyInfo,
-  GuideContent,
-  TeamAccess,
-  TeamMember,
-} from '@/lib/admin-types'
+import type { AdminStoreShape, BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
+import { DEFAULT_SUPPORT_EMAIL, DEFAULT_SUPPORT_PHONE } from '@/lib/emergency-defaults'
 
 const DEFAULT_GUIDE_SECTIONS: Array<{
   slug: string
@@ -52,7 +45,8 @@ function cloneSections(sections: ContentSection[]): ContentSection[] {
 function getSeedGuideContent(slug: string): GuideContent {
   const defaults: Record<string, GuideContent> = {
     'check-in': {
-      intro: 'Follow these steps for a smooth and fast arrival.',
+      intro:
+        'Welcome at your new WOW Apartment! It is our highest goal to make your stay as perfect as possible. Here is some useful information for your check in.',
       sections: [
         {
           id: 'check-in-hero',
@@ -66,11 +60,143 @@ function getSeedGuideContent(slug: string): GuideContent {
           id: 'check-in-steps',
           blockId: 'check-in-steps',
           type: 'steps',
-          title: 'Arrival steps',
+          title: 'Self Check In',
           items: [
-            { id: '1', title: 'Open your guest portal link', description: 'Use the secure link sent by email.' },
-            { id: '2', title: 'Verify your booking code', description: 'Enter the code exactly as received.' },
-            { id: '3', title: 'Collect keys / digital access', description: 'Follow on-screen instructions for entry.' },
+            {
+              id: '1',
+              title: 'Code access for front door and apartment',
+              description: 'The front door and the apartment can be opened by code.',
+            },
+            {
+              id: '2',
+              title: 'Receive your entry code',
+              description: 'You will receive the entry code minimum 24 hours before arrival.',
+            },
+            {
+              id: '3',
+              title: 'Enter code and access the building',
+              description: 'After entering the code, the front door and the apartment can be opened.',
+            },
+            {
+              id: '4',
+              title: 'Check your contract details',
+              description: 'The apartment number and floor are specified in the contract.',
+            },
+          ],
+        },
+        {
+          id: 'check-in-personal-welcome',
+          blockId: 'check-in-personal-welcome',
+          type: 'text',
+          title: 'Personal welcome after arrival',
+          content:
+            'Despite the self check in, we would like to welcome you personally after your arrival so we can answer your questions and give you the most important information about the apartment and the building.',
+        },
+        {
+          id: 'check-in-restaurants-cafe',
+          blockId: 'check-in-restaurants-cafe',
+          type: 'card',
+          title: 'Restaurants / Cafe',
+          content:
+            'Here is our top 5 list of the best cafes and restaurants in your area (max 10 min) and two food delivery websites.',
+          items: [
+            {
+              id: '1',
+              title: 'Cafe Bar Rosenkranz',
+              description: 'Lovely and cozy coffee, good for an afterwork beer.',
+            },
+            {
+              id: '2',
+              title: 'Restaurant Milchhuesli',
+              description: 'Swiss and European kitchen, good for lunch or dinner.',
+            },
+            {
+              id: '3',
+              title: 'Taverne Johann',
+              description: 'Fancy and delicious kitchen, good for lunch or dinner.',
+            },
+            {
+              id: '4',
+              title: 'Sun kitchen',
+              description: 'Authentic Thai food for lunch, take away also available.',
+            },
+            {
+              id: '5',
+              title: 'eat.ch',
+              description: 'In case you just like to order something online.',
+            },
+            {
+              id: '6',
+              title: 'Uber Eats',
+              description: 'In case you just like to order something online from Uber.',
+            },
+          ],
+        },
+        {
+          id: 'check-in-shopping',
+          blockId: 'check-in-shopping',
+          type: 'card',
+          title: 'Shopping',
+          items: [
+            {
+              id: '1',
+              title: 'Migros',
+              description:
+                'Directly across the street is the Migros grocery store. Here you can buy all kinds of food and everyday consumer goods.',
+            },
+            {
+              id: '2',
+              title: 'Denner',
+              description:
+                'A little cheaper and smaller is the grocery shop Denner, another shopping possibility in the immediate proximity of your flat.',
+            },
+          ],
+        },
+        {
+          id: 'check-in-house-rules',
+          blockId: 'check-in-house-rules',
+          type: 'checklist',
+          title: 'House Rules',
+          items: [
+            { id: '1', title: 'General night rest is at 10 pm.' },
+            { id: '2', title: 'Please respect your neighbours.' },
+            { id: '3', title: 'Please keep the hallway and common areas free of personal belongings.' },
+            { id: '4', title: 'Please ventilate the apartment twice a day.' },
+            { id: '5', title: 'Please use the kitchen ventilation while cooking.' },
+            { id: '6', title: 'Please leave the door open after using the oven so the steam can escape.' },
+            {
+              id: '7',
+              title:
+                'In order to prevent burn marks, please do not put any hot pans on the kitchen tray or the dining table.',
+            },
+          ],
+        },
+        {
+          id: 'check-in-letters-parcels',
+          blockId: 'check-in-letters-parcels',
+          type: 'text',
+          title: 'Letters & Parcels',
+          content:
+            'Your letterbox is labelled and located in the entrance area. You can open and close it with the designated key placed in your apartment. We kindly ask you to empty the letterbox from time to time.\n\nThe postman always arrives usually in the morning in Switzerland. Parcels can sometimes also be delivered later in the afternoon. If you are not at home, the postman will either leave the parcel next to the postbox or you will get a notification letter to pick it up at the post office close by (3 min walk).',
+        },
+        {
+          id: 'check-in-storage',
+          blockId: 'check-in-storage',
+          type: 'card',
+          title: 'Storage',
+          items: [
+            {
+              id: '1',
+              title: 'Common cellar (free)',
+              description:
+                'We offer you the possibility to store your luggage in a common cellar. This cellar can be used by every guest in the house and is free of charge.',
+            },
+            {
+              id: '2',
+              title: 'Private cellar (CHF 50)',
+              description:
+                'Should you wish to have a private cellar, we can provide you with one for a fee of CHF 50. Please contact us.',
+            },
           ],
         },
       ],
@@ -253,32 +379,7 @@ function createDefaultGuidesForBuilding(buildingId: string) {
   }, {})
 }
 
-const defaultSwissCities: City[] = [
-  { id: 'city-basel', name: 'Basel', country: 'Switzerland' },
-  { id: 'city-luzern', name: 'Luzern', country: 'Switzerland' },
-  { id: 'city-schwyz', name: 'Schwyz', country: 'Switzerland' },
-  { id: 'city-zug', name: 'Zug', country: 'Switzerland' },
-  { id: 'city-zurich', name: 'Zürich', country: 'Switzerland' },
-]
-
 const store: AdminStoreShape = {
-  emergencyInfos: [
-    {
-      id: 'primary-emergency',
-      label: 'Primary Emergency',
-      phone: '+41 61 000 00 00',
-      email: 'emergency@wowliving.ch',
-    },
-  ],
-  teamMembers: [
-    {
-      id: 'team-owner',
-      name: 'Admin Owner',
-      email: 'admin@wowliving.ch',
-      access: 'full-access',
-    },
-  ],
-  cities: defaultSwissCities,
   buildings: seedBuildings.map((building) => ({ ...building })),
   buildingGuides: seedBuildings.reduce<AdminStoreShape['buildingGuides']>((acc, building) => {
     acc[building.id] = createDefaultGuidesForBuilding(building.id)
@@ -286,82 +387,41 @@ const store: AdminStoreShape = {
   }, {}),
 }
 
+function isLegacyCheckInContent(content: GuideContent | undefined) {
+  if (!content) return true
+  const legacyIntro = 'Follow these steps for a smooth and fast arrival.'
+  const firstSection = content.sections?.[0]
+  const secondSection = content.sections?.[1]
+  const firstStepTitle = secondSection?.items?.[0]?.title
+
+  return (
+    content.intro === legacyIntro ||
+    firstSection?.title === 'Welcome to your building' ||
+    secondSection?.title === 'Arrival steps' ||
+    firstStepTitle === 'Open your guest portal link'
+  )
+}
+
+function syncLegacyCheckInSeed() {
+  for (const building of store.buildings) {
+    const checkInGuide = store.buildingGuides[building.id]?.['check-in']
+    if (!checkInGuide) continue
+    if (!isLegacyCheckInContent(checkInGuide.content)) continue
+
+    const seeded = getSeedGuideContent('check-in')
+    store.buildingGuides[building.id]['check-in'] = {
+      ...checkInGuide,
+      content: seeded,
+    }
+  }
+}
+
+syncLegacyCheckInSeed()
+
 function ensureBuildingExists(buildingId: string) {
   if (!store.buildings.some((building) => building.id === buildingId)) {
     throw new Error('Building not found')
   }
-}
-
-export function getEmergencyInfos() {
-  return [...store.emergencyInfos]
-}
-
-export function createEmergencyInfo(input: Omit<EmergencyInfo, 'id'>) {
-  const created: EmergencyInfo = { ...input, id: uid('emergency') }
-  store.emergencyInfos.push(created)
-  return created
-}
-
-export function updateEmergencyInfo(input: EmergencyInfo) {
-  const index = store.emergencyInfos.findIndex((item) => item.id === input.id)
-  if (index === -1) throw new Error('Emergency info not found')
-  store.emergencyInfos[index] = input
-  return input
-}
-
-export function deleteEmergencyInfo(id: string) {
-  const index = store.emergencyInfos.findIndex((item) => item.id === id)
-  if (index === -1) throw new Error('Emergency info not found')
-  store.emergencyInfos.splice(index, 1)
-}
-
-export function getTeamMembers() {
-  return [...store.teamMembers]
-}
-
-export function createTeamMember(input: Omit<TeamMember, 'id'>) {
-  const created: TeamMember = { ...input, id: uid('team') }
-  store.teamMembers.push(created)
-  return created
-}
-
-export function updateTeamMember(input: TeamMember) {
-  const index = store.teamMembers.findIndex((item) => item.id === input.id)
-  if (index === -1) throw new Error('Team member not found')
-  store.teamMembers[index] = input
-  return input
-}
-
-export function deleteTeamMember(id: string) {
-  const index = store.teamMembers.findIndex((item) => item.id === id)
-  if (index === -1) throw new Error('Team member not found')
-  store.teamMembers.splice(index, 1)
-}
-
-export function getCities() {
-  return [...store.cities]
-}
-
-export function createCity(input: Omit<City, 'id'>) {
-  const created: City = {
-    id: slugify(`${input.name}-${input.country}-${Date.now().toString(36)}`),
-    ...input,
-  }
-  store.cities.push(created)
-  return created
-}
-
-export function updateCity(input: City) {
-  const index = store.cities.findIndex((item) => item.id === input.id)
-  if (index === -1) throw new Error('City not found')
-  store.cities[index] = input
-  return input
-}
-
-export function deleteCity(id: string) {
-  const index = store.cities.findIndex((item) => item.id === id)
-  if (index === -1) throw new Error('City not found')
-  store.cities.splice(index, 1)
 }
 
 export function getBuildings() {
@@ -372,7 +432,10 @@ export function getBuildingById(id: string) {
   return store.buildings.find((building) => building.id === id)
 }
 
-export function createBuilding(input: Omit<Building, 'id'>) {
+export function createBuilding(
+  input: Omit<Building, 'id'>,
+  options?: { support?: { phone: string; email: string } }
+) {
   const baseSlug = slugify(input.name)
   const existing = new Set(store.buildings.map((building) => building.id))
   let id = baseSlug
@@ -382,14 +445,17 @@ export function createBuilding(input: Omit<Building, 'id'>) {
     suffix += 1
   }
 
-  const supportContact = getEffectiveSupportContact()
+  const support = options?.support ?? {
+    phone: DEFAULT_SUPPORT_PHONE,
+    email: DEFAULT_SUPPORT_EMAIL,
+  }
   const created: Building = {
     ...input,
     id,
     appPath: /^\/building\/[a-z0-9-]+$/i.test(input.appPath) ? input.appPath : `/building/${id}`,
     country: 'Switzerland',
-    emergencyPhone: supportContact.phone,
-    supportEmail: supportContact.email,
+    emergencyPhone: support.phone,
+    supportEmail: support.email,
   }
   store.buildings.push(created)
   store.buildingGuides[id] = createDefaultGuidesForBuilding(id)
@@ -518,16 +584,4 @@ export function deleteBuildingGuideCategory(buildingId: string, categorySlug: st
     throw new Error('Guide section not found')
   }
   delete store.buildingGuides[buildingId][categorySlug]
-}
-
-export function getEffectiveSupportContact() {
-  const emergency = store.emergencyInfos[0]
-  return {
-    phone: emergency?.phone ?? '+41 61 000 00 00',
-    email: emergency?.email ?? 'emergency@wowliving.ch',
-  }
-}
-
-export function hasFullAccess(access: TeamAccess) {
-  return access === 'full-access'
 }
