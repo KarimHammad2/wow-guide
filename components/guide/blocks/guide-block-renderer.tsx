@@ -5,6 +5,7 @@ import { ImageCard } from '@/components/guide/image-card'
 import { InfoCard } from '@/components/guide/info-card'
 import { InstructionStepper } from '@/components/guide/instruction-stepper'
 import { ManualCard } from '@/components/guide/manual-card'
+import { normalizeSafeEmbedUrl, normalizeSafeNavigationTarget } from '@/lib/url-safety'
 import { cn } from '@/lib/utils'
 import type { ContentSection } from '@/lib/data'
 
@@ -14,13 +15,16 @@ interface GuideBlockRendererProps {
 
 function renderSchedule(title: string | undefined, items: NonNullable<ContentSection['items']>) {
   return (
-    <div className="rounded-2xl bg-card border border-border p-5">
+    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5">
       {title && <h3 className="font-semibold text-lg mb-4 text-foreground">{title}</h3>}
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex items-center justify-between rounded-xl bg-secondary/70 p-3">
-            <span className="font-medium text-foreground">{item.title}</span>
-            <span className="text-sm text-muted-foreground">{item.description}</span>
+          <div
+            key={item.id}
+            className="flex flex-col gap-1.5 rounded-xl bg-secondary/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+          >
+            <span className="min-w-0 font-medium text-foreground">{item.title}</span>
+            <span className="min-w-0 text-sm text-muted-foreground sm:shrink-0 sm:text-right">{item.description}</span>
           </div>
         ))}
       </div>
@@ -33,6 +37,7 @@ export function GuideBlockRenderer({ sections }: GuideBlockRendererProps) {
     <div className="space-y-6">
       {sections.map((section) => {
         const key = section.blockId ?? section.id
+        const safeVideoUrl = normalizeSafeEmbedUrl(section.videoUrl)
         switch (section.type) {
           case 'hero':
             return (
@@ -77,10 +82,10 @@ export function GuideBlockRenderer({ sections }: GuideBlockRendererProps) {
             return (
               <section key={key} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                 {section.title && <h3 className="font-semibold text-lg">{section.title}</h3>}
-                {section.videoUrl ? (
+                {safeVideoUrl ? (
                   <div className="aspect-video overflow-hidden rounded-xl">
                     <iframe
-                      src={section.videoUrl}
+                      src={safeVideoUrl}
                       title={section.title ?? 'Video guide'}
                       className="h-full w-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -100,11 +105,11 @@ export function GuideBlockRenderer({ sections }: GuideBlockRendererProps) {
                   {(section.items ?? []).map((item) => (
                     <Link
                       key={item.id}
-                      href={item.link || '#'}
-                      className="flex items-center justify-between rounded-xl border border-border px-3 py-2 hover:border-primary/40 transition-colors"
+                      href={normalizeSafeNavigationTarget(item.link)}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 hover:border-primary/40 transition-colors min-h-11"
                     >
-                      <span>{item.title}</span>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      <span className="min-w-0 break-words text-left">{item.title}</span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </Link>
                   ))}
                 </div>
@@ -138,7 +143,7 @@ export function GuideBlockRenderer({ sections }: GuideBlockRendererProps) {
                 title={section.title ?? 'Manual'}
                 description={section.content}
                 fileType={section.videoUrl ? 'video' : 'pdf'}
-                fileUrl={section.videoUrl ?? section.mediaUrl}
+                fileUrl={normalizeSafeNavigationTarget(section.videoUrl ?? section.mediaUrl)}
               />
             )
           case 'schedule':

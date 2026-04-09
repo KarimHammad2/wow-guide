@@ -229,23 +229,21 @@ export default function BuildingSectionsPage() {
                 disabled={!canEdit || saving}
                 onClick={() =>
                   void mutate(async () => {
-                    await Promise.all(
-                      sections.map((section) =>
-                        adminRequest(`/api/admin/buildings/${buildingId}/sections`, {
-                          method: 'PUT',
-                          body: JSON.stringify({
-                            slug: section.category.slug,
-                            title: section.category.title,
-                            subtitle: section.category.subtitle,
-                            icon: section.category.icon,
-                            color: section.category.color,
-                            intro: section.content.intro,
-                            sections: section.content.sections,
-                            order: section.category.order,
-                          }),
-                        })
-                      )
-                    )
+                    await adminRequest(`/api/admin/buildings/${buildingId}/sections`, {
+                      method: 'PUT',
+                      body: JSON.stringify({
+                        sections: sections.map((section) => ({
+                          slug: section.category.slug,
+                          title: section.category.title,
+                          subtitle: section.category.subtitle,
+                          icon: section.category.icon,
+                          color: section.category.color,
+                          intro: section.content.intro,
+                          sections: section.content.sections,
+                          order: section.category.order,
+                        })),
+                      }),
+                    })
                   })
                 }
               >

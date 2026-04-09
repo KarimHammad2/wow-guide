@@ -1,11 +1,14 @@
 import { BuildingsClient } from '@/app/buildings/buildings-client'
-import { getBuildings } from '@/lib/admin-store'
+import { listBuildings } from '@/lib/buildings-repository'
+
+export const dynamic = 'force-dynamic'
+
 interface BuildingsPageProps {
   searchParams: Promise<{ city?: string }>
 }
 
 export default async function BuildingsPage({ searchParams }: BuildingsPageProps) {
-  const buildings = getBuildings()
+  const buildings = await listBuildings()
   const params = await searchParams
   const initialCity = (params.city ?? '').trim()
 

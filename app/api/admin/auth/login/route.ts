@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isAdminAuthConfigured, isValidAdminLogin } from '@/lib/admin-auth-config'
+import {
+  getRequestIp,
+  parseJsonBody,
+  tooManyRequestsResponse,
+} from '@/lib/api-route-utils'
 import { ensureEnvAdminInSupabase } from '@/lib/ensure-env-admin'
+import { checkRateLimit } from '@/lib/rate-limit'
 
-export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null
+export async function POST(request: NextRequest) {
+  const parsedBody = await parseJsonBody<{ email?: string; password?: string }>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = parsedBody.data
 
-  if (!body?.email || !body?.password) {
+  const ip = getRequestIp(request)
+  const limiter = checkRateLimit(`admin-login:${ip}`, { limit: 12, windowMs: 60_000 })
+  if (!limiter.allowed) {
+    return tooManyRequestsResponse(limiter.retryAfterSeconds)
+  }
+
+  if (!body.email || !body.password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
   }
 
@@ -44,8 +59,8 @@ export async function POST(request: Request) {
           await ensureEnvAdminInSupabase(email, password)
         } catch (err) {
           await supabase.auth.signOut()
-          const message = err instanceof Error ? err.message : 'Bootstrap failed'
-          return NextResponse.json({ error: message }, { status: 500 })
+          console.error('[admin-login-bootstrap]', err)
+          return NextResponse.json({ error: 'Unable to complete sign-in.' }, { status: 500 })
         }
         return NextResponse.json({ ok: true })
       }
@@ -76,8 +91,8 @@ export async function POST(request: Request) {
     try {
       await ensureEnvAdminInSupabase(email, password)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to set up admin account'
-      return NextResponse.json({ error: message }, { status: 500 })
+      console.error('[admin-login-env-bootstrap]', err)
+      return NextResponse.json({ error: 'Unable to complete sign-in.' }, { status: 500 })
     }
 
     const { error: retryError } = await supabase.auth.signInWithPassword({ email, password })

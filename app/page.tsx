@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { GUEST_BUILDING_COOKIE } from '@/lib/guest-building-cookie'
-import { getBuildingById } from '@/lib/admin-store'
+import { getBuildingById } from '@/lib/buildings-repository'
 
 export const metadata: Metadata = {
   title: 'living with a wow | WOW Living',
@@ -23,11 +23,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const slug = cookieStore.get(GUEST_BUILDING_COOKIE)?.value
 
   if (!forceSplash && slug) {
-    const building = getBuildingById(slug)
+    const building = await getBuildingById(slug)
     if (building) {
-      redirect(`/building/${slug}`)
+      redirect(`/${slug}`)
     }
-    cookieStore.delete(GUEST_BUILDING_COOKIE)
   }
 
   return (

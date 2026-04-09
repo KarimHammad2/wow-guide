@@ -4,10 +4,15 @@ import { cn } from '@/lib/utils'
 
 interface EmergencyBannerProps {
   phone: string
+  buildingSlug?: string
   className?: string
 }
 
-export function EmergencyBanner({ phone, className }: EmergencyBannerProps) {
+export function EmergencyBanner({ phone, buildingSlug, className }: EmergencyBannerProps) {
+  const emergencyHref = buildingSlug
+    ? `/${buildingSlug}/category/emergency`
+    : '/category/emergency'
+
   return (
     <div
       className={cn(
@@ -16,7 +21,7 @@ export function EmergencyBanner({ phone, className }: EmergencyBannerProps) {
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/20 flex-shrink-0">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/20 shrink-0">
           <AlertTriangle className="w-5 h-5 text-destructive" />
         </div>
         <div className="flex-1 min-w-0">
@@ -36,7 +41,7 @@ export function EmergencyBanner({ phone, className }: EmergencyBannerProps) {
           Call {phone}
         </a>
         <Link
-          href="/category/emergency"
+          href={emergencyHref}
           className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-card border border-border font-medium text-sm hover:bg-secondary transition-colors"
         >
           View Emergency Info

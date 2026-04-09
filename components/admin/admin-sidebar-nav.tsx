@@ -8,6 +8,7 @@ import {
   Users,
   MapPinned,
   Hotel,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +18,7 @@ const baseNavItems = [
   { href: '/admin/team', label: 'Team Access', icon: Users },
   { href: '/admin/cities', label: 'Cities', icon: MapPinned },
   { href: '/admin/buildings', label: 'Buildings', icon: Hotel },
+  { href: '/admin/categories', label: 'Category', icon: Layers },
 ] as const
 
 export function AdminSidebarNav() {
@@ -40,7 +42,8 @@ export function AdminSidebarNavItems({
       {navItems.map((item) => {
         const active =
           pathname === item.href ||
-          (item.href === '/admin/buildings' && pathname.startsWith('/admin/buildings/'))
+          (item.href === '/admin/buildings' && pathname.startsWith('/admin/buildings/')) ||
+          (item.href === '/admin/categories' && pathname.startsWith('/admin/categories'))
 
         return (
           <Link

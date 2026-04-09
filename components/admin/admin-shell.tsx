@@ -37,7 +37,7 @@ export function AdminShell({
   return (
     <main className="w-full px-3 py-4 md:px-6 md:py-6 lg:min-h-screen">
       <div className="grid w-full gap-5 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[auto_1fr] lg:items-stretch">
-        <div className="lg:hidden flex items-center justify-between rounded-2xl border border-border/70 bg-card/90 px-3 py-2">
+        <div className="lg:hidden flex items-center justify-between rounded-2xl border border-border/70 bg-card/90 px-3 py-2 safe-top">
           <div className="inline-flex items-center gap-2">
             <div className="relative h-7 w-20">
               <Image
@@ -82,10 +82,10 @@ export function AdminShell({
             <div
               className={cn(
                 'relative flex items-center',
-                collapsed ? 'justify-center' : 'justify-center px-1'
+                collapsed ? 'justify-center pt-3 pb-1' : 'justify-center px-1 min-h-10'
               )}
             >
-              <div className={cn('inline-flex items-center justify-center w-full', collapsed && 'hidden')}>
+              <div className={cn('inline-flex items-center justify-center w-full pr-11', collapsed && 'hidden')}>
                 <div className="relative h-8 w-24">
                   <Image
                     src="/logo.png"
@@ -100,14 +100,21 @@ export function AdminShell({
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden lg:inline-flex absolute right-1"
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-expanded={!collapsed}
+                className={cn(
+                  'hidden lg:inline-flex',
+                  collapsed
+                    ? 'relative size-10 shrink-0 rounded-xl border border-border/60 bg-muted/45 text-foreground shadow-sm hover:bg-muted/70 hover:border-border/80'
+                    : 'absolute right-1 top-1/2 -translate-y-1/2'
+                )}
                 onClick={() => setCollapsed((v) => !v)}
               >
-                {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+                {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
               </Button>
             </div>
 
-            <div className={cn('mt-4', collapsed && 'mt-5')}>
+            <div className={cn('mt-3', !collapsed && 'mt-4')}>
               <AdminSidebarNavItems
                 collapsed={collapsed}
                 canManageTeam={canManageTeam}

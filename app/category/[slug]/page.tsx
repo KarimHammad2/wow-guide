@@ -38,7 +38,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header buildingName={currentBuilding.name} />
+      <Header
+        buildingName={currentBuilding.name}
+        buildingSlug={currentBuilding.id}
+        supportEmail={currentBuilding.supportEmail}
+      />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-5">
         <section className="guide-shell pt-2">

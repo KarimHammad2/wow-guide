@@ -10,6 +10,13 @@ export type AdminAuthContext = {
   isOwner: boolean
 }
 
+function serviceRoleUnavailable(message: string) {
+  return {
+    ok: false as const,
+    response: NextResponse.json({ error: message }, { status: 503 }),
+  }
+}
+
 export async function requireAdminSession(): Promise<
   { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
 > {
@@ -100,13 +107,66 @@ export async function requireMutableCities(): Promise<
   const auth = await requireAdminSession()
   if (!auth.ok) return auth
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: 'Saving cities requires SUPABASE_SERVICE_ROLE_KEY.' },
-        { status: 503 },
-      ),
-    }
+    return serviceRoleUnavailable('Saving cities requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
+/** Building CRUD persists to Supabase (requires service role on server). */
+export async function requireMutableBuildings(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireMutableAdmin()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Saving buildings requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
+/** Building guide sections CRUD persists to Supabase (requires service role on server). */
+export async function requireMutableBuildingSections(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireMutableAdmin()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Saving building sections requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
+/** Reusable guide categories + assignments persist to Supabase (requires service role on server). */
+export async function requireMutableGuideCategories(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireMutableAdmin()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Saving guide categories requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
+/** Team directory reads/writes rely on Supabase Admin APIs (requires service role). */
+export async function requireAdminDirectorySession(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireAdminSession()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Team management requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
+export async function requireOwnerDirectorySession(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireOwnerSession()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Team management requires SUPABASE_SERVICE_ROLE_KEY.')
   }
   return auth
 }

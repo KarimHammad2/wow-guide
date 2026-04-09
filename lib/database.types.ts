@@ -69,6 +69,175 @@ export type Database = {
         }
         Relationships: []
       }
+      buildings: {
+        Row: {
+          id: string
+          name: string
+          address: string
+          city: string
+          app_path: string
+          country: string
+          image_url: string
+          emergency_phone: string
+          support_email: string
+          welcome_message: string
+          google_maps_url: string
+          quiet_hours: string
+          good_to_know: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          address?: string
+          city?: string
+          app_path?: string
+          country?: string
+          image_url?: string
+          emergency_phone?: string
+          support_email?: string
+          welcome_message?: string
+          google_maps_url?: string
+          quiet_hours?: string
+          good_to_know?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          name?: string
+          address?: string
+          city?: string
+          app_path?: string
+          country?: string
+          image_url?: string
+          emergency_phone?: string
+          support_email?: string
+          welcome_message?: string
+          google_maps_url?: string
+          quiet_hours?: string
+          good_to_know?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      guide_categories: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          short_description: string
+          icon_name: string | null
+          icon_image_url: string | null
+          category_color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          short_description: string
+          icon_name?: string | null
+          icon_image_url?: string | null
+          category_color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          slug?: string
+          title?: string
+          short_description?: string
+          icon_name?: string | null
+          icon_image_url?: string | null
+          category_color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      building_category_assignments: {
+        Row: {
+          id: string
+          building_id: string
+          category_id: string
+          sort_order: number
+          is_required: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          building_id: string
+          category_id: string
+          sort_order?: number
+          is_required?: boolean
+          created_at?: string
+        }
+        Update: {
+          building_id?: string
+          category_id?: string
+          sort_order?: number
+          is_required?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'building_category_assignments_building_id_fkey'
+            columns: ['building_id']
+            isOneToOne: false
+            referencedRelation: 'buildings'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'building_category_assignments_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'guide_categories'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      building_guide_categories: {
+        Row: {
+          id: string
+          building_id: string
+          category_slug: string
+          sort_order: number
+          category: Json
+          content: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          building_id: string
+          category_slug: string
+          sort_order: number
+          category: Json
+          content: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          category_slug?: string
+          sort_order?: number
+          category?: Json
+          content?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'building_guide_categories_building_id_fkey'
+            columns: ['building_id']
+            isOneToOne: false
+            referencedRelation: 'buildings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       staff_directory: {

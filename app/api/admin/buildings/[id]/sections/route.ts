@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { requireAdminSession, requireMutableAdmin } from '@/lib/admin-api'
+import { requireAdminSession, requireMutableBuildingSections } from '@/lib/admin-api'
+import {
+  getRequestIp,
+  logApiError,
+  parseJsonBody,
+  serverErrorResponse,
+  tooManyRequestsResponse,
+} from '@/lib/api-route-utils'
+import { isSafeHttpUrl, isSafeNavigationTarget } from '@/lib/url-safety'
+import { checkRateLimit } from '@/lib/rate-limit'
 import {
   createBuildingGuideCategory,
   deleteBuildingGuideCategory,
-  getBuildingCategories,
   getBuildingGuideCategory,
-  getBuildingCategoryContent,
   updateBuildingGuideCategory,
-} from '@/lib/admin-store'
+  listBuildingGuideSections,
+} from '@/lib/building-guides-repository'
 import type { Category, ContentSection } from '@/lib/data'
 
 interface RouteContext {
@@ -77,6 +85,51 @@ const sectionMutationSchema = z.object({
   order: z.number().int().positive().optional(),
 })
 
+const bulkSectionMutationSchema = z.object({
+  sections: z.array(sectionMutationSchema),
+})
+
+function firstUnsafeSectionUrl(sections: z.infer<typeof contentSectionSchema>[]): string | null {
+  const stack = [...sections]
+  while (stack.length > 0) {
+    const section = stack.pop()
+    if (!section) continue
+
+    if (section.videoUrl && !isSafeHttpUrl(section.videoUrl)) {
+      return `Invalid videoUrl for section "${section.id}".`
+    }
+    if (section.mediaUrl && !isSafeNavigationTarget(section.mediaUrl)) {
+      return `Invalid mediaUrl for section "${section.id}".`
+    }
+
+    for (const item of section.items ?? []) {
+      if (item.link && !isSafeNavigationTarget(item.link)) {
+        return `Invalid link for item "${item.id}" in section "${section.id}".`
+      }
+      if (item.image && !isSafeNavigationTarget(item.image)) {
+        return `Invalid image URL for item "${item.id}" in section "${section.id}".`
+      }
+      if (item.items?.length) {
+        stack.push({
+          id: section.id,
+          type: section.type,
+          title: section.title,
+          content: section.content,
+          items: item.items,
+          variant: section.variant,
+          mediaUrl: section.mediaUrl,
+          videoUrl: section.videoUrl,
+          caption: section.caption,
+          layout: section.layout,
+          styleVariant: section.styleVariant,
+        })
+      }
+    }
+  }
+
+  return null
+}
+
 function normalizeSections(sections: z.infer<typeof contentSectionSchema>[]): ContentSection[] {
   return sections.map((section, index) => ({
     ...section,
@@ -89,69 +142,147 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const auth = await requireAdminSession()
   if (!auth.ok) return auth.response
   const { id } = await context.params
-  const categories = getBuildingCategories(id)
-  const sections = categories.map((category) => ({
-    category,
-    content: getBuildingCategoryContent(id, category.slug),
-  }))
+  const sections = await listBuildingGuideSections(id)
   return NextResponse.json(sections)
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const auth = await requireMutableAdmin()
+  const auth = await requireMutableBuildingSections()
   if (!auth.ok) return auth.response
+  const limiter = checkRateLimit(`admin-sections-create:${getRequestIp(request)}`, {
+    limit: 60,
+    windowMs: 60_000,
+  })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
   const { id } = await context.params
-  const body = sectionMutationSchema.safeParse(await request.json())
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = sectionMutationSchema.safeParse(parsedBody.data)
   if (!body.success) {
-    return NextResponse.json({ error: 'Invalid section payload', details: body.error.flatten() }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid section payload.' }, { status: 400 })
   }
   const payload = body.data
-  const created = createBuildingGuideCategory(id, {
-    slug: payload.slug ?? payload.title ?? 'section',
-    title: payload.title ?? 'New Section',
-    subtitle: payload.subtitle ?? 'Guide details',
-    icon: payload.icon ?? 'BookOpen',
-    color: (payload.color as Category['color']) ?? 'primary',
-    intro: payload.intro ?? '',
-    alert: payload.alert,
-    sections: normalizeSections(payload.sections ?? []),
-  })
-  return NextResponse.json(created)
+  const unsafeUrlError = firstUnsafeSectionUrl(payload.sections ?? [])
+  if (unsafeUrlError) {
+    return NextResponse.json({ error: unsafeUrlError }, { status: 400 })
+  }
+  try {
+    const created = await createBuildingGuideCategory(id, {
+      slug: payload.slug ?? payload.title ?? 'section',
+      title: payload.title ?? 'New Section',
+      subtitle: payload.subtitle ?? 'Guide details',
+      icon: payload.icon ?? 'BookOpen',
+      color: (payload.color as Category['color']) ?? 'primary',
+      intro: payload.intro ?? '',
+      alert: payload.alert,
+      sections: normalizeSections(payload.sections ?? []),
+    })
+    return NextResponse.json(created)
+  } catch (error) {
+    logApiError('admin-sections-create', error)
+    return serverErrorResponse('Unable to create guide section.')
+  }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const auth = await requireMutableAdmin()
+  const auth = await requireMutableBuildingSections()
   if (!auth.ok) return auth.response
+  const limiter = checkRateLimit(`admin-sections-update:${getRequestIp(request)}`, {
+    limit: 120,
+    windowMs: 60_000,
+  })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
   const { id } = await context.params
-  const body = sectionMutationSchema.safeParse(await request.json())
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const json = parsedBody.data
+  const bulk = bulkSectionMutationSchema.safeParse(json)
+  if (bulk.success) {
+    const bulkUnsafeUrlError = bulk.data.sections
+      .map((section) => firstUnsafeSectionUrl(section.sections ?? []))
+      .find((message): message is string => Boolean(message))
+    if (bulkUnsafeUrlError) {
+      return NextResponse.json({ error: bulkUnsafeUrlError }, { status: 400 })
+    }
+    try {
+      const updates = await Promise.all(
+        bulk.data.sections.map(async (payload) => {
+          const existing = await getBuildingGuideCategory(id, payload.slug)
+          if (!existing) {
+            throw new Error(`Guide section not found: ${payload.slug}`)
+          }
+          return updateBuildingGuideCategory(id, payload.slug, {
+            title: payload.title ?? existing.category.title,
+            subtitle: payload.subtitle ?? existing.category.subtitle,
+            icon: payload.icon ?? existing.category.icon,
+            color: (payload.color as Category['color']) ?? existing.category.color,
+            order: payload.order ?? existing.category.order,
+            intro: payload.intro ?? existing.content.intro,
+            alert: payload.alert,
+            sections: payload.sections ? normalizeSections(payload.sections) : existing.content.sections,
+          })
+        })
+      )
+      return NextResponse.json(updates)
+    } catch (error) {
+      logApiError('admin-sections-bulk-update', error)
+      return NextResponse.json({ error: 'Unable to save sections.' }, { status: 400 })
+    }
+  }
+
+  const body = sectionMutationSchema.safeParse(json)
   if (!body.success) {
     return NextResponse.json({ error: 'Invalid section payload', details: body.error.flatten() }, { status: 400 })
   }
   const payload = body.data
+  const unsafeUrlError = firstUnsafeSectionUrl(payload.sections ?? [])
+  if (unsafeUrlError) {
+    return NextResponse.json({ error: unsafeUrlError }, { status: 400 })
+  }
   const categorySlug = payload.slug as string
-  const existing = getBuildingGuideCategory(id, categorySlug)
+  const existing = await getBuildingGuideCategory(id, categorySlug)
   if (!existing) {
     return NextResponse.json({ error: 'Guide section not found' }, { status: 404 })
   }
 
-  const updated = updateBuildingGuideCategory(id, categorySlug, {
-    title: payload.title ?? existing.category.title,
-    subtitle: payload.subtitle ?? existing.category.subtitle,
-    icon: payload.icon ?? existing.category.icon,
-    color: (payload.color as Category['color']) ?? existing.category.color,
-    order: payload.order ?? existing.category.order,
-    intro: payload.intro ?? existing.content.intro,
-    alert: payload.alert,
-    sections: payload.sections ? normalizeSections(payload.sections) : existing.content.sections,
-  })
-  return NextResponse.json(updated)
+  try {
+    const updated = await updateBuildingGuideCategory(id, categorySlug, {
+      title: payload.title ?? existing.category.title,
+      subtitle: payload.subtitle ?? existing.category.subtitle,
+      icon: payload.icon ?? existing.category.icon,
+      color: (payload.color as Category['color']) ?? existing.category.color,
+      order: payload.order ?? existing.category.order,
+      intro: payload.intro ?? existing.content.intro,
+      alert: payload.alert,
+      sections: payload.sections ? normalizeSections(payload.sections) : existing.content.sections,
+    })
+    return NextResponse.json(updated)
+  } catch (error) {
+    logApiError('admin-sections-update', error)
+    return serverErrorResponse('Unable to update guide section.')
+  }
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const auth = await requireMutableAdmin()
+  const auth = await requireMutableBuildingSections()
   if (!auth.ok) return auth.response
+  const limiter = checkRateLimit(`admin-sections-delete:${getRequestIp(request)}`, {
+    limit: 120,
+    windowMs: 60_000,
+  })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
   const { id } = await context.params
-  const body = await request.json()
-  deleteBuildingGuideCategory(id, body.slug)
-  return NextResponse.json({ ok: true })
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = z.object({ slug: z.string().trim().min(1) }).safeParse(parsedBody.data)
+  if (!body.success) {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+  try {
+    await deleteBuildingGuideCategory(id, body.data.slug)
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    logApiError('admin-sections-delete', error)
+    return serverErrorResponse('Unable to delete guide section.')
+  }
 }

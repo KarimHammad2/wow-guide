@@ -22,6 +22,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Building as BuildingType, Category, ContentSection } from '@/lib/data'
 import type { City, EmergencyInfo, TeamMember } from '@/lib/admin-types'
+import { QuietHourPicker } from '@/components/admin/quiet-hour-picker'
+import {
+  formatQuietHoursRange,
+  isValidQuietHourSlot,
+  parseQuietHoursRange,
+  QUIET_HOUR_UNSET,
+} from '@/lib/quiet-hours'
 
 type BuildingSectionRecord = {
   category: Category
@@ -66,7 +73,12 @@ export function AdminDashboardClient() {
     emergencyPhone: '',
     supportEmail: '',
     welcomeMessage: '',
+    googleMapsUrl: '',
+    quietHours: '',
+    goodToKnow: '',
   })
+  const [dashQuietFrom, setDashQuietFrom] = useState(QUIET_HOUR_UNSET)
+  const [dashQuietTo, setDashQuietTo] = useState(QUIET_HOUR_UNSET)
   const [newEmergency, setNewEmergency] = useState<Omit<EmergencyInfo, 'id'>>({
     label: 'Emergency contact',
     phone: '',
@@ -180,6 +192,39 @@ export function AdminDashboardClient() {
     } finally {
       setSaving(false)
     }
+  }
+
+  function isValidAppPath(value: string) {
+    const v = value.trim()
+    return /^\/[a-z0-9-]+$/i.test(v) || /^\/building\/[a-z0-9-]+$/i.test(v)
+  }
+
+  function isOptionalAppPathOk(value: string) {
+    const v = value.trim()
+    return v === '' || isValidAppPath(v)
+  }
+
+  function canSubmitNewBuilding(b: Omit<BuildingType, 'id'>) {
+    return (
+      Boolean(b.name.trim()) &&
+      Boolean(b.address.trim()) &&
+      Boolean(b.city.trim()) &&
+      Boolean(b.googleMapsUrl.trim()) &&
+      dashQuietFrom !== QUIET_HOUR_UNSET &&
+      dashQuietTo !== QUIET_HOUR_UNSET &&
+      isOptionalAppPathOk(b.appPath)
+    )
+  }
+
+  function canSubmitBuilding(b: BuildingType) {
+    return (
+      Boolean(b.name.trim()) &&
+      Boolean(b.address.trim()) &&
+      Boolean(b.city.trim()) &&
+      Boolean(b.googleMapsUrl.trim()) &&
+      Boolean(b.quietHours.trim()) &&
+      isOptionalAppPathOk(b.appPath)
+    )
   }
 
   if (loading) {
@@ -346,20 +391,91 @@ export function AdminDashboardClient() {
               <CardDescription>Creating a building auto-generates guide sections (wifi, check-in, parking, security, emergency, cleaning).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {buildings.map((building) => (
+              {buildings.map((building) => {
+                const parsedQuiet = parseQuietHoursRange(building.quietHours)
+                const quietFromVal =
+                  parsedQuiet.from && isValidQuietHourSlot(parsedQuiet.from) ? parsedQuiet.from : '22:00'
+                const quietToVal =
+                  parsedQuiet.to && isValidQuietHourSlot(parsedQuiet.to) ? parsedQuiet.to : '07:00'
+                return (
                 <div key={building.id} className="rounded-2xl border border-border p-3 space-y-2">
-                  <Input value={building.name} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, name: e.target.value } : p))} />
+                  <Input value={building.name} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, name: e.target.value } : p))} placeholder="Building name" />
                   <div className="grid sm:grid-cols-2 gap-2">
-                    <Input value={building.address} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, address: e.target.value } : p))} />
-                    <Input value={building.city} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, city: e.target.value } : p))} />
-                    <Input value={building.country} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, country: e.target.value } : p))} />
-                    <Input value={building.imageUrl} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, imageUrl: e.target.value } : p))} />
-                    <Input value={building.emergencyPhone} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, emergencyPhone: e.target.value } : p))} />
-                    <Input value={building.supportEmail} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, supportEmail: e.target.value } : p))} />
+                    <Input value={building.address} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, address: e.target.value } : p))} placeholder="Address" />
+                    <Select
+                      value={building.city}
+                      onValueChange={(value) => setBuildings((prev) => prev.map((p) => (p.id === building.id ? { ...p, city: value } : p)))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="City" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cities.map((city) => (
+                          <SelectItem key={city.id} value={city.name}>
+                            {city.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      className="sm:col-span-2"
+                      type="url"
+                      inputMode="url"
+                      value={building.googleMapsUrl}
+                      onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, googleMapsUrl: e.target.value } : p))}
+                      placeholder="Google Maps link"
+                    />
+                    <div className="sm:col-span-2 space-y-1">
+                      <Input
+                        value={building.appPath}
+                        onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, appPath: e.target.value } : p))}
+                        placeholder="Guide URL path (optional, e.g. /my-building)"
+                      />
+                      <p className="text-xs text-muted-foreground">Leave empty to use a path derived from the building name.</p>
+                    </div>
+                    <Input value={building.country} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, country: e.target.value } : p))} placeholder="Country" />
+                    <Input value={building.imageUrl} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, imageUrl: e.target.value } : p))} placeholder="Image URL" />
+                    <Input value={building.emergencyPhone} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, emergencyPhone: e.target.value } : p))} placeholder="Emergency phone" />
+                    <Input value={building.supportEmail} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, supportEmail: e.target.value } : p))} placeholder="Support email" />
+                    <div className="sm:col-span-2 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Quiet hours</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <QuietHourPicker
+                          placeholder="From"
+                          value={quietFromVal}
+                          onValueChange={(v) => {
+                            setBuildings((prev) =>
+                              prev.map((p) => {
+                                if (p.id !== building.id) return p
+                                const cur = parseQuietHoursRange(p.quietHours)
+                                const to = cur.to && isValidQuietHourSlot(cur.to) ? cur.to : '07:00'
+                                return { ...p, quietHours: formatQuietHoursRange(v, to) }
+                              })
+                            )
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground">to</span>
+                        <QuietHourPicker
+                          placeholder="To"
+                          value={quietToVal}
+                          onValueChange={(v) => {
+                            setBuildings((prev) =>
+                              prev.map((p) => {
+                                if (p.id !== building.id) return p
+                                const cur = parseQuietHoursRange(p.quietHours)
+                                const from = cur.from && isValidQuietHourSlot(cur.from) ? cur.from : '22:00'
+                                return { ...p, quietHours: formatQuietHoursRange(from, v) }
+                              })
+                            )
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <Textarea value={building.goodToKnow} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, goodToKnow: e.target.value } : p))} placeholder="Good to know (optional)" rows={2} className="sm:col-span-2" />
                   </div>
-                  <Textarea value={building.welcomeMessage} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, welcomeMessage: e.target.value } : p))} rows={2} />
+                  <Textarea value={building.welcomeMessage} onChange={(e) => setBuildings((prev) => prev.map((p) => p.id === building.id ? { ...p, welcomeMessage: e.target.value } : p))} placeholder="Welcome message" rows={2} />
                   <div className="flex gap-2">
-                    <Button size="sm" disabled={!canEdit || saving} onClick={() => mutate(async () => {
+                    <Button size="sm" disabled={!canEdit || saving || !canSubmitBuilding(building)} onClick={() => mutate(async () => {
                       const updated = await request<BuildingType>('/api/admin/buildings', { method: 'PUT', body: JSON.stringify(building) })
                       setBuildings((prev) => prev.map((p) => p.id === updated.id ? updated : p))
                     })}>Save</Button>
@@ -370,21 +486,75 @@ export function AdminDashboardClient() {
                     })}>Delete</Button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
 
               <div className="rounded-2xl border border-dashed border-border p-3 space-y-2">
                 <Input placeholder="Building name" value={newBuilding.name} onChange={(e) => setNewBuilding((p) => ({ ...p, name: e.target.value }))} />
                 <div className="grid sm:grid-cols-2 gap-2">
                   <Input placeholder="Address" value={newBuilding.address} onChange={(e) => setNewBuilding((p) => ({ ...p, address: e.target.value }))} />
-                  <Input placeholder="City" value={newBuilding.city} onChange={(e) => setNewBuilding((p) => ({ ...p, city: e.target.value }))} />
+                  <Select value={newBuilding.city} onValueChange={(value) => setNewBuilding((p) => ({ ...p, city: value }))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.name}>
+                          {city.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    className="sm:col-span-2"
+                    type="url"
+                    inputMode="url"
+                    placeholder="Google Maps link"
+                    value={newBuilding.googleMapsUrl}
+                    onChange={(e) => setNewBuilding((p) => ({ ...p, googleMapsUrl: e.target.value }))}
+                  />
+                  <div className="sm:col-span-2 space-y-1">
+                    <Input
+                      placeholder="Guide URL path (optional)"
+                      value={newBuilding.appPath}
+                      onChange={(e) => setNewBuilding((p) => ({ ...p, appPath: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Leave empty to use a path derived from the building name.</p>
+                  </div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Quiet hours</Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <QuietHourPicker
+                        placeholder="From"
+                        unset
+                        value={dashQuietFrom === QUIET_HOUR_UNSET ? undefined : dashQuietFrom}
+                        onValueChange={setDashQuietFrom}
+                      />
+                      <span className="text-sm text-muted-foreground">to</span>
+                      <QuietHourPicker
+                        placeholder="To"
+                        unset
+                        value={dashQuietTo === QUIET_HOUR_UNSET ? undefined : dashQuietTo}
+                        onValueChange={setDashQuietTo}
+                      />
+                    </div>
+                  </div>
+                  <Textarea placeholder="Good to know (optional)" rows={2} value={newBuilding.goodToKnow} onChange={(e) => setNewBuilding((p) => ({ ...p, goodToKnow: e.target.value }))} className="sm:col-span-2" />
                   <Input placeholder="Country" value={newBuilding.country} onChange={(e) => setNewBuilding((p) => ({ ...p, country: e.target.value }))} />
                   <Input placeholder="Image URL" value={newBuilding.imageUrl} onChange={(e) => setNewBuilding((p) => ({ ...p, imageUrl: e.target.value }))} />
                   <Input placeholder="Emergency phone" value={newBuilding.emergencyPhone} onChange={(e) => setNewBuilding((p) => ({ ...p, emergencyPhone: e.target.value }))} />
                   <Input placeholder="Support email" value={newBuilding.supportEmail} onChange={(e) => setNewBuilding((p) => ({ ...p, supportEmail: e.target.value }))} />
                 </div>
                 <Textarea placeholder="Welcome message" rows={2} value={newBuilding.welcomeMessage} onChange={(e) => setNewBuilding((p) => ({ ...p, welcomeMessage: e.target.value }))} />
-                <Button className="gap-1.5" size="sm" disabled={!canEdit || saving} onClick={() => mutate(async () => {
-                  const created = await request<BuildingType>('/api/admin/buildings', { method: 'POST', body: JSON.stringify(newBuilding) })
+                <Button className="gap-1.5" size="sm" disabled={!canEdit || saving || !canSubmitNewBuilding(newBuilding)} onClick={() => mutate(async () => {
+                  if (dashQuietFrom === QUIET_HOUR_UNSET || dashQuietTo === QUIET_HOUR_UNSET) return
+                  const created = await request<BuildingType>('/api/admin/buildings', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      ...newBuilding,
+                      quietHours: formatQuietHoursRange(dashQuietFrom, dashQuietTo),
+                    }),
+                  })
                   setBuildings((prev) => [...prev, created])
                   setSelectedBuildingId(created.id)
                   setNewBuilding({
@@ -397,7 +567,12 @@ export function AdminDashboardClient() {
                     emergencyPhone: '',
                     supportEmail: '',
                     welcomeMessage: '',
+                    googleMapsUrl: '',
+                    quietHours: '',
+                    goodToKnow: '',
                   })
+                  setDashQuietFrom(QUIET_HOUR_UNSET)
+                  setDashQuietTo(QUIET_HOUR_UNSET)
                 })}><Plus className="w-3.5 h-3.5" />Add Building</Button>
               </div>
             </CardContent>

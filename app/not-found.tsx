@@ -1,18 +1,26 @@
 import Link from 'next/link'
-import { Home, Search, HelpCircle } from 'lucide-react'
+import Image from 'next/image'
+import { Home, Search } from 'lucide-react'
 import { Header } from '@/components/guide/header'
 import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header centerNavLabel="404" />
 
-      <main className="flex-1 flex items-center justify-center pt-16 pb-8">
-        <div className="max-w-md mx-auto px-4 text-center">
-          {/* Icon */}
-          <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
-            <HelpCircle className="w-10 h-10 text-muted-foreground" />
+      <main className="flex-1 flex items-center justify-center pt-24 pb-10 px-4 safe-bottom">
+        <div className="max-w-md mx-auto w-full text-center">
+          {/* Logo */}
+          <div className="relative h-20 w-52 sm:h-24 sm:w-60 mx-auto mb-6 shrink-0">
+            <Image
+              src="/logo.png"
+              alt="WOW Living"
+              fill
+              className="object-contain"
+              sizes="(min-width: 640px) 240px, 208px"
+              priority
+            />
           </div>
 
           {/* Message */}

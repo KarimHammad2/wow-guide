@@ -50,7 +50,7 @@ export function QuickActions({ className, buildingSlug }: QuickActionsProps) {
         {actions.map((action) => {
           const Icon = action.icon
           const href = buildingSlug 
-            ? `/building/${buildingSlug}/category/${action.slug}`
+            ? `/${buildingSlug}/category/${action.slug}`
             : `/category/${action.slug}`
           return (
             <Link

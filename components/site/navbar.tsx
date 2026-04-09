@@ -11,6 +11,8 @@ export type NavbarLink = {
 export type NavbarProps = {
   className?: string
   transparent?: boolean
+  /** `floating` = rounded inner card (default). `flat` = full-width bar with bottom border. */
+  variant?: 'floating' | 'flat'
   brandHref?: string
   brandLabel?: string
   logoSrc?: string
@@ -60,6 +62,7 @@ function NavbarLinkItem({ href, label, external }: NavbarLink) {
 export function Navbar({
   className,
   transparent = false,
+  variant = 'floating',
   brandHref = '/',
   brandLabel = 'WOW Living',
   logoSrc,
@@ -68,6 +71,50 @@ export function Navbar({
   center,
   right,
 }: NavbarProps) {
+  const isFlat = variant === 'flat'
+
+  const bar = (
+    <div className="relative grid grid-cols-3 items-center px-5 py-3 md:px-6 md:py-3.5">
+      {/* Left: Brand */}
+      <Link
+        href={brandHref}
+        aria-label={brandLabel}
+        className="flex items-center gap-3 min-w-0"
+      >
+        {logoSrc ? (
+          <div className="relative h-8 w-24 md:h-9 md:w-28">
+            <Image
+              src={logoSrc}
+              alt={logoAlt}
+              fill
+              sizes="(min-width: 768px) 112px, 96px"
+              className="object-contain object-left"
+              priority
+            />
+          </div>
+        ) : (
+          <LuxuryMark />
+        )}
+      </Link>
+
+      {/* Center: Links or custom */}
+      <div className="flex items-center justify-center min-w-0">
+        {center ? (
+          center
+        ) : links && links.length ? (
+          <nav className="hidden md:flex items-center gap-3">
+            {links.map((l) => (
+              <NavbarLinkItem key={`${l.href}-${l.label}`} {...l} />
+            ))}
+          </nav>
+        ) : null}
+      </div>
+
+      {/* Right: Actions */}
+      <div className="flex items-center justify-end gap-2 min-w-0">{right}</div>
+    </div>
+  )
+
   return (
     <header
       className={cn(
@@ -77,58 +124,37 @@ export function Navbar({
         className,
       )}
     >
-      <div className="w-full px-4 py-3 md:px-8 md:py-4 xl:px-14">
-        <div
-          className={cn(
-            'relative',
-            'rounded-[28px] border border-border/70 dark:border-border/55',
-            'bg-background/80 dark:bg-background/40 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_30px_-20px_rgba(0,0,0,0.65)]',
-            'backdrop-blur-xl',
-            'supports-backdrop-filter:bg-background/60 dark:supports-backdrop-filter:bg-background/30',
-          )}
-        >
-          <div className="absolute inset-0 rounded-[28px] bg-[linear-gradient(110deg,transparent,rgba(155,90,116,0.10),transparent)] opacity-35 dark:opacity-20 pointer-events-none" />
-          <div className="absolute inset-px rounded-[27px] border border-white/45 dark:border-white/10 pointer-events-none" />
-          <div className="relative grid grid-cols-3 items-center px-5 py-3 md:px-6">
-            {/* Left: Brand */}
-            <Link
-              href={brandHref}
-              aria-label={brandLabel}
-              className="flex items-center gap-3 min-w-0"
-            >
-              {logoSrc ? (
-                <div className="relative h-8 w-24 md:h-9 md:w-28">
-                  <Image
-                    src={logoSrc}
-                    alt={logoAlt}
-                    fill
-                    sizes="(min-width: 768px) 112px, 96px"
-                    className="object-contain object-left"
-                    priority
-                  />
-                </div>
-              ) : (
-                <LuxuryMark />
-              )}
-            </Link>
-
-            {/* Center: Links or custom */}
-            <div className="flex items-center justify-center min-w-0">
-              {center ? (
-                center
-              ) : links && links.length ? (
-                <nav className="hidden md:flex items-center gap-3">
-                  {links.map((l) => (
-                    <NavbarLinkItem key={`${l.href}-${l.label}`} {...l} />
-                  ))}
-                </nav>
-              ) : null}
-            </div>
-
-            {/* Right: Actions */}
-            <div className="flex items-center justify-end gap-2 min-w-0">{right}</div>
+      <div
+        className={cn(
+          'w-full',
+          isFlat ? 'px-4 md:px-8 xl:px-14' : 'px-4 py-3 md:px-8 md:py-4 xl:px-14',
+        )}
+      >
+        {isFlat ? (
+          <div
+            className={cn(
+              'relative border-b border-border/70 dark:border-border/55',
+              'bg-background/85 dark:bg-background/45',
+              'backdrop-blur-xl supports-backdrop-filter:bg-background/65 dark:supports-backdrop-filter:bg-background/35',
+            )}
+          >
+            {bar}
           </div>
-        </div>
+        ) : (
+          <div
+            className={cn(
+              'relative',
+              'rounded-[28px] border border-border/70 dark:border-border/55',
+              'bg-background/80 dark:bg-background/40 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_30px_-20px_rgba(0,0,0,0.65)]',
+              'backdrop-blur-xl',
+              'supports-backdrop-filter:bg-background/60 dark:supports-backdrop-filter:bg-background/30',
+            )}
+          >
+            <div className="absolute inset-0 rounded-[28px] bg-[linear-gradient(110deg,transparent,rgba(155,90,116,0.10),transparent)] opacity-35 dark:opacity-20 pointer-events-none" />
+            <div className="absolute inset-px rounded-[27px] border border-white/45 dark:border-white/10 pointer-events-none" />
+            {bar}
+          </div>
+        )}
       </div>
     </header>
   )

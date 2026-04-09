@@ -1,8 +1,31 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { requireAdminSession, requireMutableCities } from '@/lib/admin-api'
+import {
+  getRequestIp,
+  logApiError,
+  parseJsonBody,
+  serverErrorResponse,
+  tooManyRequestsResponse,
+} from '@/lib/api-route-utils'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { deleteCity, insertCity, listCities, updateCity } from '@/lib/cities-repository'
-import type { City } from '@/lib/admin-types'
+
+const createCitySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  country: z.string().trim().min(1).max(120).default('Switzerland'),
+})
+
+const updateCitySchema = z.object({
+  id: z.string().trim().uuid(),
+  name: z.string().trim().min(1).max(120),
+  country: z.string().trim().min(1).max(120),
+})
+
+const deleteCitySchema = z.object({
+  id: z.string().trim().uuid(),
+})
 
 export async function GET() {
   const auth = await requireAdminSession()
@@ -11,57 +34,82 @@ export async function GET() {
     const rows = await listCities()
     return NextResponse.json(rows)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to load cities'
-    return NextResponse.json({ error: message }, { status: 500 })
+    logApiError('admin-cities-list', err)
+    return serverErrorResponse('Failed to load cities.')
   }
 }
 
 export async function POST(request: NextRequest) {
   const auth = await requireMutableCities()
   if (!auth.ok) return auth.response
-  const body = await request.json()
+
+  const limiter = checkRateLimit(`admin-cities-create:${getRequestIp(request)}`, { limit: 30, windowMs: 60_000 })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
+
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = createCitySchema.safeParse(parsedBody.data)
+  if (!body.success) {
+    return NextResponse.json({ error: 'Invalid city payload.' }, { status: 400 })
+  }
+
   try {
     const created = await insertCity({
-      name: body.name ?? 'New City',
-      country: body.country ?? 'Switzerland',
+      name: body.data.name,
+      country: body.data.country,
     })
     return NextResponse.json(created)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create'
-    return NextResponse.json({ error: message }, { status: 500 })
+    logApiError('admin-cities-create', err)
+    return serverErrorResponse('Failed to create city.')
   }
 }
 
 export async function PUT(request: NextRequest) {
   const auth = await requireMutableCities()
   if (!auth.ok) return auth.response
-  const body = (await request.json()) as City
+
+  const limiter = checkRateLimit(`admin-cities-update:${getRequestIp(request)}`, { limit: 60, windowMs: 60_000 })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
+
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = updateCitySchema.safeParse(parsedBody.data)
+  if (!body.success) {
+    return NextResponse.json({ error: 'Invalid city payload.' }, { status: 400 })
+  }
+
   try {
     const updated = await updateCity({
-      id: body.id,
-      name: body.name ?? '',
-      country: body.country ?? '',
+      id: body.data.id,
+      name: body.data.name,
+      country: body.data.country,
     })
     return NextResponse.json(updated)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update'
-    return NextResponse.json({ error: message }, { status: 500 })
+    logApiError('admin-cities-update', err)
+    return serverErrorResponse('Failed to update city.')
   }
 }
 
 export async function DELETE(request: NextRequest) {
   const auth = await requireMutableCities()
   if (!auth.ok) return auth.response
-  const body = await request.json()
-  const id = typeof body.id === 'string' ? body.id : ''
-  if (!id) {
-    return NextResponse.json({ error: 'id is required.' }, { status: 400 })
+
+  const limiter = checkRateLimit(`admin-cities-delete:${getRequestIp(request)}`, { limit: 60, windowMs: 60_000 })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
+
+  const parsedBody = await parseJsonBody<unknown>(request)
+  if (!parsedBody.ok) return parsedBody.response
+  const body = deleteCitySchema.safeParse(parsedBody.data)
+  if (!body.success) {
+    return NextResponse.json({ error: 'Invalid city payload.' }, { status: 400 })
   }
   try {
-    await deleteCity(id)
+    await deleteCity(body.data.id)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to delete'
-    return NextResponse.json({ error: message }, { status: 500 })
+    logApiError('admin-cities-delete', err)
+    return serverErrorResponse('Failed to delete city.')
   }
 }

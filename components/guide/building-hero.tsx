@@ -3,6 +3,10 @@ import type { Building } from '@/lib/data'
 import { getBuildingGoogleMapsUrl } from '@/lib/maps'
 import { cn } from '@/lib/utils'
 
+/** Shown below the address on every building guide home hero. */
+export const BUILDING_HERO_WELCOME_TEXT =
+  'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!'
+
 interface BuildingHeroProps {
   building: Building
   className?: string
@@ -33,14 +37,14 @@ export function BuildingHero({ building, className }: BuildingHeroProps) {
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 decoration-primary-foreground/40 hover:decoration-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground rounded-sm"
+            className="underline underline-offset-2 decoration-primary-foreground/40 hover:decoration-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground rounded-sm break-words text-left"
           >
             {building.address}, {building.city}
           </a>
         </div>
 
         <p className="mt-4 text-primary-foreground/90 leading-relaxed max-w-2xl">
-          {building.welcomeMessage}
+          {building.welcomeMessage.trim() || BUILDING_HERO_WELCOME_TEXT}
         </p>
       </div>
     </section>

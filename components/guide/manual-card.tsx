@@ -1,4 +1,5 @@
 import { FileText, Play, Download, ExternalLink } from 'lucide-react'
+import { normalizeSafeNavigationTarget } from '@/lib/url-safety'
 import { cn } from '@/lib/utils'
 
 interface ManualCardProps {
@@ -20,7 +21,7 @@ export function ManualCard({
   href,
   className,
 }: ManualCardProps) {
-  const resolvedUrl = fileUrl ?? href ?? '#'
+  const resolvedUrl = normalizeSafeNavigationTarget(fileUrl ?? href)
   const resolvedDescription = description ?? subtitle
   const isPdf = fileType === 'pdf'
 

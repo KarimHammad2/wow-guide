@@ -19,6 +19,10 @@ export function SearchPageClient() {
   const searchParams = useSearchParams()
   const [query, setQuery] = useState('')
   const [recentItems, setRecentItems] = useState(recentSearches)
+  const categoriesBySlug = useMemo(
+    () => new Map(categories.map((category) => [category.slug, category])),
+    []
+  )
 
   type ContentSearchResult = {
     categorySlug: string
@@ -48,7 +52,7 @@ export function SearchPageClient() {
     const contentResults: ContentSearchResult[] = []
 
     Object.entries(categoryContent).forEach(([slug, content]) => {
-      const category = categories.find((c) => c.slug === slug)
+      const category = categoriesBySlug.get(slug)
       if (!category) return
 
       // Check intro
@@ -75,7 +79,7 @@ export function SearchPageClient() {
     })
 
     return { categories: categoryResults, content: contentResults }
-  }, [query])
+  }, [query, categoriesBySlug])
 
   const hasResults =
     (searchResults?.categories.length ?? 0) > 0 || (searchResults?.content.length ?? 0) > 0
@@ -87,18 +91,24 @@ export function SearchPageClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  const setQueryAndUrl = (next: string) => {
-    setQuery(next)
-    const trimmed = next.trim()
-    const params = new URLSearchParams(searchParams.toString())
-    if (trimmed) params.set('q', trimmed)
-    else params.delete('q')
-    const qs = params.toString()
-    router.replace(qs ? `/search?${qs}` : '/search', { scroll: false })
-  }
+  const setQueryAndUrl = (next: string) => setQuery(next)
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const trimmed = query.trim()
+      const current = searchParams.get('q') ?? ''
+      if (trimmed === current) return
+      const params = new URLSearchParams(searchParams.toString())
+      if (trimmed) params.set('q', trimmed)
+      else params.delete('q')
+      const qs = params.toString()
+      router.replace(qs ? `/search?${qs}` : '/search', { scroll: false })
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [query, router, searchParams])
 
   const clearRecent = (item: string) => {
-    setRecentItems(recentItems.filter((i) => i !== item))
+    setRecentItems((prev) => prev.filter((i) => i !== item))
   }
 
   return (
@@ -272,7 +282,7 @@ export function SearchPageClient() {
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.22em] mb-3">
               Browse by Category
             </h2>
-            <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
               {categories.slice(0, 12).map((category) => {
                 const Icon = getLucideIcon(category.icon)
                 return (
@@ -284,16 +294,7 @@ export function SearchPageClient() {
                       'active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
                     )}
                   >
-                    <div
-                      className={cn(
-                        'w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-[1.02]',
-                        category.color === 'primary'
-                          ? 'bg-primary/10 text-primary'
-                          : category.color === 'accent'
-                          ? 'bg-accent text-accent-foreground'
-                          : 'bg-secondary text-foreground'
-                      )}
-                    >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-[1.02] bg-primary/10 text-primary">
                       <Icon className="w-5 h-5" />
                     </div>
                     <span className="text-xs font-medium text-center line-clamp-1">

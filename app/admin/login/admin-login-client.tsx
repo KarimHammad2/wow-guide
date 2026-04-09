@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { isSafeRelativePath } from '@/lib/url-safety'
 import { cn } from '@/lib/utils'
 
 export function AdminLoginClient() {
@@ -18,7 +19,8 @@ export function AdminLoginClient() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const next = searchParams.get('next') || '/admin'
+  const requestedNext = searchParams.get('next')
+  const next = requestedNext && isSafeRelativePath(requestedNext) ? requestedNext : '/admin'
   const invalid = Boolean(error)
 
   const handleLogin = async (event: React.FormEvent) => {
@@ -56,7 +58,7 @@ export function AdminLoginClient() {
           )}
         >
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div className="relative h-9 w-30 shrink-0">
+            <div className="relative h-9 w-[7.5rem] shrink-0">
               <Image
                 src="/logo.png"
                 alt="WOW Living"

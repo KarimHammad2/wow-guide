@@ -76,13 +76,13 @@ export default function AdminCitiesPage() {
         </p>
       )}
 
-      <Card className="rounded-3xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2"><MapPinned className="w-5 h-5" />City List</CardTitle>
+      <Card className="rounded-3xl min-w-0">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2"><MapPinned className="w-5 h-5 shrink-0" />City List</CardTitle>
             <CardDescription>Add, edit, and remove cities.</CardDescription>
           </div>
-          <Button size="sm" className="gap-1.5" disabled={!canEdit} onClick={() => setAddOpen(true)}>
+          <Button size="sm" className="gap-1.5 w-full sm:w-auto shrink-0" disabled={!canEdit} onClick={() => setAddOpen(true)}>
             <Plus className="w-3.5 h-3.5" />
             Add City
           </Button>

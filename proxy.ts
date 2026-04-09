@@ -11,7 +11,17 @@ function isPublicAdminPath(pathname: string) {
   return pathname === '/admin/login' || pathname === '/api/admin/auth/login'
 }
 
-export async function middleware(request: NextRequest) {
+/** First path segments that must not be treated as a building slug (guest cookie). */
+const RESERVED_BUILDING_SEGMENTS = new Set([
+  'admin',
+  'api',
+  'search',
+  'buildings',
+  'category',
+  '_next',
+])
+
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request,
   })
@@ -43,9 +53,18 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  const buildingMatch = pathname.match(/^\/building\/([^/]+)/)
-  if (buildingMatch?.[1]) {
-    response.cookies.set(GUEST_BUILDING_COOKIE, buildingMatch[1], guestBuildingCookieOptions)
+  const legacyBuilding = pathname.match(/^\/building\/([^/]+)/)
+  if (legacyBuilding?.[1]) {
+    response.cookies.set(GUEST_BUILDING_COOKIE, legacyBuilding[1], guestBuildingCookieOptions)
+  } else {
+    const firstSegment = pathname.match(/^\/([^/]+)/)?.[1]
+    if (
+      firstSegment &&
+      !RESERVED_BUILDING_SEGMENTS.has(firstSegment) &&
+      !firstSegment.includes('.')
+    ) {
+      response.cookies.set(GUEST_BUILDING_COOKIE, firstSegment, guestBuildingCookieOptions)
+    }
   }
 
   if (request.cookies.has(ADMIN_SESSION_COOKIE)) {
@@ -83,5 +102,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*', '/building/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/api/admin/:path*',
+    '/building/:path*',
+    '/:slug',
+    '/:slug/search',
+    '/:slug/search/:path*',
+    '/:slug/category/:path*',
+  ],
 }

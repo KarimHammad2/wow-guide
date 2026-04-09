@@ -2,18 +2,20 @@
 
 import Link from 'next/link'
 import { Mail, Search } from 'lucide-react'
-import { buildings } from '@/lib/data'
+import { DEFAULT_SUPPORT_EMAIL } from '@/lib/emergency-defaults'
 import { cn } from '@/lib/utils'
 
 interface StickyBottomBarProps {
   className?: string
   buildingSlug?: string
+  supportEmail?: string
 }
 
-export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProps) {
-  const basePath = buildingSlug ? `/building/${buildingSlug}` : ''
-  const supportEmail =
-    (buildingSlug && buildings.find((b) => b.id === buildingSlug)?.supportEmail) ?? 'mail@wowliving.ch'
+export function StickyBottomBar({ className, buildingSlug, supportEmail }: StickyBottomBarProps) {
+  const basePath = buildingSlug ? `/${buildingSlug}` : ''
+  const resolvedSupportEmail =
+    supportEmail?.trim() ||
+    DEFAULT_SUPPORT_EMAIL
 
   return (
     <div
@@ -24,7 +26,7 @@ export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProp
         className
       )}
     >
-      <div className="flex items-center justify-center gap-12 py-2 px-4">
+      <div className="flex items-center justify-center gap-8 min-[380px]:gap-12 py-2 px-4 max-w-lg mx-auto">
         <Link
           href={`${basePath}/search`}
           className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-secondary transition-colors"
@@ -34,7 +36,7 @@ export function StickyBottomBar({ className, buildingSlug }: StickyBottomBarProp
         </Link>
 
         <a
-          href={`mailto:${supportEmail}`}
+          href={`mailto:${resolvedSupportEmail}`}
           className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-secondary transition-colors"
         >
           <Mail className="w-5 h-5 text-primary" />

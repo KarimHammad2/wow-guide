@@ -1,12 +1,5 @@
-import {
-  buildings as seedBuildings,
-  categoryContent as seedCategoryContent,
-  type Building,
-  type Category,
-  type ContentSection,
-} from '@/lib/data'
-import type { AdminStoreShape, BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
-import { DEFAULT_SUPPORT_EMAIL, DEFAULT_SUPPORT_PHONE } from '@/lib/emergency-defaults'
+import { categoryContent as seedCategoryContent, type Category, type ContentSection } from '@/lib/data'
+import type { BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
 
 const DEFAULT_GUIDE_SECTIONS: Array<{
   slug: string
@@ -27,18 +20,14 @@ const DEFAULT_GUIDE_SECTIONS: Array<{
   { slug: 'checkout', title: 'Checkout', subtitle: 'Final verification', icon: 'CheckCircle2', color: 'primary' },
 ]
 
-function slugify(value: string) {
+export function slugify(value: string) {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 }
 
-function uid(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-function cloneSections(sections: ContentSection[]): ContentSection[] {
+export function cloneSections(sections: ContentSection[]): ContentSection[] {
   return JSON.parse(JSON.stringify(sections)) as ContentSection[]
 }
 
@@ -372,216 +361,9 @@ function makeGuideCategory(
   }
 }
 
-function createDefaultGuidesForBuilding(buildingId: string) {
+export function createDefaultGuidesForBuilding(buildingId: string) {
   return DEFAULT_GUIDE_SECTIONS.reduce<Record<string, BuildingGuideCategory>>((acc, config) => {
     acc[config.slug] = makeGuideCategory(buildingId, config)
     return acc
   }, {})
-}
-
-const store: AdminStoreShape = {
-  buildings: seedBuildings.map((building) => ({ ...building })),
-  buildingGuides: seedBuildings.reduce<AdminStoreShape['buildingGuides']>((acc, building) => {
-    acc[building.id] = createDefaultGuidesForBuilding(building.id)
-    return acc
-  }, {}),
-}
-
-function isLegacyCheckInContent(content: GuideContent | undefined) {
-  if (!content) return true
-  const legacyIntro = 'Follow these steps for a smooth and fast arrival.'
-  const firstSection = content.sections?.[0]
-  const secondSection = content.sections?.[1]
-  const firstStepTitle = secondSection?.items?.[0]?.title
-
-  return (
-    content.intro === legacyIntro ||
-    firstSection?.title === 'Welcome to your building' ||
-    secondSection?.title === 'Arrival steps' ||
-    firstStepTitle === 'Open your guest portal link'
-  )
-}
-
-function syncLegacyCheckInSeed() {
-  for (const building of store.buildings) {
-    const checkInGuide = store.buildingGuides[building.id]?.['check-in']
-    if (!checkInGuide) continue
-    if (!isLegacyCheckInContent(checkInGuide.content)) continue
-
-    const seeded = getSeedGuideContent('check-in')
-    store.buildingGuides[building.id]['check-in'] = {
-      ...checkInGuide,
-      content: seeded,
-    }
-  }
-}
-
-syncLegacyCheckInSeed()
-
-function ensureBuildingExists(buildingId: string) {
-  if (!store.buildings.some((building) => building.id === buildingId)) {
-    throw new Error('Building not found')
-  }
-}
-
-export function getBuildings() {
-  return [...store.buildings]
-}
-
-export function getBuildingById(id: string) {
-  return store.buildings.find((building) => building.id === id)
-}
-
-export function createBuilding(
-  input: Omit<Building, 'id'>,
-  options?: { support?: { phone: string; email: string } }
-) {
-  const baseSlug = slugify(input.name)
-  const existing = new Set(store.buildings.map((building) => building.id))
-  let id = baseSlug
-  let suffix = 2
-  while (existing.has(id)) {
-    id = `${baseSlug}-${suffix}`
-    suffix += 1
-  }
-
-  const support = options?.support ?? {
-    phone: DEFAULT_SUPPORT_PHONE,
-    email: DEFAULT_SUPPORT_EMAIL,
-  }
-  const created: Building = {
-    ...input,
-    id,
-    appPath: /^\/building\/[a-z0-9-]+$/i.test(input.appPath) ? input.appPath : `/building/${id}`,
-    country: 'Switzerland',
-    emergencyPhone: support.phone,
-    supportEmail: support.email,
-  }
-  store.buildings.push(created)
-  store.buildingGuides[id] = createDefaultGuidesForBuilding(id)
-  return created
-}
-
-export function updateBuilding(input: Building) {
-  const index = store.buildings.findIndex((building) => building.id === input.id)
-  if (index === -1) throw new Error('Building not found')
-  store.buildings[index] = input
-  return input
-}
-
-export function deleteBuilding(id: string) {
-  const index = store.buildings.findIndex((building) => building.id === id)
-  if (index === -1) throw new Error('Building not found')
-  store.buildings.splice(index, 1)
-  delete store.buildingGuides[id]
-}
-
-export function getBuildingCategories(buildingId: string): Category[] {
-  ensureBuildingExists(buildingId)
-  const guides = store.buildingGuides[buildingId] ?? {}
-  return Object.values(guides)
-    .map((entry) => entry.category)
-    .sort((a, b) => a.order - b.order)
-}
-
-export function getBuildingCategoryContent(buildingId: string, categorySlug: string) {
-  ensureBuildingExists(buildingId)
-  const guides = store.buildingGuides[buildingId] ?? {}
-  return guides[categorySlug]?.content
-}
-
-export function getBuildingGuideCategory(buildingId: string, categorySlug: string) {
-  ensureBuildingExists(buildingId)
-  return store.buildingGuides[buildingId]?.[categorySlug]
-}
-
-export function createBuildingGuideCategory(
-  buildingId: string,
-  input: {
-    slug: string
-    title: string
-    subtitle: string
-    icon: string
-    color: Category['color']
-    intro: string
-    alert?: GuideContent['alert']
-    sections: ContentSection[]
-  }
-) {
-  ensureBuildingExists(buildingId)
-  if (!store.buildingGuides[buildingId]) {
-    store.buildingGuides[buildingId] = {}
-  }
-  const categorySlug = slugify(input.slug)
-  if (store.buildingGuides[buildingId][categorySlug]) {
-    throw new Error('Section slug already exists for this building')
-  }
-
-  const order = Object.keys(store.buildingGuides[buildingId]).length + 1
-  const created: BuildingGuideCategory = {
-    category: {
-      id: `${buildingId}-${categorySlug}`,
-      slug: categorySlug,
-      title: input.title,
-      subtitle: input.subtitle,
-      icon: input.icon,
-      color: input.color,
-      order,
-    },
-    content: {
-      intro: input.intro,
-      alert: input.alert,
-      sections: cloneSections(input.sections),
-    },
-  }
-  store.buildingGuides[buildingId][categorySlug] = created
-  return created
-}
-
-export function updateBuildingGuideCategory(
-  buildingId: string,
-  categorySlug: string,
-  input: {
-    title: string
-    subtitle: string
-    icon: string
-    color: Category['color']
-    order?: number
-    intro: string
-    alert?: GuideContent['alert']
-    sections: ContentSection[]
-  }
-) {
-  ensureBuildingExists(buildingId)
-  const existing = store.buildingGuides[buildingId]?.[categorySlug]
-  if (!existing) {
-    throw new Error('Guide section not found')
-  }
-
-  store.buildingGuides[buildingId][categorySlug] = {
-    category: {
-      ...existing.category,
-      title: input.title,
-      subtitle: input.subtitle,
-      icon: input.icon,
-      color: input.color,
-      order: input.order ?? existing.category.order,
-    },
-    content: {
-      intro: input.intro,
-      alert: input.alert,
-      sections: cloneSections(input.sections),
-    },
-  }
-
-  return store.buildingGuides[buildingId][categorySlug]
-}
-
-export function deleteBuildingGuideCategory(buildingId: string, categorySlug: string) {
-  ensureBuildingExists(buildingId)
-  const existing = store.buildingGuides[buildingId]?.[categorySlug]
-  if (!existing) {
-    throw new Error('Guide section not found')
-  }
-  delete store.buildingGuides[buildingId][categorySlug]
 }

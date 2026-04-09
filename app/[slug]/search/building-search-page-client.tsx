@@ -9,10 +9,16 @@ import { CategoryTile } from '@/components/guide/category-tile'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
 import type { Building, Category } from '@/lib/data'
 import { cn } from '@/lib/utils'
-import { getLucideIcon } from '@/lib/icons'
+import { CategoryIconDisplay } from '@/components/guide/category-icon'
 
 // Mock recent searches
 const recentSearches = ['WiFi password', 'Check-in time', 'Laundry']
+
+const browseCategoryIconShell: Record<Category['color'], string> = {
+  primary: 'bg-primary/10 text-primary',
+  accent: 'bg-accent/20 text-accent-foreground',
+  muted: 'bg-secondary text-foreground border border-border',
+}
 
 interface BuildingSearchPageClientProps {
   params: Promise<{ slug: string }>
@@ -25,6 +31,8 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
   const [query, setQuery] = useState('')
   const [recentItems, setRecentItems] = useState(recentSearches)
   const [building, setBuilding] = useState<Building | null>(null)
+  const [loadingBuilding, setLoadingBuilding] = useState(true)
+  const [loadingError, setLoadingError] = useState<string | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [popularTopics, setPopularTopics] = useState<string[]>([])
   const [categoryContent, setCategoryContent] = useState<Record<string, {
@@ -44,14 +52,51 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
   }
 
   useEffect(() => {
-    void fetch(`/api/public/buildings/${slug}/guide`)
-      .then((response) => response.json())
+    const controller = new AbortController()
+    setLoadingBuilding(true)
+    setLoadingError(null)
+
+    void fetch(`/api/public/buildings/${slug}/guide`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(payload?.error ?? 'Unable to load building guide.')
+        }
+        return (await response.json()) as {
+          building?: Building
+          categories?: Category[]
+          popularTopics?: string[]
+          categoryContent?: Record<
+            string,
+            {
+              intro: string
+              sections: Array<{ title?: string; content?: string }>
+            }
+          >
+        }
+      })
       .then((data) => {
         setBuilding(data.building ?? null)
         setCategories(data.categories ?? [])
         setPopularTopics(data.popularTopics ?? [])
         setCategoryContent(data.categoryContent ?? {})
       })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        const message = error instanceof Error ? error.message : 'Unable to load building guide.'
+        setLoadingError(message)
+        setBuilding(null)
+        setCategories([])
+        setPopularTopics([])
+        setCategoryContent({})
+      })
+      .finally(() => {
+        setLoadingBuilding(false)
+      })
+
+    return () => {
+      controller.abort()
+    }
   }, [slug])
 
   useEffect(() => {
@@ -62,13 +107,26 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
 
   const setQueryAndUrl = (next: string) => {
     setQuery(next)
-    const trimmed = next.trim()
-    const paramsObj = new URLSearchParams(searchParams.toString())
-    if (trimmed) paramsObj.set('q', trimmed)
-    else paramsObj.delete('q')
-    const qs = paramsObj.toString()
-    router.replace(qs ? `/building/${slug}/search?${qs}` : `/building/${slug}/search`, { scroll: false })
   }
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const trimmed = query.trim()
+      const current = searchParams.get('q') ?? ''
+      if (trimmed === current) return
+      const paramsObj = new URLSearchParams(searchParams.toString())
+      if (trimmed) paramsObj.set('q', trimmed)
+      else paramsObj.delete('q')
+      const qs = paramsObj.toString()
+      router.replace(qs ? `/${slug}/search?${qs}` : `/${slug}/search`, { scroll: false })
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [query, router, searchParams, slug])
+
+  const categoriesBySlug = useMemo(
+    () => new Map(categories.map((category) => [category.slug, category])),
+    [categories]
+  )
 
   // Search results based on query
   const searchResults = useMemo<SearchResults | null>(() => {
@@ -87,7 +145,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
     const contentResults: ContentSearchResult[] = []
 
     Object.entries(categoryContent).forEach(([catSlug, content]) => {
-      const category = categories.find((c) => c.slug === catSlug)
+      const category = categoriesBySlug.get(catSlug)
       if (!category) return
 
       // Check intro
@@ -114,24 +172,24 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
     })
 
     return { categories: categoryResults, content: contentResults }
-  }, [query, categories, categoryContent])
+  }, [query, categories, categoriesBySlug, categoryContent])
 
   const hasResults =
     (searchResults?.categories.length ?? 0) > 0 || (searchResults?.content.length ?? 0) > 0
   const isSearching = query.trim().length > 0
 
   const clearRecent = (item: string) => {
-    setRecentItems(recentItems.filter((i) => i !== item))
+    setRecentItems((prev) => prev.filter((i) => i !== item))
   }
 
-  if (!building) {
+  if (loadingBuilding) {
     return (
       <div className="min-h-screen bg-background">
         <Header buildingName="Loading…" buildingSlug={slug} />
         <main className="pt-24 pb-24 md:pb-10 space-y-5">
           <section className="guide-shell pt-2">
             <Link
-              href={`/building/${slug}`}
+              href={`/${slug}`}
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -146,7 +204,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
           <section className="guide-shell">
             <div className="guide-section p-4 md:p-6">
               <div className="h-4 w-40 rounded bg-secondary animate-pulse mb-4" />
-              <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="h-[92px] rounded-xl bg-secondary animate-pulse" />
                 ))}
@@ -158,14 +216,47 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
     )
   }
 
+  if (loadingError || !building) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header buildingName="Guide unavailable" buildingSlug={slug} />
+        <main className="pt-24 pb-24 md:pb-10 space-y-5">
+          <section className="guide-shell pt-2">
+            <Link
+              href={`/${slug}`}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Guide
+            </Link>
+          </section>
+          <section className="guide-shell">
+            <div className="guide-section p-4 md:p-6 text-center">
+              <h2 className="text-xl font-semibold text-foreground">Unable to load this guide</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {loadingError ?? 'This building could not be found.'}
+              </p>
+            </div>
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  const buildingSlug = building.id
+
   return (
     <div className="min-h-screen bg-background">
-      <Header buildingName={building.name} buildingSlug={building.id} />
+      <Header
+        buildingName={building.name}
+        buildingSlug={building.id}
+        supportEmail={building.supportEmail}
+      />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-5">
         <section className="guide-shell pt-2">
           <Link
-            href={`/building/${slug}`}
+            href={`/${buildingSlug}`}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -215,7 +306,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
                           <CategoryTile
                             key={category.id}
                             category={category}
-                            buildingSlug={slug}
+                            buildingSlug={buildingSlug}
                           />
                         ))}
                       </div>
@@ -231,7 +322,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
                         {searchResults?.content.map((result, index) => (
                           <Link
                             key={index}
-                            href={`/building/${slug}/category/${result.categorySlug}`}
+                            href={`/${buildingSlug}/category/${result.categorySlug}`}
                             className="block p-4 rounded-2xl bg-card border border-border hover:border-primary/20 hover:shadow-[0_20px_35px_-30px_rgba(101,40,67,0.7)] transition-all"
                           >
                             <div className="flex items-center gap-2 text-sm text-primary mb-1">
@@ -333,13 +424,12 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Browse by Category
             </h2>
-            <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
               {categories.slice(0, 12).map((category) => {
-                const Icon = getLucideIcon(category.icon)
                 return (
                   <Link
                     key={category.id}
-                    href={`/building/${slug}/category/${category.slug}`}
+                    href={`/${buildingSlug}/category/${category.slug}`}
                     className={cn(
                       'group flex flex-col items-center gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 transition-all',
                       'active:scale-[0.98]'
@@ -347,15 +437,15 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
                   >
                     <div
                       className={cn(
-                        'w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-[1.02]',
-                        category.color === 'primary'
-                          ? 'bg-primary/10 text-primary'
-                          : category.color === 'accent'
-                          ? 'bg-accent text-accent-foreground'
-                          : 'bg-secondary text-foreground'
+                        'w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-[1.02] overflow-hidden',
+                        browseCategoryIconShell[category.color] ?? browseCategoryIconShell.primary
                       )}
                     >
-                      <Icon className="w-5 h-5" />
+                      <CategoryIconDisplay
+                        icon={category.icon}
+                        className="w-5 h-5"
+                        imgClassName="w-full h-full min-w-10 min-h-10"
+                      />
                     </div>
                     <span className="text-xs font-medium text-center line-clamp-1">
                       {category.title}
@@ -368,7 +458,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
         </section>
       </main>
 
-      <StickyBottomBar buildingSlug={slug} />
+      <StickyBottomBar buildingSlug={buildingSlug} supportEmail={building.supportEmail} />
     </div>
   )
 }

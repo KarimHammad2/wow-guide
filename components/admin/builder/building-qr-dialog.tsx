@@ -43,7 +43,7 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
 
   const publicUrl = useMemo(() => {
     if (!building) return ''
-    return toAbsoluteSiteUrl(`/building/${building.id}`)
+    return toAbsoluteSiteUrl(`/${building.id}`)
   }, [building])
 
   useEffect(() => {

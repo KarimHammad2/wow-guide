@@ -24,7 +24,7 @@ export function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
-      const basePath = buildingSlug ? `/building/${buildingSlug}` : ''
+      const basePath = buildingSlug ? `/${buildingSlug}` : ''
       router.push(`${basePath}/search?q=${encodeURIComponent(query.trim())}`)
     }
   }
@@ -52,10 +52,10 @@ export function SearchBar({
           placeholder={placeholder}
           autoFocus={autoFocus}
           className={cn(
-            'w-full bg-transparent outline-none placeholder:text-muted-foreground',
+            'w-full min-w-0 bg-transparent outline-none placeholder:text-muted-foreground',
             variant === 'hero'
               ? 'pl-12 pr-4 py-4 text-base'
-              : 'pl-10 pr-4 py-3 text-sm'
+              : 'pl-10 pr-4 py-3 text-base md:text-sm'
           )}
         />
       </div>

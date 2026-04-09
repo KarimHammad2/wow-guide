@@ -12,6 +12,12 @@ export interface Building {
   emergencyPhone: string
   supportEmail: string
   welcomeMessage: string
+  /** Direct Google Maps link (hero + admin); empty uses generated search URL */
+  googleMapsUrl: string
+  /** Noise / curfew hours shown in Building Information */
+  quietHours: string
+  /** Short tips for residents (Building Information) */
+  goodToKnow: string
 }
 
 export interface Category {
@@ -96,52 +102,68 @@ export const buildings: Building[] = [
     name: 'Kannenfeldstrasse 12',
     address: 'Kannenfeldstrasse 12',
     city: 'Basel',
-    appPath: '/building/kannenfeldstrasse-12',
+    appPath: '/kannenfeldstrasse-12',
     country: 'Switzerland',
     imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
     emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
     welcomeMessage:
       'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
+    googleMapsUrl:
+      'https://www.google.com/maps/search/?api=1&query=Kannenfeldstrasse%2012%2C%20Basel%2C%20Switzerland',
+    quietHours: '22:00–07:00',
+    goodToKnow: 'Recycling room is on the ground floor; bikes in the courtyard rack.',
   },
   {
     id: 'industriestrasse-70',
     name: 'Industriestrasse 70',
     address: 'Industriestrasse 70',
     city: 'Zug',
-    appPath: '/building/industriestrasse-70',
+    appPath: '/industriestrasse-70',
     country: 'Switzerland',
     imageUrl: '/images/buildings/industriestrasse.jpg',
     emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
     welcomeMessage:
       'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
+    googleMapsUrl:
+      'https://www.google.com/maps/search/?api=1&query=Industriestrasse%2070%2C%20Zug%2C%20Switzerland',
+    quietHours: '22:00–07:00',
+    goodToKnow: 'Parcel lockers at the entrance; guest WiFi on the info sheet in your flat.',
   },
   {
     id: 'strassburgerallee-1',
     name: 'Strassburgerallee 1',
     address: 'Strassburgerallee 1',
     city: 'Basel',
-    appPath: '/building/strassburgerallee-1',
+    appPath: '/strassburgerallee-1',
     country: 'Switzerland',
     imageUrl: '/images/buildings/strassburgerallee.jpg',
     emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
     welcomeMessage:
       'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
+    googleMapsUrl:
+      'https://www.google.com/maps/search/?api=1&query=Strassburgerallee%201%2C%20Basel%2C%20Switzerland',
+    quietHours: '22:00–07:00',
+    goodToKnow: 'Underground parking: use your fob at the gate; visitors register at reception.',
   },
   {
     id: 'huobli-7',
     name: 'Hüöbli 7',
     address: 'Hüöbli 7',
     city: 'Pfäffikon SZ',
-    appPath: '/building/huobli-7',
+    appPath: '/huobli-7',
     country: 'Switzerland',
     imageUrl: '/images/buildings/huobli.jpg',
     emergencyPhone: '+41 41 552 33 33',
     supportEmail: 'mail@wowliving.ch',
     welcomeMessage:
       'Welcome to your digital WOW Guide. Here you can find all the information you need for your stay. Living with a wow!',
+    googleMapsUrl:
+      'https://www.google.com/maps/search/?api=1&query=H%C3%BC%C3%B6bli%207%2C%20Pf%C3%A4ffikon%20SZ%2C%20Switzerland',
+    quietHours: '22:00–07:00',
+    goodToKnow: 'Lake and shops are a short walk; quiet courtyard—please respect neighbors.',
   },
 ]
 

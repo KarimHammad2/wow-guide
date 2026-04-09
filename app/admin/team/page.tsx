@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Users, Pencil, Trash2, Copy, KeyRound } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, Copy, Check, KeyRound } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
@@ -28,7 +28,7 @@ import {
 import { DeleteConfirmDialog } from '@/components/admin/delete-confirm-dialog'
 import type { TeamMember } from '@/lib/admin-types'
 
-type InviteResponse = TeamMember & { password: string }
+type InviteResponse = TeamMember
 
 export default function AdminTeamPage() {
   const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
@@ -40,8 +40,8 @@ export default function AdminTeamPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<TeamMember | null>(null)
   const [deletingItem, setDeletingItem] = useState<TeamMember | null>(null)
-  const [invitePassword, setInvitePassword] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading) return
@@ -53,9 +53,19 @@ export default function AdminTeamPage() {
       })
   }, [loading, setError])
 
+  function copyMemberEmail(userId: string, email: string) {
+    void navigator.clipboard.writeText(email).then(() => {
+      setCopiedUserId(userId)
+      window.setTimeout(() => {
+        setCopiedUserId((current) => (current === userId ? null : current))
+      }, 2000)
+    })
+  }
+
   async function mutate(action: () => Promise<void>) {
     setSaving(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await action()
     } catch (err) {
@@ -74,7 +84,7 @@ export default function AdminTeamPage() {
     <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Team Access"
-        description="Owners invite staff by email and can set a new login password when needed."
+        description="Owners invite staff by email and can reset passwords when needed."
       />
 
       {error && (
@@ -82,24 +92,30 @@ export default function AdminTeamPage() {
           {error}
         </p>
       )}
+      {successMessage && (
+        <p className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          {successMessage}
+        </p>
+      )}
 
-      <Card className="rounded-3xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+      <Card className="rounded-3xl min-w-0">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
+              <Users className="w-5 h-5 shrink-0" />
               Staff accounts
             </CardTitle>
             <CardDescription>All listed users can sign in and manage guide content.</CardDescription>
           </div>
           {canManageTeam && (
-            <Button size="sm" className="gap-1.5" disabled={!canEdit} onClick={() => setAddOpen(true)}>
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto shrink-0" disabled={!canEdit} onClick={() => setAddOpen(true)}>
               <Plus className="w-3.5 h-3.5" />
               Invite member
             </Button>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
+          <div className="w-full overflow-x-auto -mx-1 px-1 pb-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -111,7 +127,26 @@ export default function AdminTeamPage() {
             <TableBody>
               {items.map((member) => (
                 <TableRow key={member.userId}>
-                  <TableCell className="font-medium">{member.email}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5 min-w-0 max-w-[min(100%,28rem)]">
+                      <span className="truncate">{member.email}</span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                        title="Copy email"
+                        onClick={() => copyMemberEmail(member.userId, member.email)}
+                      >
+                        {copiedUserId === member.userId ? (
+                          <Check className="w-3.5 h-3.5 text-green-600" aria-hidden />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" aria-hidden />
+                        )}
+                        <span className="sr-only">Copy email</span>
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>{member.displayName ?? '—'}</TableCell>
                   {canManageTeam && (
                     <TableCell className="text-right">
@@ -120,23 +155,24 @@ export default function AdminTeamPage() {
                           size="sm"
                           variant="outline"
                           disabled={!canEdit || saving}
-                          title="Set a new password and copy it"
+                          title="Reset the account password"
                           onClick={() =>
                             mutate(async () => {
-                              const res = await adminRequest<{ password: string; email: string }>(
+                              await adminRequest<{ ok: boolean }>(
                                 '/api/admin/teams/reset-password',
                                 {
                                   method: 'POST',
                                   body: JSON.stringify({ userId: member.userId }),
                                 }
                               )
-                              setInvitePassword(res.password)
-                              setInviteEmail(res.email)
+                              setSuccessMessage(
+                                `Password reset for ${member.email}. Ask the user to use the password recovery flow.`
+                              )
                             })
                           }
                         >
                           <KeyRound className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Password</span>
+                          <span className="hidden sm:inline">Reset password</span>
                         </Button>
                         <Button
                           size="sm"
@@ -168,6 +204,7 @@ export default function AdminTeamPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -176,7 +213,7 @@ export default function AdminTeamPage() {
           <DialogHeader>
             <DialogTitle>Invite team member</DialogTitle>
             <DialogDescription>
-              We create their account and show their login password here once so you can pass it to them.
+              We create their account and they can set a password using the recovery flow.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -208,10 +245,10 @@ export default function AdminTeamPage() {
                       displayName: newDisplayName.trim() || undefined,
                     }),
                   })
-                  const { password: pw, ...member } = created
-                  setItems((prev) => [...prev.filter((m) => m.userId !== member.userId), member])
-                  setInvitePassword(pw)
-                  setInviteEmail(member.email)
+                  setItems((prev) => [...prev.filter((m) => m.userId !== created.userId), created])
+                  setSuccessMessage(
+                    `Account created for ${created.email}. Ask the user to create a password via password recovery.`
+                  )
                   setNewEmail('')
                   setNewDisplayName('')
                   setAddOpen(false)
@@ -220,32 +257,6 @@ export default function AdminTeamPage() {
             >
               Create account
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(invitePassword)} onOpenChange={(open) => !open && setInvitePassword(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Password</DialogTitle>
-            <DialogDescription>
-              Use this password to sign in. Share it with {inviteEmail ?? 'them'} securely. It stays valid for
-              ongoing login until they change it.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2">
-            <Input readOnly value={invitePassword ?? ''} className="font-mono text-sm" />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => invitePassword && void navigator.clipboard.writeText(invitePassword)}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setInvitePassword(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

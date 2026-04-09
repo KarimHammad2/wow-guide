@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Mail, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { buildings, categories } from '@/lib/data'
+import { categories } from '@/lib/data'
+import { DEFAULT_SUPPORT_EMAIL } from '@/lib/emergency-defaults'
 import { cn } from '@/lib/utils'
 import { getLucideIcon } from '@/lib/icons'
 import { setMobileMenuOpen } from '@/lib/mobile-menu-open'
@@ -15,9 +16,10 @@ interface MobileMenuProps {
   onClose: () => void
   buildingName?: string
   buildingSlug?: string
+  supportEmail?: string
 }
 
-export function MobileMenu({ open, onClose, buildingName, buildingSlug }: MobileMenuProps) {
+export function MobileMenu({ open, onClose, buildingName, buildingSlug, supportEmail }: MobileMenuProps) {
   // Prevent body scroll when menu is open; hide global UI (e.g. back-to-top) while open
   useEffect(() => {
     if (open) {
@@ -32,9 +34,10 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
     }
   }, [open])
 
-  const basePath = buildingSlug ? `/building/${buildingSlug}` : ''
-  const supportEmail =
-    (buildingSlug && buildings.find((b) => b.id === buildingSlug)?.supportEmail) ?? 'mail@wowliving.ch'
+  const basePath = buildingSlug ? `/${buildingSlug}` : ''
+  const resolvedSupportEmail =
+    supportEmail?.trim() ||
+    DEFAULT_SUPPORT_EMAIL
 
   return (
     <>
@@ -59,9 +62,9 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
           <div className="flex items-center justify-between p-4 border-b border-primary-foreground/10">
             <div>
               <Link
-                href="/"
+                href="/buildings"
                 onClick={onClose}
-                className="block relative h-8 w-18 shrink-0 min-w-0"
+                className="block relative h-8 w-[72px] shrink-0 min-w-0"
               >
                 <Image
                   src="/wow-logo-white.png"
@@ -96,7 +99,7 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
               {categories.map((category) => {
                 const Icon = getLucideIcon(category.icon)
                 const href = buildingSlug 
-                  ? `/building/${buildingSlug}/category/${category.slug}`
+                  ? `/${buildingSlug}/category/${category.slug}`
                   : `/category/${category.slug}`
                 return (
                   <li key={category.id}>
@@ -126,7 +129,7 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug }: Mobile
                 Search Guide
               </Button>
             </Link>
-            <a href={`mailto:${supportEmail}`} onClick={onClose}>
+            <a href={`mailto:${resolvedSupportEmail}`} onClick={onClose}>
               <Button
                 variant="outline"
                 className="w-full border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 gap-2 mt-2 mb-3"
