@@ -14,7 +14,7 @@ export default function NotFound() {
           {/* Logo */}
           <div className="relative h-20 w-52 sm:h-24 sm:w-60 mx-auto mb-6 shrink-0">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="WOW Living"
               fill
               className="object-contain"

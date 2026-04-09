@@ -23,9 +23,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const slug = cookieStore.get(GUEST_BUILDING_COOKIE)?.value
 
   if (!forceSplash && slug) {
-    const building = await getBuildingById(slug)
-    if (building) {
-      redirect(`/${slug}`)
+    try {
+      const building = await getBuildingById(slug)
+      if (building) {
+        redirect(`/${slug}`)
+      }
+    } catch (error) {
+      console.error('Failed to resolve guest building from cookie:', error)
     }
   }
 
@@ -33,7 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div className="min-h-screen flex flex-col items-center justify-center gap-10 md:gap-12 px-6 bg-background">
       <div className="relative h-24 w-64 sm:h-28 sm:w-72 md:h-32 md:w-80 shrink-0">
         <Image
-          src="/logo.png"
+          src="/logo.svg"
           alt="WOW Living"
           fill
           className="object-contain"

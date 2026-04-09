@@ -35,7 +35,7 @@ export function Header({
       <Navbar
         brandHref="/buildings"
         brandLabel="WOW Living — all buildings"
-        logoSrc="/apple-icon.png"
+        logoSrc="/logo.svg"
         transparent={transparent}
         variant={flatNavbar ? 'flat' : 'floating'}
         center={

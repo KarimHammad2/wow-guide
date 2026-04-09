@@ -41,7 +41,7 @@ export function AdminShell({
           <div className="inline-flex items-center gap-2">
             <div className="relative h-7 w-20">
               <Image
-                src="/logo.png"
+                src="/logo.svg"
                 alt="Logo"
                 fill
                 sizes="80px"
@@ -88,7 +88,7 @@ export function AdminShell({
               <div className={cn('inline-flex items-center justify-center w-full pr-11', collapsed && 'hidden')}>
                 <div className="relative h-8 w-24">
                   <Image
-                    src="/logo.png"
+                    src="/logo.svg"
                     alt="Logo"
                     fill
                     sizes="96px"

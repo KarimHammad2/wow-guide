@@ -1,0 +1,17 @@
+<svg width="640" height="180" viewBox="0 0 640 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logoTitle logoDesc">
+  <title id="logoTitle">WOW Living</title>
+  <desc id="logoDesc">Stylized WOW Living wordmark</desc>
+  <rect width="640" height="180" fill="transparent"/>
+  <text
+    x="320"
+    y="108"
+    text-anchor="middle"
+    font-family="Montserrat, Arial, sans-serif"
+    font-size="64"
+    font-weight="300"
+    letter-spacing="6"
+    fill="#1f1f1f"
+  >
+    WOW Living
+  </text>
+</svg>

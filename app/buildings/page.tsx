@@ -1,5 +1,6 @@
 import { BuildingsClient } from '@/app/buildings/buildings-client'
 import { listBuildings } from '@/lib/buildings-repository'
+import type { Building } from '@/lib/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +9,12 @@ interface BuildingsPageProps {
 }
 
 export default async function BuildingsPage({ searchParams }: BuildingsPageProps) {
-  const buildings = await listBuildings()
+  let buildings: Building[] = []
+  try {
+    buildings = await listBuildings()
+  } catch (error) {
+    console.error('Failed to load buildings for /buildings:', error)
+  }
   const params = await searchParams
   const initialCity = (params.city ?? '').trim()
 

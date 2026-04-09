@@ -60,7 +60,7 @@ export function AdminLoginClient() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="relative h-9 w-[7.5rem] shrink-0">
               <Image
-                src="/logo.png"
+                src="/logo.svg"
                 alt="WOW Living"
                 fill
                 sizes="120px"

@@ -25,8 +25,8 @@ export const metadata: Metadata = {
   description: 'Experience thoughtfully designed apartments with hotel-like service. Your complete guide to living in your WOW Living apartment.',
   generator: 'wowguide',
   icons: {
-    icon: '/favicon.png',
-    apple: '/apple-icon.png',
+    icon: '/logo.svg',
+    apple: '/logo.svg',
   },
 }
 

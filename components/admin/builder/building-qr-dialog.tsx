@@ -245,7 +245,7 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
         <div className="rounded-2xl border bg-slate-50 p-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="relative mx-auto h-8 w-24">
-              <Image src="/logo.png" alt="WOW Guide logo" fill sizes="96px" className="object-contain" />
+              <Image src="/logo.svg" alt="WOW Guide logo" fill sizes="96px" className="object-contain" />
             </div>
             <p className="mt-4 text-center text-lg font-semibold text-slate-900">{building?.name ?? 'Building'}</p>
             <p className="text-center text-sm text-slate-500">Scan to open the building guide</p>
