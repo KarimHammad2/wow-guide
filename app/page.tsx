@@ -37,7 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div className="min-h-screen flex flex-col items-center justify-center gap-10 md:gap-12 px-6 bg-background">
       <div className="relative h-24 w-64 sm:h-28 sm:w-72 md:h-32 md:w-80 shrink-0">
         <Image
-          src="/logo.svg"
+          src="/logo.png"
           alt="WOW Living"
           fill
           className="object-contain"

@@ -22,36 +22,55 @@ const RESERVED_BUILDING_SEGMENTS = new Set([
 ])
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Never run auth/cookie proxy logic for static assets.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname === '/favicon.ico' ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next({ request })
+  }
+
   let response = NextResponse.next({
     request,
   })
 
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  let user: { id: string } | null = null
+
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+            response = NextResponse.next({
+              request,
+            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
+      })
+
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+      user = authUser ? { id: authUser.id } : null
+    } catch (error) {
+      console.error('Proxy Supabase initialization failed:', error)
+      user = null
     }
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
+  } else {
+    console.error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in proxy.')
+  }
 
   const legacyBuilding = pathname.match(/^\/building\/([^/]+)/)
   if (legacyBuilding?.[1]) {
