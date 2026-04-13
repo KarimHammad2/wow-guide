@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/database.types'
 import type { Category } from '@/lib/data'
 import type { GuideCategory, GuideCategoryBuildingRef } from '@/lib/admin-types'
-import { slugify } from '@/lib/guide-seed-defaults'
+import { DEFAULT_GUIDE_SECTIONS, slugify } from '@/lib/guide-seed-defaults'
 import {
   createBuildingGuideCategory,
   deleteBuildingGuideCategory,
@@ -301,6 +301,7 @@ export async function assignCategoryToBuilding(
     subtitle: cat.short_description,
     icon: catalogIconToCategoryIconField(cat as GuideCategoryRow),
     color: rowCategoryColor(cat as GuideCategoryRow),
+    isRequired: options?.isRequired ?? false,
     intro: '',
     sections: [],
   })
@@ -335,4 +336,56 @@ export async function unassignCategoryFromBuilding(buildingId: string, categoryI
     .eq('category_id', categoryId)
 
   if (de) throw new Error(de.message)
+}
+
+/**
+ * Ensures the standard default catalog categories exist and are assigned to a building.
+ * Used during building creation so Categories admin can immediately show assignments.
+ */
+export async function ensureDefaultCategoriesAssignedToBuilding(buildingId: string): Promise<void> {
+  const admin = createSupabaseAdmin()
+  const defaultSlugs = DEFAULT_GUIDE_SECTIONS.map((section) => section.slug)
+
+  const { data: existingCategories, error: existingError } = await admin
+    .from('guide_categories')
+    .select('id, slug')
+    .in('slug', defaultSlugs)
+  if (existingError) throw new Error(existingError.message)
+
+  const categoryIdBySlug = new Map((existingCategories ?? []).map((row) => [row.slug, row.id]))
+
+  for (const section of DEFAULT_GUIDE_SECTIONS) {
+    if (categoryIdBySlug.has(section.slug)) continue
+    const { data: created, error: createError } = await admin
+      .from('guide_categories')
+      .insert({
+        slug: section.slug,
+        title: section.title,
+        short_description: section.subtitle,
+        icon_name: section.icon,
+        icon_image_url: null,
+        category_color: section.color,
+      })
+      .select('id, slug')
+      .single()
+
+    if (createError) throw new Error(createError.message)
+    categoryIdBySlug.set(created.slug, created.id)
+  }
+
+  const assignmentRows = DEFAULT_GUIDE_SECTIONS.map((section, index) => {
+    const categoryId = categoryIdBySlug.get(section.slug)
+    if (!categoryId) throw new Error(`Missing default category id for slug: ${section.slug}`)
+    return {
+      building_id: buildingId,
+      category_id: categoryId,
+      sort_order: index + 1,
+      is_required: true,
+    }
+  })
+
+  const { error: assignmentError } = await admin.from('building_category_assignments').upsert(assignmentRows, {
+    onConflict: 'building_id,category_id',
+  })
+  if (assignmentError) throw new Error(assignmentError.message)
 }

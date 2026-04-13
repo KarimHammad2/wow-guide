@@ -1,23 +1,22 @@
 import { categoryContent as seedCategoryContent, type Category, type ContentSection } from '@/lib/data'
 import type { BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
 
-const DEFAULT_GUIDE_SECTIONS: Array<{
+export const DEFAULT_GUIDE_SECTIONS: Array<{
   slug: string
   title: string
   subtitle: string
   icon: string
   color: Category['color']
 }> = [
-  { slug: 'check-in', title: 'Check-In', subtitle: 'Arrival and access', icon: 'KeyRound', color: 'primary' },
-  { slug: 'check-out', title: 'Check-Out', subtitle: 'Departure steps', icon: 'LogOut', color: 'muted' },
+  { slug: 'check-in', title: 'Check-in', subtitle: 'Arrival and access', icon: 'KeyRound', color: 'primary' },
   { slug: 'internet', title: 'Internet', subtitle: 'WiFi and connectivity', icon: 'Wifi', color: 'accent' },
   { slug: 'e-scooter', title: 'E-Scooter', subtitle: 'Usage and parking', icon: 'Bike', color: 'muted' },
   { slug: 'home-devices', title: 'Home Devices', subtitle: 'Appliances and controls', icon: 'HousePlug', color: 'primary' },
   { slug: 'cleaning', title: 'Cleaning', subtitle: 'Housekeeping and standards', icon: 'Sparkles', color: 'accent' },
   { slug: 'laundry', title: 'Laundry', subtitle: 'Washer and dryer guidance', icon: 'Shirt', color: 'muted' },
   { slug: 'waste-plan', title: 'Waste Plan', subtitle: 'Waste sorting and pickup', icon: 'Trash2', color: 'primary' },
-  { slug: 'sport-activity', title: 'Sport and Activity', subtitle: 'Fitness and outdoor activity', icon: 'Dumbbell', color: 'accent' },
-  { slug: 'checkout', title: 'Checkout', subtitle: 'Final verification', icon: 'CheckCircle2', color: 'primary' },
+  { slug: 'sport-activity', title: 'Sport & Activity', subtitle: 'Fitness and outdoor activity', icon: 'Dumbbell', color: 'accent' },
+  { slug: 'check-out', title: 'Check-out', subtitle: 'Departure steps', icon: 'LogOut', color: 'muted' },
 ]
 
 export function slugify(value: string) {
@@ -356,6 +355,7 @@ function makeGuideCategory(
       icon: config.icon,
       color: config.color,
       order: DEFAULT_GUIDE_SECTIONS.findIndex((item) => item.slug === config.slug) + 1,
+      isRequired: true,
     },
     content: getSeedGuideContent(config.slug),
   }

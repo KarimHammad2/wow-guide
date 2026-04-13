@@ -4,13 +4,38 @@ import type { Json } from '@/lib/database.types'
 import type { Category, ContentSection } from '@/lib/data'
 import type { BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
 import { cloneSections, slugify } from '@/lib/guide-seed-defaults'
+import {
+  isVisualGuideDocument,
+  sectionsFromVisualDocument,
+  type VisualGuideDocument,
+  visualFromGuideContent,
+} from '@/lib/visual-builder-schema'
 
 function parseCategory(json: Json): Category {
-  return json as unknown as Category
+  const raw = json as unknown as Category
+  return {
+    ...raw,
+    isRequired: raw.isRequired ?? false,
+  }
 }
 
 function parseContent(json: Json): GuideContent {
-  return json as unknown as GuideContent
+  const raw = json as unknown as GuideContent | VisualGuideDocument
+  if (isVisualGuideDocument(raw)) {
+    return {
+      intro: raw.settings?.intro ?? '',
+      sections: sectionsFromVisualDocument(raw),
+      visualDocument: raw,
+    }
+  }
+  const content = raw as GuideContent
+  const normalizedSections = Array.isArray(content.sections) ? content.sections : []
+  return {
+    intro: content.intro ?? '',
+    alert: content.alert,
+    sections: normalizedSections,
+    visualDocument: content.visualDocument ?? visualFromGuideContent({ ...content, sections: normalizedSections }),
+  }
 }
 
 export async function insertDefaultGuideCategoriesForBuilding(
@@ -94,6 +119,7 @@ export async function createBuildingGuideCategory(
     subtitle: string
     icon: string
     color: Category['color']
+    isRequired?: boolean
     intro: string
     alert?: GuideContent['alert']
     sections: ContentSection[]
@@ -132,6 +158,7 @@ export async function createBuildingGuideCategory(
       icon: input.icon,
       color: input.color,
       order,
+      isRequired: input.isRequired ?? false,
     },
     content: {
       intro: input.intro,
@@ -235,4 +262,126 @@ export async function listBuildingGuideSections(buildingId: string) {
     category: parseCategory(row.category),
     content: parseContent(row.content),
   }))
+}
+
+export interface EditorCategoryContentRecord {
+  buildingId: string
+  categorySlug: string
+  ownerUserId: string | null
+  isPublished: boolean
+  content: GuideContent
+  draftContent: VisualGuideDocument | null
+}
+
+export async function getEditorCategoryContent(
+  buildingId: string,
+  categorySlug: string
+): Promise<EditorCategoryContentRecord | undefined> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('building_guide_categories')
+    .select('building_id, category_slug, owner_user_id, is_published, content, draft_content')
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return undefined
+  const publishedContent = parseContent(data.content)
+  const draftContent =
+    data.draft_content && isVisualGuideDocument(data.draft_content as unknown)
+      ? (data.draft_content as unknown as VisualGuideDocument)
+      : null
+  return {
+    buildingId: data.building_id,
+    categorySlug: data.category_slug,
+    ownerUserId: data.owner_user_id,
+    isPublished: data.is_published,
+    content: publishedContent,
+    draftContent,
+  }
+}
+
+export async function saveEditorCategoryDraft(
+  buildingId: string,
+  categorySlug: string,
+  userId: string,
+  document: VisualGuideDocument
+): Promise<EditorCategoryContentRecord> {
+  const admin = createSupabaseAdmin()
+  const { data: existing, error: existingError } = await admin
+    .from('building_guide_categories')
+    .select('owner_user_id')
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+    .maybeSingle()
+  if (existingError) throw new Error(existingError.message)
+  if (!existing) throw new Error('Category content not found.')
+  if (existing.owner_user_id && existing.owner_user_id !== userId) {
+    throw new Error('Forbidden')
+  }
+
+  const { error } = await admin
+    .from('building_guide_categories')
+    .update({
+      draft_content: document as unknown as Json,
+      owner_user_id: existing.owner_user_id ?? userId,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+      is_published: false,
+    })
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+  if (error) throw new Error(error.message)
+
+  const updated = await getEditorCategoryContent(buildingId, categorySlug)
+  if (!updated) throw new Error('Category content not found.')
+  return updated
+}
+
+export async function publishEditorCategoryDraft(
+  buildingId: string,
+  categorySlug: string,
+  userId: string
+): Promise<EditorCategoryContentRecord> {
+  const admin = createSupabaseAdmin()
+  const { data: row, error: rowError } = await admin
+    .from('building_guide_categories')
+    .select('owner_user_id, draft_content, content')
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+    .maybeSingle()
+  if (rowError) throw new Error(rowError.message)
+  if (!row) throw new Error('Category content not found.')
+  if (row.owner_user_id && row.owner_user_id !== userId) {
+    throw new Error('Forbidden')
+  }
+
+  let publishedContent = parseContent(row.content)
+  if (row.draft_content && isVisualGuideDocument(row.draft_content as unknown)) {
+    const doc = row.draft_content as unknown as VisualGuideDocument
+    publishedContent = {
+      ...publishedContent,
+      intro: doc.settings?.intro ?? publishedContent.intro,
+      sections: sectionsFromVisualDocument(doc),
+      visualDocument: doc,
+    }
+  }
+
+  const { error } = await admin
+    .from('building_guide_categories')
+    .update({
+      content: publishedContent as unknown as Json,
+      is_published: true,
+      owner_user_id: row.owner_user_id ?? userId,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+  if (error) throw new Error(error.message)
+
+  const updated = await getEditorCategoryContent(buildingId, categorySlug)
+  if (!updated) throw new Error('Category content not found.')
+  return updated
 }

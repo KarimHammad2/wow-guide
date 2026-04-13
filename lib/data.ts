@@ -28,6 +28,8 @@ export interface Category {
   icon: string
   color: 'primary' | 'accent' | 'muted'
   order: number
+  /** Per-building flag used by admin/workflows to denote required sections. */
+  isRequired?: boolean
 }
 
 export interface ContentSection {
@@ -50,15 +52,26 @@ export interface ContentSection {
     | 'video'
     | 'links'
     | 'gallery'
+    | 'list'
+    | 'button'
   title?: string
   content?: string
   items?: ContentItem[]
   variant?: 'info' | 'warning' | 'success' | 'danger'
   mediaUrl?: string
   videoUrl?: string
+  buttonUrl?: string
+  textLinkUrl?: string
   caption?: string
   layout?: 'default' | 'split' | 'full-bleed'
   styleVariant?: 'default' | 'highlighted' | 'minimal'
+  textColor?: string
+  backgroundColor?: string
+  fontSize?: number
+  fontFamily?: string
+  blockWidth?: number
+  blockHeight?: number
+  rowId?: string
 }
 
 export interface ContentItem {

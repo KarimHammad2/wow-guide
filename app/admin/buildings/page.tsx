@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Hotel, ArrowRight, Pencil, Trash2, QrCode, Loader2 } from 'lucide-react'
+import { Plus, Hotel, Pencil, Trash2, QrCode, Loader2, Eye } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
@@ -166,7 +166,7 @@ export default function AdminBuildingsPage() {
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2"><Hotel className="w-5 h-5 shrink-0" />Building List</CardTitle>
-            <CardDescription>Open section editor per building or edit building details here.</CardDescription>
+            <CardDescription>Edit building details and manage actions here.</CardDescription>
           </div>
           <Button
             size="sm"
@@ -201,12 +201,19 @@ export default function AdminBuildingsPage() {
                   <TableCell>{building.appPath}</TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex items-center gap-2">
-                      <Link href={`/admin/buildings/${building.id}/sections`}>
-                        <Button size="sm" variant="outline" className="gap-1.5">
-                          Sections
-                          <ArrowRight className="w-3.5 h-3.5" />
+                      {building.appPath ? (
+                        <Link href={building.appPath} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="h-8 gap-1.5 px-2.5">
+                            <Eye className="w-3.5 h-3.5" />
+                            Preview
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-8 gap-1.5 px-2.5" disabled>
+                          <Eye className="w-3.5 h-3.5" />
+                          Preview
                         </Button>
-                      </Link>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"

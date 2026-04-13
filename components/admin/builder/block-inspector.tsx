@@ -63,6 +63,29 @@ export function BlockInspector({ block, onUpdate }: BlockInspectorProps) {
           }
         />
       )}
+
+      {block.type === 'button' && (
+        <LinkField
+          value={block.buttonUrl}
+          onChange={(value) => onUpdate({ buttonUrl: value })}
+        />
+      )}
+
+      {block.type === 'list' && (
+        <Textarea
+          value={(block.items ?? []).map((item) => item.title).join('\n')}
+          rows={6}
+          placeholder="One item per line"
+          onChange={(event) =>
+            onUpdate({
+              items: event.target.value
+                .split('\n')
+                .map((line, index) => ({ id: `item-${index + 1}`, title: line.trim() }))
+                .filter((line) => line.title),
+            })
+          }
+        />
+      )}
     </div>
   )
 }

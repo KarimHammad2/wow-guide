@@ -5,6 +5,7 @@ import type { Building } from '@/lib/data'
 import { DEFAULT_SUPPORT_EMAIL, DEFAULT_SUPPORT_PHONE } from '@/lib/emergency-defaults'
 import { createDefaultGuidesForBuilding, slugify } from '@/lib/guide-seed-defaults'
 import { insertDefaultGuideCategoriesForBuilding } from '@/lib/building-guides-repository'
+import { ensureDefaultCategoriesAssignedToBuilding } from '@/lib/guide-categories-repository'
 
 type BuildingRow = Database['public']['Tables']['buildings']['Row']
 
@@ -130,6 +131,7 @@ export async function createBuilding(
 
   const guides = createDefaultGuidesForBuilding(id)
   await insertDefaultGuideCategoriesForBuilding(id, guides)
+  await ensureDefaultCategoriesAssignedToBuilding(id)
 
   return rowToBuilding(data as BuildingRow)
 }
@@ -155,6 +157,13 @@ export async function updateBuilding(input: Building): Promise<Building> {
 
 export async function deleteBuilding(id: string): Promise<void> {
   const admin = createSupabaseAdmin()
-  const { error } = await admin.from('buildings').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  // Defensive cleanup: DB cascades should handle this, but explicit deletes keep behavior safe.
+  const { error: assignmentError } = await admin.from('building_category_assignments').delete().eq('building_id', id)
+  if (assignmentError) throw new Error(assignmentError.message)
+
+  const { error: guideError } = await admin.from('building_guide_categories').delete().eq('building_id', id)
+  if (guideError) throw new Error(guideError.message)
+
+  const { error: buildingError } = await admin.from('buildings').delete().eq('id', id)
+  if (buildingError) throw new Error(buildingError.message)
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ImagePlus, Layers, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
@@ -64,6 +65,7 @@ export default function AdminCategoriesPage() {
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<GuideCategory[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
+  const [catalogBuildingFilter, setCatalogBuildingFilter] = useState<string>('all')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState(defaultCreate)
@@ -138,6 +140,13 @@ export default function AdminCategoriesPage() {
     setCategories(rows)
   }
 
+  const filteredCategories = useMemo(() => {
+    if (catalogBuildingFilter === 'all') return categories
+    return categories.filter((cat) =>
+      cat.assignedBuildings?.some((building) => building.id === catalogBuildingFilter)
+    )
+  }, [categories, catalogBuildingFilter])
+
   if (loading) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading...</div>
   }
@@ -165,21 +174,39 @@ export default function AdminCategoriesPage() {
               </CardTitle>
               <CardDescription>Reusable categories stored in the database.</CardDescription>
             </div>
-            <Button
-              size="sm"
-              className="gap-1.5"
-              disabled={!canEdit}
-              onClick={() => {
-                setCreateForm({
-                  ...defaultCreate,
-                  assignBuildingId: buildings[0]?.id || '',
-                })
-                setCreateOpen(true)
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New category
-            </Button>
+            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+              <div className="w-[170px] sm:w-56">
+                <Select value={catalogBuildingFilter} onValueChange={setCatalogBuildingFilter}>
+                  <SelectTrigger aria-label="Filter categories by building">
+                    <SelectValue placeholder="Filter by building" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All buildings</SelectItem>
+                    {buildings.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                        {b.city ? ` — ${b.city}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                disabled={!canEdit}
+                onClick={() => {
+                  setCreateForm({
+                    ...defaultCreate,
+                    assignBuildingId: buildings[0]?.id || '',
+                  })
+                  setCreateOpen(true)
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New category
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="min-w-0 overflow-x-auto">
             <Table>
@@ -193,10 +220,28 @@ export default function AdminCategoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.map((cat) => (
+                {filteredCategories.map((cat) => (
                   <TableRow key={cat.id}>
                     <TableCell className="font-medium max-w-[min(100%,14rem)]">
-                      <div className="truncate">{cat.title}</div>
+                      {(() => {
+                        const preferredBuilding =
+                          catalogBuildingFilter !== 'all'
+                            ? cat.assignedBuildings?.find((building) => building.id === catalogBuildingFilter)
+                            : undefined
+                        const editorBuilding = preferredBuilding ?? cat.assignedBuildings?.[0]
+                        if (!editorBuilding) {
+                          return <div className="truncate">{cat.title}</div>
+                        }
+                        return (
+                          <Link
+                            href={`/admin/editor/${editorBuilding.id}/${cat.slug}`}
+                            className="truncate text-primary hover:underline"
+                            title={`Open editor for ${cat.title}`}
+                          >
+                            {cat.title}
+                          </Link>
+                        )
+                      })()}
                       {cat.shortDescription?.trim() ? (
                         <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{cat.shortDescription}</div>
                       ) : null}
@@ -271,6 +316,13 @@ export default function AdminCategoriesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredCategories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                      No categories match the selected building.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
           </CardContent>

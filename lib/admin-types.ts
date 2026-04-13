@@ -1,4 +1,5 @@
 import type { Category, ContentSection } from '@/lib/data'
+import type { VisualGuideDocument } from '@/lib/visual-builder-schema'
 
 export interface EmergencyInfo {
   id: string
@@ -28,6 +29,7 @@ export interface GuideContent {
     message: string
   }
   sections: ContentSection[]
+  visualDocument?: VisualGuideDocument
 }
 
 export interface BuildingGuideCategory {

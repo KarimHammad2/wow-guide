@@ -56,6 +56,8 @@ const contentSectionSchema = z.object({
     'video',
     'links',
     'gallery',
+    'list',
+    'button',
   ]),
   title: z.string().optional(),
   content: z.string().optional(),
@@ -63,9 +65,18 @@ const contentSectionSchema = z.object({
   variant: z.enum(['info', 'warning', 'success', 'danger']).optional(),
   mediaUrl: z.string().optional(),
   videoUrl: z.string().optional(),
+  buttonUrl: z.string().optional(),
+  textLinkUrl: z.string().optional(),
   caption: z.string().optional(),
   layout: z.enum(['default', 'split', 'full-bleed']).optional(),
   styleVariant: z.enum(['default', 'highlighted', 'minimal']).optional(),
+  textColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  fontSize: z.number().int().min(10).max(72).optional(),
+  fontFamily: z.string().optional(),
+  blockWidth: z.number().int().min(120).max(1400).optional(),
+  blockHeight: z.number().int().min(60).max(1200).optional(),
+  rowId: z.string().optional(),
 })
 
 const sectionMutationSchema = z.object({
@@ -100,6 +111,12 @@ function firstUnsafeSectionUrl(sections: z.infer<typeof contentSectionSchema>[])
     }
     if (section.mediaUrl && !isSafeNavigationTarget(section.mediaUrl)) {
       return `Invalid mediaUrl for section "${section.id}".`
+    }
+    if (section.buttonUrl && !isSafeNavigationTarget(section.buttonUrl)) {
+      return `Invalid buttonUrl for section "${section.id}".`
+    }
+    if (section.textLinkUrl && !isSafeNavigationTarget(section.textLinkUrl)) {
+      return `Invalid textLinkUrl for section "${section.id}".`
     }
 
     for (const item of section.items ?? []) {

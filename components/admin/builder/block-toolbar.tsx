@@ -11,6 +11,8 @@ const BLOCK_PRESETS: Array<{ type: ContentSection['type']; label: string }> = [
   { type: 'media', label: 'Media' },
   { type: 'video', label: 'Video' },
   { type: 'links', label: 'Links' },
+  { type: 'button', label: 'Button' },
+  { type: 'list', label: 'List' },
   { type: 'schedule', label: 'Schedule' },
 ]
 
