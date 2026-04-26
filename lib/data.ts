@@ -54,6 +54,8 @@ export interface ContentSection {
     | 'gallery'
     | 'list'
     | 'button'
+    /** Mauve-style catalog hero: heading + rows with optional Lucide icon and side image. */
+    | 'catalogBand'
   title?: string
   content?: string
   items?: ContentItem[]
@@ -62,6 +64,8 @@ export interface ContentSection {
   videoUrl?: string
   buttonUrl?: string
   textLinkUrl?: string
+  /** Tiptap ProseMirror JSON for `text` blocks; takes precedence over plain `content` when rendering. */
+  richText?: unknown
   caption?: string
   layout?: 'default' | 'split' | 'full-bleed'
   styleVariant?: 'default' | 'highlighted' | 'minimal'
@@ -71,12 +75,28 @@ export interface ContentSection {
   fontFamily?: string
   blockWidth?: number
   blockHeight?: number
+  /** Horizontal placement of the block in the canvas column (editor) / layout. */
+  blockAlign?: 'left' | 'center' | 'right'
+  /** Vertical placement of the block content when it has extra height. */
+  blockVerticalAlign?: 'top' | 'center' | 'bottom'
+  /** Extra space above / below the block (pixels). */
+  blockMarginTop?: number
+  blockMarginBottom?: number
   rowId?: string
+  /** In-block image beside body text (text / list / steps / checklist). */
+  blockMediaUrl?: string
+  blockMediaPosition?: 'left' | 'right'
+  /** In-block side-image fit behavior: auto prefers full image visibility. */
+  blockMediaFit?: 'auto' | 'contain' | 'cover'
+  /** Main media fit behavior for image/media blocks. */
+  mediaFit?: 'auto' | 'contain' | 'cover'
 }
 
 export interface ContentItem {
   id: string
   title: string
+  /** Tiptap JSON for list/checklist rows: format text and add links without markdown. */
+  richText?: unknown
   description?: string
   icon?: string
   image?: string

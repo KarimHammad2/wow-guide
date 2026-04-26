@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { MapPinned, Activity, ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AdminShell } from '@/components/admin/admin-shell'
@@ -227,6 +228,21 @@ export default function AdminDashboardPage() {
             </ChartContainer>
           )}
         </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Analytics</CardTitle>
+            <CardDescription>Open the visitor analytics dashboard for per-building traffic trends.</CardDescription>
+          </div>
+          <Link
+            href="/admin/analytics"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            View analytics
+          </Link>
+        </CardHeader>
       </Card>
 
     </AdminShell>

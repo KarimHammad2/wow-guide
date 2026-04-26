@@ -9,6 +9,7 @@ import {
   serverErrorResponse,
   tooManyRequestsResponse,
 } from '@/lib/api-route-utils'
+import { collectLinkHrefsFromRichTextJson } from '@/lib/tiptap/rich-text-json'
 import { isSafeHttpUrl, isSafeNavigationTarget } from '@/lib/url-safety'
 import { checkRateLimit } from '@/lib/rate-limit'
 import {
@@ -67,6 +68,7 @@ const contentSectionSchema = z.object({
   videoUrl: z.string().optional(),
   buttonUrl: z.string().optional(),
   textLinkUrl: z.string().optional(),
+  richText: z.unknown().optional(),
   caption: z.string().optional(),
   layout: z.enum(['default', 'split', 'full-bleed']).optional(),
   styleVariant: z.enum(['default', 'highlighted', 'minimal']).optional(),
@@ -76,6 +78,10 @@ const contentSectionSchema = z.object({
   fontFamily: z.string().optional(),
   blockWidth: z.number().int().min(120).max(1400).optional(),
   blockHeight: z.number().int().min(60).max(1200).optional(),
+  blockAlign: z.enum(['left', 'center', 'right']).optional(),
+  blockVerticalAlign: z.enum(['top', 'center', 'bottom']).optional(),
+  blockMarginTop: z.number().int().min(0).max(400).optional(),
+  blockMarginBottom: z.number().int().min(0).max(400).optional(),
   rowId: z.string().optional(),
 })
 
@@ -117,6 +123,13 @@ function firstUnsafeSectionUrl(sections: z.infer<typeof contentSectionSchema>[])
     }
     if (section.textLinkUrl && !isSafeNavigationTarget(section.textLinkUrl)) {
       return `Invalid textLinkUrl for section "${section.id}".`
+    }
+    if (section.type === 'text' && section.richText) {
+      for (const href of collectLinkHrefsFromRichTextJson(section.richText)) {
+        if (!isSafeNavigationTarget(href)) {
+          return `Invalid link URL in text section "${section.id}".`
+        }
+      }
     }
 
     for (const item of section.items ?? []) {

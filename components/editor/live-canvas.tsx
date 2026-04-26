@@ -5,6 +5,7 @@ import { GuideBlockRenderer } from '@/components/guide/blocks/guide-block-render
 import { Button } from '@/components/ui/button'
 import type { ContentSection } from '@/lib/data'
 import type { VisualBlock } from '@/lib/visual-builder-schema'
+import { groupSectionsByRow } from '@/lib/visual-row-groups'
 
 interface LiveCanvasProps {
   sections: ContentSection[]
@@ -17,7 +18,13 @@ interface LiveCanvasProps {
   onReorderToIndex: (sourceBlockId: string, targetIndex: number) => void
   onInsertBlock: (index: number, type: VisualBlock['type']) => void
   onResizeBlock: (blockId: string, next: { width: number; height: number }) => void
-  onDropBlockOnBlock: (sourceBlockId: string, targetBlockId: string) => void
+  onDropBlockOnBlock: (
+    sourceBlockId: string,
+    targetBlockId: string,
+    options?: { side?: 'left' | 'right' }
+  ) => void
+  onUploadMedia: (blockId: string, file: File, options?: { side?: 'left' | 'right' }) => void
+  onRemoveBlockSideImage: (blockId: string) => void | Promise<void>
 }
 
 const QUICK_TYPES: Array<{ type: VisualBlock['type']; label: string }> = [
@@ -41,7 +48,11 @@ export function LiveCanvas({
   onInsertBlock,
   onResizeBlock,
   onDropBlockOnBlock,
+  onUploadMedia,
+  onRemoveBlockSideImage,
 }: LiveCanvasProps) {
+  const groups = groupSectionsByRow(sections)
+
   function renderInsertionZone(index: number) {
     return (
       <div
@@ -50,6 +61,13 @@ export function LiveCanvas({
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault()
+          const file = event.dataTransfer.files?.[0]
+          if (file) {
+            if (activeBlockId) {
+              onUploadMedia(activeBlockId, file)
+            }
+            return
+          }
           const sourceBlockId = event.dataTransfer.getData('text/guide-block-id')
           if (!sourceBlockId) return
           onReorderToIndex(sourceBlockId, index)
@@ -78,12 +96,12 @@ export function LiveCanvas({
   return (
     <div className="space-y-3">
       {renderInsertionZone(0)}
-      {sections.map((section, index) => {
-        const blockId = section.blockId ?? section.id
+      {groups.map((group) => {
+        const firstBlockId = group.sections[0]?.blockId ?? group.sections[0]?.id ?? group.rowId ?? `group-${group.startIndex}`
         return (
-          <div key={blockId} className="space-y-3">
+          <div key={firstBlockId} className="space-y-3">
             <GuideBlockRenderer
-              sections={[section]}
+              sections={group.sections}
               editable
               activeBlockId={activeBlockId}
               onSelectBlock={onSelectBlock}
@@ -94,10 +112,12 @@ export function LiveCanvas({
               onDragStartBlock={(id, event) => {
                 event.dataTransfer.setData('text/guide-block-id', id)
               }}
+              onUploadMedia={onUploadMedia}
+              onRemoveBlockSideImage={onRemoveBlockSideImage}
               onResizeBlock={onResizeBlock}
               onDropBlockOnBlock={onDropBlockOnBlock}
             />
-            {renderInsertionZone(index + 1)}
+            {renderInsertionZone(group.endIndex + 1)}
           </div>
         )
       })}

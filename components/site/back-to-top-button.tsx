@@ -14,7 +14,7 @@ export function BackToTopButton() {
   useEffect(() => subscribeMobileMenuOpen(setMobileMenuOpen), [])
 
   useEffect(() => {
-    if (pathname === '/') return
+    if (pathname === '/' || pathname.startsWith('/admin')) return
     const onScroll = () => {
       setVisible(window.scrollY > 220)
     }
@@ -24,7 +24,7 @@ export function BackToTopButton() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [pathname])
 
-  if (pathname === '/') {
+  if (pathname === '/' || pathname.startsWith('/admin')) {
     return null
   }
 

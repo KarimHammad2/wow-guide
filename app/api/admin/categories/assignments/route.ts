@@ -11,18 +11,35 @@ import {
 } from '@/lib/api-route-utils'
 import { checkRateLimit } from '@/lib/rate-limit'
 import {
-  assignCategoryToBuilding,
-  listAssignmentsForBuilding,
-  unassignCategoryFromBuilding,
+  createGuideCategoryForBuilding,
+  deleteGuideCategoryForBuilding,
+  listGuideCategoriesForBuilding,
 } from '@/lib/guide-categories-repository'
 
-const assignSchema = z.object({
+const categoryColorSchema = z.enum(['primary', 'accent', 'muted'])
+const buildingSchema = z.object({
   buildingId: z.string().trim().min(1).max(120),
-  categoryId: z.string().trim().uuid(),
-  isRequired: z.boolean().optional(),
 })
 
-const unassignSchema = assignSchema
+const iconXorRefine = (data: { iconName: string | null; iconImageUrl: string | null }) => {
+  const hasName = Boolean(data.iconName?.trim())
+  const hasUrl = Boolean(data.iconImageUrl?.trim())
+  return hasName !== hasUrl
+}
+
+const createSchema = buildingSchema
+  .extend({
+    title: z.string().trim().min(1).max(180),
+    shortDescription: z.string().trim().max(500).optional().default(''),
+    iconName: z.string().trim().min(1).max(80).nullable(),
+    iconImageUrl: z.string().trim().nullable(),
+    categoryColor: categoryColorSchema.optional(),
+  })
+  .refine(iconXorRefine, { message: 'Provide exactly one of iconName or iconImageUrl.' })
+
+const deleteSchema = buildingSchema.extend({
+  slug: z.string().trim().min(1).max(180),
+})
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminSession()
@@ -34,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const rows = await listAssignmentsForBuilding(buildingId)
+    const rows = await listGuideCategoriesForBuilding(buildingId)
     return NextResponse.json(rows)
   } catch (err) {
     logApiError('admin-category-assignments-list', err)
@@ -54,18 +71,22 @@ export async function POST(request: NextRequest) {
 
   const parsedBody = await parseJsonBody<unknown>(request)
   if (!parsedBody.ok) return parsedBody.response
-  const body = assignSchema.safeParse(parsedBody.data)
+  const body = createSchema.safeParse(parsedBody.data)
   if (!body.success) {
-    return NextResponse.json({ error: 'Invalid assignment payload.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid category payload.' }, { status: 400 })
   }
 
   try {
-    await assignCategoryToBuilding(body.data.buildingId, body.data.categoryId, {
-      isRequired: body.data.isRequired,
+    const created = await createGuideCategoryForBuilding(body.data.buildingId, {
+      title: body.data.title,
+      shortDescription: body.data.shortDescription,
+      iconName: body.data.iconName?.trim() ? body.data.iconName.trim() : null,
+      iconImageUrl: body.data.iconImageUrl?.trim() ? body.data.iconImageUrl.trim() : null,
+      categoryColor: body.data.categoryColor,
     })
-    return NextResponse.json({ ok: true })
+    return NextResponse.json(created)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Assignment failed'
+    const message = err instanceof Error ? err.message : 'Category creation failed'
     logApiError('admin-category-assign', err)
     return NextResponse.json({ error: message }, { status: 400 })
   }
@@ -83,16 +104,16 @@ export async function DELETE(request: NextRequest) {
 
   const parsedBody = await parseJsonBody<unknown>(request)
   if (!parsedBody.ok) return parsedBody.response
-  const body = unassignSchema.safeParse(parsedBody.data)
+  const body = deleteSchema.safeParse(parsedBody.data)
   if (!body.success) {
-    return NextResponse.json({ error: 'Invalid unassign payload.' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
   try {
-    await unassignCategoryFromBuilding(body.data.buildingId, body.data.categoryId)
+    await deleteGuideCategoryForBuilding(body.data.buildingId, body.data.slug)
     return NextResponse.json({ ok: true })
   } catch (err) {
     logApiError('admin-category-unassign', err)
-    return serverErrorResponse('Failed to remove category assignment.')
+    return serverErrorResponse('Failed to remove category.')
   }
 }

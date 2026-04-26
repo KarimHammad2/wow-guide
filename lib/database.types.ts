@@ -250,6 +250,49 @@ export type Database = {
           },
         ]
       }
+      building_page_visits: {
+        Row: {
+          id: string
+          building_id: string
+          visitor_id: string
+          pathname: string
+          page_title: string
+          page_type: string
+          category_slug: string | null
+          referrer: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          building_id: string
+          visitor_id: string
+          pathname: string
+          page_title?: string
+          page_type: string
+          category_slug?: string | null
+          referrer?: string
+          visited_at?: string
+        }
+        Update: {
+          building_id?: string
+          visitor_id?: string
+          pathname?: string
+          page_title?: string
+          page_type?: string
+          category_slug?: string | null
+          referrer?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'building_page_visits_building_id_fkey'
+            columns: ['building_id']
+            isOneToOne: false
+            referencedRelation: 'buildings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       staff_directory: {

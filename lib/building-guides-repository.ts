@@ -10,6 +10,7 @@ import {
   type VisualGuideDocument,
   visualFromGuideContent,
 } from '@/lib/visual-builder-schema'
+import { normalizeInternetCategoryGuestContent } from '@/lib/guide-internet-guest-normalize'
 
 function parseCategory(json: Json): Category {
   const raw = json as unknown as Category
@@ -81,7 +82,11 @@ export async function getBuildingCategoryContent(
 
   if (error) throw new Error(error.message)
   if (!data) return undefined
-  return parseContent(data.content)
+  const content = parseContent(data.content)
+  if (categorySlug === 'internet') {
+    return normalizeInternetCategoryGuestContent(content)
+  }
+  return content
 }
 
 export async function getBuildingGuideCategory(
@@ -105,10 +110,30 @@ export async function getBuildingGuideCategory(
 }
 
 async function assertBuildingExists(buildingId: string): Promise<void> {
-  const supabase = await createClient()
-  const { data, error } = await supabase.from('buildings').select('id').eq('id', buildingId).maybeSingle()
+  const admin = createSupabaseAdmin()
+  const { data, error } = await admin.from('buildings').select('id').eq('id', buildingId).maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) throw new Error('Building not found')
+}
+
+/** Service-role read (e.g. scripts); avoids Next.js cookie client. */
+export async function getBuildingGuideCategoryAdmin(
+  buildingId: string,
+  categorySlug: string
+): Promise<BuildingGuideCategory | undefined> {
+  const admin = createSupabaseAdmin()
+  const { data, error } = await admin
+    .from('building_guide_categories')
+    .select('category, content')
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return undefined
+  return {
+    category: parseCategory(data.category),
+    content: parseContent(data.content),
+  }
 }
 
 export async function createBuildingGuideCategory(
@@ -194,7 +219,7 @@ export async function updateBuildingGuideCategory(
   }
 ): Promise<BuildingGuideCategory> {
   await assertBuildingExists(buildingId)
-  const existing = await getBuildingGuideCategory(buildingId, categorySlug)
+  const existing = await getBuildingGuideCategoryAdmin(buildingId, categorySlug)
   if (!existing) {
     throw new Error('Guide section not found')
   }
@@ -222,6 +247,9 @@ export async function updateBuildingGuideCategory(
       sort_order: updated.category.order,
       category: updated.category as unknown as Json,
       content: updated.content as unknown as Json,
+      /** Published JSON is source of truth for guests; drop stale visual drafts so the editor reloads from content. */
+      draft_content: null,
+      is_published: true,
       updated_at: new Date().toISOString(),
     })
     .eq('building_id', buildingId)

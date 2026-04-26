@@ -65,12 +65,17 @@ export async function publishEditorDocument(buildingId: string, categorySlug: st
 export async function uploadEditorMedia(file: File): Promise<{ url: string }> {
   const formData = new FormData()
   formData.append('file', file)
-  const response = await fetch('/api/editor/media', {
-    method: 'POST',
-    credentials: 'include',
-    cache: 'no-store',
-    body: formData,
-  })
+  let response: Response
+  try {
+    response = await fetch('/api/editor/media', {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      body: formData,
+    })
+  } catch {
+    throw new Error('Could not reach media upload service.')
+  }
   const text = await response.text()
   const data = parseJsonBody(text)
   if (!response.ok) {
@@ -81,4 +86,31 @@ export async function uploadEditorMedia(file: File): Promise<{ url: string }> {
     throw new Error(typeof err === 'string' && err ? err : 'Upload failed')
   }
   return data as { url: string }
+}
+
+export async function deleteEditorMedia(url: string): Promise<{ ok: true }> {
+  let response: Response
+  try {
+    response = await fetch('/api/editor/media', {
+      method: 'DELETE',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    })
+  } catch {
+    throw new Error('Could not reach media delete service.')
+  }
+  const text = await response.text()
+  const data = parseJsonBody(text)
+  if (!response.ok) {
+    const err =
+      data && typeof data === 'object' && data !== null && 'error' in data
+        ? (data as { error?: unknown }).error
+        : undefined
+    throw new Error(typeof err === 'string' && err ? err : 'Delete failed')
+  }
+  return (data as { ok: true }) ?? { ok: true }
 }

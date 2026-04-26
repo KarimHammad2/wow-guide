@@ -9,6 +9,7 @@ import {
   MapPinned,
   Hotel,
   Layers,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,7 @@ const baseNavItems = [
   { href: '/admin/cities', label: 'Cities', icon: MapPinned },
   { href: '/admin/buildings', label: 'Buildings', icon: Hotel },
   { href: '/admin/categories', label: 'Category', icon: Layers },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
 ] as const
 
 export function AdminSidebarNav() {
@@ -43,7 +45,8 @@ export function AdminSidebarNavItems({
         const active =
           pathname === item.href ||
           (item.href === '/admin/buildings' && pathname.startsWith('/admin/buildings/')) ||
-          (item.href === '/admin/categories' && pathname.startsWith('/admin/categories'))
+          (item.href === '/admin/categories' && pathname.startsWith('/admin/categories')) ||
+          (item.href === '/admin/analytics' && pathname.startsWith('/admin/analytics'))
 
         return (
           <Link

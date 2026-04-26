@@ -7,6 +7,7 @@ import { QuickActions } from '@/components/guide/quick-actions'
 import { CategoryTile } from '@/components/guide/category-tile'
 import { EmergencyBanner } from '@/components/guide/emergency-banner'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
+import { BuildingAnalyticsTracker } from '@/components/site/building-analytics-tracker'
 import { getBuildingById } from '@/lib/buildings-repository'
 import { getBuildingCategories } from '@/lib/building-guides-repository'
 import { DEFAULT_SUPPORT_EMAIL } from '@/lib/emergency-defaults'
@@ -19,7 +20,7 @@ interface BuildingPageProps {
 export const dynamic = 'force-dynamic'
 
 const getBuildingCached = cache(async (slug: string) => getBuildingById(slug))
-const getBuildingCategoriesCached = cache(async (slug: string) => getBuildingCategories(slug))
+const getBuildingCategoriesCached = cache(async (buildingId: string) => getBuildingCategories(buildingId))
 
 export async function generateMetadata({ params }: BuildingPageProps) {
   const { slug } = await params
@@ -50,7 +51,7 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
 
   const contactEmail = building.supportEmail.trim() || DEFAULT_SUPPORT_EMAIL
 
-  const categories = await getBuildingCategoriesCached(slug)
+  const categories = await getBuildingCategoriesCached(building.id)
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,6 +140,7 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
       </main>
 
       <StickyBottomBar buildingSlug={building.id} supportEmail={building.supportEmail} />
+      <BuildingAnalyticsTracker buildingId={building.id} pageTitle={building.name} pageType="building_home" />
     </div>
   )
 }

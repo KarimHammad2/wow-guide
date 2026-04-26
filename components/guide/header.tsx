@@ -29,11 +29,12 @@ export function Header({
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const showMenu = Boolean(buildingSlug)
+  const brandHref = '/buildings'
 
   return (
     <>
       <Navbar
-        brandHref="/buildings"
+        brandHref={brandHref}
         brandLabel="WOW Living — all buildings"
         logoSrc="/logo.png"
         transparent={transparent}

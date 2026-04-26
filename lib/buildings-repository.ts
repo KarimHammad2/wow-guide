@@ -5,7 +5,6 @@ import type { Building } from '@/lib/data'
 import { DEFAULT_SUPPORT_EMAIL, DEFAULT_SUPPORT_PHONE } from '@/lib/emergency-defaults'
 import { createDefaultGuidesForBuilding, slugify } from '@/lib/guide-seed-defaults'
 import { insertDefaultGuideCategoriesForBuilding } from '@/lib/building-guides-repository'
-import { ensureDefaultCategoriesAssignedToBuilding } from '@/lib/guide-categories-repository'
 
 type BuildingRow = Database['public']['Tables']['buildings']['Row']
 
@@ -131,7 +130,6 @@ export async function createBuilding(
 
   const guides = createDefaultGuidesForBuilding(id)
   await insertDefaultGuideCategoriesForBuilding(id, guides)
-  await ensureDefaultCategoriesAssignedToBuilding(id)
 
   return rowToBuilding(data as BuildingRow)
 }

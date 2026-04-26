@@ -1,13 +1,14 @@
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/database.types'
-import type { Category } from '@/lib/data'
-import type { GuideCategory, GuideCategoryBuildingRef } from '@/lib/admin-types'
+import type { Category, ContentSection } from '@/lib/data'
+import type { BuildingGuideCategory, GuideCategory, GuideCategoryBuildingRef } from '@/lib/admin-types'
 import { DEFAULT_GUIDE_SECTIONS, slugify } from '@/lib/guide-seed-defaults'
 import {
   createBuildingGuideCategory,
   deleteBuildingGuideCategory,
   getBuildingGuideCategory,
+  listBuildingGuideSections,
   updateBuildingGuideCategory,
 } from '@/lib/building-guides-repository'
 
@@ -29,6 +30,79 @@ export function rowToGuideCategory(row: GuideCategoryRow): GuideCategory {
     iconImageUrl: row.icon_image_url,
     categoryColor: rowCategoryColor(row),
   }
+}
+
+export async function listGuideCategoriesForBuilding(buildingId: string): Promise<BuildingGuideCategory[]> {
+  return listBuildingGuideSections(buildingId)
+}
+
+export async function getGuideCategoryForBuilding(
+  buildingId: string,
+  categorySlug: string
+): Promise<BuildingGuideCategory | undefined> {
+  return getBuildingGuideCategory(buildingId, categorySlug)
+}
+
+export async function createGuideCategoryForBuilding(
+  buildingId: string,
+  input: {
+    title: string
+    shortDescription?: string
+    iconName: string | null
+    iconImageUrl: string | null
+    categoryColor?: Category['color']
+    intro?: string
+    sections?: ContentSection[]
+  }
+): Promise<BuildingGuideCategory> {
+  return createBuildingGuideCategory(buildingId, {
+    slug: slugify(input.title),
+    title: input.title.trim(),
+    subtitle: (input.shortDescription ?? '').trim(),
+    icon: catalogIconToCategoryIconField({
+      icon_name: input.iconName?.trim() || null,
+      icon_image_url: input.iconImageUrl?.trim() || null,
+    }),
+    color: input.categoryColor ?? 'primary',
+    intro: input.intro ?? '',
+    sections: input.sections ?? [],
+  })
+}
+
+export async function updateGuideCategoryForBuilding(
+  buildingId: string,
+  categorySlug: string,
+  input: {
+    title: string
+    shortDescription?: string
+    iconName: string | null
+    iconImageUrl: string | null
+    categoryColor: Category['color']
+    intro?: string
+    sections?: ContentSection[]
+  }
+): Promise<BuildingGuideCategory> {
+  const existing = await getBuildingGuideCategory(buildingId, categorySlug)
+  if (!existing) {
+    throw new Error('Guide section not found')
+  }
+
+  return updateBuildingGuideCategory(buildingId, categorySlug, {
+    title: input.title.trim(),
+    subtitle: (input.shortDescription ?? existing.category.subtitle).trim(),
+    icon: catalogIconToCategoryIconField({
+      icon_name: input.iconName?.trim() || null,
+      icon_image_url: input.iconImageUrl?.trim() || null,
+    }),
+    color: input.categoryColor,
+    order: existing.category.order,
+    intro: input.intro ?? existing.content.intro,
+    sections: input.sections ?? existing.content.sections,
+  })
+}
+
+export async function deleteGuideCategoryForBuilding(buildingId: string, categorySlug: string): Promise<void> {
+  await deleteBuildingGuideCategory(buildingId, categorySlug)
 }
 
 /** Value stored in `building_guide_categories.category.icon` — URL or Lucide icon name. */

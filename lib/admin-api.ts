@@ -160,6 +160,18 @@ export async function requireAdminDirectorySession(): Promise<
   return auth
 }
 
+/** Analytics dashboard reads rely on Supabase Admin APIs (requires service role). */
+export async function requireAnalyticsDashboardSession(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireAdminSession()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Analytics requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
 export async function requireOwnerDirectorySession(): Promise<
   { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
 > {

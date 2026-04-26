@@ -1,6 +1,56 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* Tiptap (visual editor text blocks) */
+.tiptap-editor .ProseMirror {
+  outline: none;
+}
+.tiptap-editor .ProseMirror p {
+  margin: 0.35em 0;
+}
+.tiptap-editor .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Guest (and elsewhere): block-level lists from Tiptap must not sit inside inline boxes */
+.rich-text-html ul,
+.rich-text-html ol {
+  margin: 0.35em 0;
+  padding-left: 1.25em;
+}
+.rich-text-html li {
+  margin: 0.2em 0;
+}
+.rich-text-html li > p {
+  margin: 0.15em 0;
+}
+
+.tiptap-editor .ProseMirror table,
+.rich-text-html table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: inherit;
+}
+.tiptap-editor .ProseMirror th,
+.tiptap-editor .ProseMirror td,
+.rich-text-html th,
+.rich-text-html td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.55em;
+  vertical-align: top;
+  text-align: left;
+}
+.tiptap-editor .ProseMirror th,
+.rich-text-html th {
+  font-weight: 600;
+  background: var(--muted);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

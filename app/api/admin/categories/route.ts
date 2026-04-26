@@ -12,10 +12,10 @@ import {
 import { checkRateLimit } from '@/lib/rate-limit'
 import { isSafeHttpUrl } from '@/lib/url-safety'
 import {
-  createGuideCategory,
-  deleteGuideCategory,
-  listGuideCategoriesWithAssignments,
-  updateGuideCategory,
+  createGuideCategoryForBuilding,
+  deleteGuideCategoryForBuilding,
+  listGuideCategoriesForBuilding,
+  updateGuideCategoryForBuilding,
 } from '@/lib/guide-categories-repository'
 
 const categoryColorSchema = z.enum(['primary', 'accent', 'muted'])
@@ -26,8 +26,12 @@ const iconXorRefine = (data: { iconName: string | null; iconImageUrl: string | n
   return hasName !== hasUrl
 }
 
-const createCategorySchema = z
-  .object({
+const buildingSchema = z.object({
+  buildingId: z.string().trim().min(1).max(120),
+})
+
+const createCategorySchema = buildingSchema
+  .extend({
     title: z.string().trim().min(1).max(180),
     shortDescription: z.string().trim().max(500).optional().default(''),
     iconName: z.string().trim().min(1).max(80).nullable(),
@@ -43,9 +47,9 @@ const createCategorySchema = z
     { message: 'iconImageUrl must be a valid http(s) URL.' }
   )
 
-const updateCategorySchema = z
-  .object({
-    id: z.string().trim().uuid(),
+const updateCategorySchema = buildingSchema
+  .extend({
+    slug: z.string().trim().min(1).max(180),
     title: z.string().trim().min(1).max(180),
     shortDescription: z.string().trim().max(500).optional().default(''),
     iconName: z.string().trim().min(1).max(80).nullable(),
@@ -61,15 +65,19 @@ const updateCategorySchema = z
     { message: 'iconImageUrl must be a valid http(s) URL.' }
   )
 
-const deleteCategorySchema = z.object({
-  id: z.string().trim().uuid(),
+const deleteCategorySchema = buildingSchema.extend({
+  slug: z.string().trim().min(1).max(180),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const auth = await requireAdminSession()
   if (!auth.ok) return auth.response
+  const buildingId = request.nextUrl.searchParams.get('buildingId')?.trim()
+  if (!buildingId) {
+    return NextResponse.json({ error: 'Missing buildingId query parameter.' }, { status: 400 })
+  }
   try {
-    const rows = await listGuideCategoriesWithAssignments()
+    const rows = await listGuideCategoriesForBuilding(buildingId)
     return NextResponse.json(rows)
   } catch (err) {
     logApiError('admin-guide-categories-list', err)
@@ -95,7 +103,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const created = await createGuideCategory({
+    const created = await createGuideCategoryForBuilding(body.data.buildingId, {
       title: body.data.title,
       shortDescription: body.data.shortDescription,
       iconName: body.data.iconName?.trim() ? body.data.iconName.trim() : null,
@@ -127,7 +135,7 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const updated = await updateGuideCategory(body.data.id, {
+    const updated = await updateGuideCategoryForBuilding(body.data.buildingId, body.data.slug, {
       title: body.data.title,
       shortDescription: body.data.shortDescription,
       iconName: body.data.iconName?.trim() ? body.data.iconName.trim() : null,
@@ -159,7 +167,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await deleteGuideCategory(body.data.id)
+    await deleteGuideCategoryForBuilding(body.data.buildingId, body.data.slug)
     return NextResponse.json({ ok: true })
   } catch (err) {
     logApiError('admin-guide-categories-delete', err)

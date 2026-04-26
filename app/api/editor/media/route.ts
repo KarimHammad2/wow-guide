@@ -3,6 +3,14 @@ import type { NextRequest } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { requireEditorSession } from '@/lib/editor-api'
 import {
+  ensureGuideMediaBucket,
+  GUIDE_MEDIA_BUCKET,
+  GUIDE_MEDIA_MAX_BYTES,
+  resolveGuideMediaContentType,
+  resolveGuideMediaPath,
+  sniffGuideMediaContentType,
+} from '@/lib/editor-media'
+import {
   getRequestIp,
   logApiError,
   serverErrorResponse,
@@ -10,15 +18,7 @@ import {
 } from '@/lib/api-route-utils'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-const MAX_BYTES = 25 * 1024 * 1024
-const ALLOWED_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/gif',
-  'video/mp4',
-  'video/webm',
-])
+const MAX_BYTES = GUIDE_MEDIA_MAX_BYTES
 
 const extByMime: Record<string, string> = {
   'image/png': 'png',
@@ -53,8 +53,12 @@ export async function POST(request: NextRequest) {
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'File too large (max 25MB).' }, { status: 400 })
   }
-  const type = file.type || 'application/octet-stream'
-  if (!ALLOWED_TYPES.has(type)) {
+  let type = resolveGuideMediaContentType(file)
+  if (!type) {
+    const head = new Uint8Array(await file.slice(0, 32).arrayBuffer())
+    type = sniffGuideMediaContentType(head)
+  }
+  if (!type) {
     return NextResponse.json({ error: 'Unsupported file type.' }, { status: 400 })
   }
 
@@ -63,8 +67,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const admin = createSupabaseAdmin()
+    await ensureGuideMediaBucket(admin)
     const buffer = Buffer.from(await file.arrayBuffer())
-    const { error: uploadError } = await admin.storage.from('guide-media').upload(path, buffer, {
+    const { error: uploadError } = await admin.storage.from(GUIDE_MEDIA_BUCKET).upload(path, buffer, {
       contentType: type,
       upsert: false,
     })
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
       logApiError('editor-media-upload-storage', uploadError)
       return serverErrorResponse('Upload failed.')
     }
-    const { data: pub } = admin.storage.from('guide-media').getPublicUrl(path)
+    const { data: pub } = admin.storage.from(GUIDE_MEDIA_BUCKET).getPublicUrl(path)
     if (!pub?.publicUrl) {
       return serverErrorResponse('Could not resolve public URL.')
     }
@@ -80,5 +85,43 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logApiError('editor-media-upload', error)
     return serverErrorResponse('Upload failed.')
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const auth = await requireEditorSession()
+  if (!auth.ok) return auth.response
+
+  const limiter = checkRateLimit(`editor-media-delete:${getRequestIp(request)}`, {
+    limit: 30,
+    windowMs: 60_000,
+  })
+  if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
+
+  let body: { url?: unknown; path?: unknown }
+  try {
+    body = (await request.json()) as { url?: unknown; path?: unknown }
+  } catch {
+    return NextResponse.json({ error: 'Expected JSON body.' }, { status: 400 })
+  }
+
+  const candidate = typeof body.url === 'string' ? body.url : typeof body.path === 'string' ? body.path : ''
+  const path = resolveGuideMediaPath(candidate)
+  if (!path) {
+    return NextResponse.json({ error: 'Invalid media URL.' }, { status: 400 })
+  }
+
+  try {
+    const admin = createSupabaseAdmin()
+    await ensureGuideMediaBucket(admin)
+    const { error: removeError } = await admin.storage.from(GUIDE_MEDIA_BUCKET).remove([path])
+    if (removeError) {
+      logApiError('editor-media-delete-storage', removeError)
+      return serverErrorResponse('Delete failed.')
+    }
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    logApiError('editor-media-delete', error)
+    return serverErrorResponse('Delete failed.')
   }
 }

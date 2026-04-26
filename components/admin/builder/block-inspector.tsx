@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { ContentSection } from '@/lib/data'
 import { LinkField } from '@/components/admin/builder/link-field'
+import { ListBlockItemsField } from '@/components/admin/builder/list-block-items-field'
 import { MediaEmbedField } from '@/components/admin/builder/media-embed-field'
 
 interface BlockInspectorProps {
@@ -49,7 +50,7 @@ export function BlockInspector({ block, onUpdate }: BlockInspectorProps) {
           label="Video URL"
           value={block.videoUrl}
           onChange={(value) => onUpdate({ videoUrl: value })}
-          placeholder="https://youtube.com/..."
+          placeholder="https://youtu.be/... or youtube.com/watch?v=..."
         />
       )}
 
@@ -72,16 +73,19 @@ export function BlockInspector({ block, onUpdate }: BlockInspectorProps) {
       )}
 
       {block.type === 'list' && (
-        <Textarea
-          value={(block.items ?? []).map((item) => item.title).join('\n')}
-          rows={6}
-          placeholder="One item per line"
-          onChange={(event) =>
+        <ListBlockItemsField
+          items={(block.items ?? []).map((item) => ({
+            id: item.id,
+            title: item.title,
+            richText: item.richText,
+          }))}
+          onChange={(rows) =>
             onUpdate({
-              items: event.target.value
-                .split('\n')
-                .map((line, index) => ({ id: `item-${index + 1}`, title: line.trim() }))
-                .filter((line) => line.title),
+              items: rows.map((row) => ({
+                id: row.id,
+                title: row.title.trim(),
+                ...(row.richText !== undefined && row.richText !== null ? { richText: row.richText } : {}),
+              })),
             })
           }
         />

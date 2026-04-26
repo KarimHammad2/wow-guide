@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ImagePlus, Layers, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Eye, ImagePlus, Layers, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
@@ -37,7 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import type { GuideCategory } from '@/lib/admin-types'
+import type { BuildingGuideCategory } from '@/lib/admin-types'
 import type { Building, Category } from '@/lib/data'
 import { getLucideIcon } from '@/lib/icons'
 import { ADMIN_CATEGORY_ICON_OPTIONS } from '@/lib/category-lucide-icons'
@@ -51,7 +51,6 @@ const defaultCreate = {
   iconName: 'BookOpen',
   iconImageUrl: '',
   categoryColor: 'primary' as Category['color'],
-  assignBuildingId: '',
 }
 
 const COLOR_CHOICES: { value: Category['color']; label: string; dot: string }[] = [
@@ -63,13 +62,13 @@ const COLOR_CHOICES: { value: Category['color']; label: string; dot: string }[] 
 export default function AdminCategoriesPage() {
   const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
-  const [categories, setCategories] = useState<GuideCategory[]>([])
+  const [categories, setCategories] = useState<BuildingGuideCategory[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
-  const [catalogBuildingFilter, setCatalogBuildingFilter] = useState<string>('all')
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState(defaultCreate)
-  const [editCategory, setEditCategory] = useState<GuideCategory | null>(null)
+  const [editCategory, setEditCategory] = useState<BuildingGuideCategory | null>(null)
   const [editForm, setEditForm] = useState({
     title: '',
     shortDescription: '',
@@ -78,24 +77,43 @@ export default function AdminCategoriesPage() {
     iconImageUrl: '',
     categoryColor: 'primary' as Category['color'],
   })
-  const [deleteCategory, setDeleteCategory] = useState<GuideCategory | null>(null)
+  const [deleteCategory, setDeleteCategory] = useState<BuildingGuideCategory | null>(null)
   const createIconFileInputRef = useRef<HTMLInputElement>(null)
   const editIconFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (loading) return
-    void Promise.all([
-      adminRequest<GuideCategory[]>('/api/admin/categories'),
-      adminRequest<Building[]>('/api/admin/buildings'),
-    ])
-      .then(([cats, blds]) => {
-        setCategories(cats)
+    void adminRequest<Building[]>('/api/admin/buildings')
+      .then((blds) => {
         setBuildings(blds)
+        setSelectedBuildingId((current) => current || blds[0]?.id || '')
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load data')
       })
   }, [loading, setError])
+
+  useEffect(() => {
+    if (loading || !selectedBuildingId) {
+      setCategories([])
+      return
+    }
+
+    void adminRequest<BuildingGuideCategory[]>(`/api/admin/categories?buildingId=${selectedBuildingId}`)
+      .then((rows) => {
+        setCategories(rows)
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load catalog')
+      })
+  }, [loading, selectedBuildingId, setError])
+
+  useEffect(() => {
+    setCreateOpen(false)
+    setEditCategory(null)
+    setDeleteCategory(null)
+    setCreateForm(defaultCreate)
+  }, [selectedBuildingId])
 
   async function mutate(action: () => Promise<void>) {
     setSaving(true)
@@ -109,16 +127,16 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  function openEdit(cat: GuideCategory) {
+  function openEdit(cat: BuildingGuideCategory) {
     setEditCategory(cat)
-    const isImage = Boolean(cat.iconImageUrl?.trim())
+    const isImage = Boolean(cat.category.icon?.trim().match(/^https?:\/\//))
     setEditForm({
-      title: cat.title,
-      shortDescription: cat.shortDescription,
+      title: cat.category.title,
+      shortDescription: cat.category.subtitle,
       iconMode: isImage ? 'image' : 'lucide',
-      iconName: cat.iconName ?? 'BookOpen',
-      iconImageUrl: cat.iconImageUrl ?? '',
-      categoryColor: cat.categoryColor ?? 'primary',
+      iconName: isImage ? 'BookOpen' : cat.category.icon ?? 'BookOpen',
+      iconImageUrl: isImage ? cat.category.icon : '',
+      categoryColor: cat.category.color ?? 'primary',
     })
   }
 
@@ -136,16 +154,17 @@ export default function AdminCategoriesPage() {
   }
 
   async function refreshCategories() {
-    const rows = await adminRequest<GuideCategory[]>('/api/admin/categories')
+    if (!selectedBuildingId) return
+    const rows = await adminRequest<BuildingGuideCategory[]>(
+      `/api/admin/categories?buildingId=${selectedBuildingId}`
+    )
     setCategories(rows)
   }
 
-  const filteredCategories = useMemo(() => {
-    if (catalogBuildingFilter === 'all') return categories
-    return categories.filter((cat) =>
-      cat.assignedBuildings?.some((building) => building.id === catalogBuildingFilter)
-    )
-  }, [categories, catalogBuildingFilter])
+  const selectedBuilding = useMemo(
+    () => buildings.find((building) => building.id === selectedBuildingId) ?? null,
+    [buildings, selectedBuildingId]
+  )
 
   if (loading) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading...</div>
@@ -155,7 +174,11 @@ export default function AdminCategoriesPage() {
     <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
         title="Categories"
-        description="Create reusable guide categories, pick icons or upload images, and assign them to buildings."
+        description={
+          selectedBuilding
+            ? `Manage the catalog for ${selectedBuilding.name}.`
+            : 'Select a building to edit its catalog.'
+        }
       />
 
       {error && (
@@ -172,16 +195,27 @@ export default function AdminCategoriesPage() {
                 <Layers className="w-5 h-5 shrink-0" />
                 Catalog
               </CardTitle>
-              <CardDescription>Reusable categories stored in the database.</CardDescription>
+              <CardDescription className="mt-1">
+                Pick a building first, then edit only that building’s catalog.
+              </CardDescription>
+              {selectedBuilding ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Current building: <span className="font-medium text-foreground">{selectedBuilding.name}</span>
+                  {selectedBuilding.city ? ` — ${selectedBuilding.city}` : ''}
+                </p>
+              ) : null}
             </div>
-            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-              <div className="w-[170px] sm:w-56">
-                <Select value={catalogBuildingFilter} onValueChange={setCatalogBuildingFilter}>
-                  <SelectTrigger aria-label="Filter categories by building">
-                    <SelectValue placeholder="Filter by building" />
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              <div className="w-full min-w-0 sm:w-72">
+                <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId}>
+                  <SelectTrigger
+                    aria-label="Choose building"
+                    className="w-full min-w-0"
+                    title={selectedBuilding?.name ? `${selectedBuilding.name}${selectedBuilding.city ? ` — ${selectedBuilding.city}` : ''}` : undefined}
+                  >
+                    <SelectValue placeholder="Select building" className="truncate text-left" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All buildings</SelectItem>
                     {buildings.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
                         {b.name}
@@ -191,15 +225,25 @@ export default function AdminCategoriesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {selectedBuilding?.appPath ? (
+                <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+                  <Link href={selectedBuilding.appPath} target="_blank" rel="noopener noreferrer">
+                    <Eye className="w-3.5 h-3.5" />
+                    Preview
+                  </Link>
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" className="gap-1.5 shrink-0" disabled>
+                  <Eye className="w-3.5 h-3.5" />
+                  Preview
+                </Button>
+              )}
               <Button
                 size="sm"
-                className="gap-1.5"
-                disabled={!canEdit}
+                className="gap-1.5 shrink-0"
+                disabled={!canEdit || !selectedBuildingId}
                 onClick={() => {
-                  setCreateForm({
-                    ...defaultCreate,
-                    assignBuildingId: buildings[0]?.id || '',
-                  })
+                  setCreateForm(defaultCreate)
                   setCreateOpen(true)
                 }}
               >
@@ -215,45 +259,39 @@ export default function AdminCategoriesPage() {
                   <TableHead>Title</TableHead>
                   <TableHead>Icon</TableHead>
                   <TableHead>Color</TableHead>
-                  <TableHead>Assigned buildings</TableHead>
+                  <TableHead>Content</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCategories.map((cat) => (
-                  <TableRow key={cat.id}>
+                {categories.map((cat) => (
+                  <TableRow key={cat.category.slug}>
                     <TableCell className="font-medium max-w-[min(100%,14rem)]">
-                      {(() => {
-                        const preferredBuilding =
-                          catalogBuildingFilter !== 'all'
-                            ? cat.assignedBuildings?.find((building) => building.id === catalogBuildingFilter)
-                            : undefined
-                        const editorBuilding = preferredBuilding ?? cat.assignedBuildings?.[0]
-                        if (!editorBuilding) {
-                          return <div className="truncate">{cat.title}</div>
-                        }
-                        return (
-                          <Link
-                            href={`/admin/editor/${editorBuilding.id}/${cat.slug}`}
-                            className="truncate text-primary hover:underline"
-                            title={`Open editor for ${cat.title}`}
-                          >
-                            {cat.title}
-                          </Link>
-                        )
-                      })()}
-                      {cat.shortDescription?.trim() ? (
-                        <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{cat.shortDescription}</div>
+                      {selectedBuildingId ? (
+                        <Link
+                          href={`/admin/editor/${selectedBuildingId}/${cat.category.slug}`}
+                          className="truncate text-primary hover:underline"
+                          title={`Open editor for ${cat.category.title}`}
+                        >
+                          {cat.category.title}
+                        </Link>
+                      ) : (
+                        <div className="truncate">{cat.category.title}</div>
+                      )}
+                      {cat.category.subtitle?.trim() ? (
+                        <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                          {cat.category.subtitle}
+                        </div>
                       ) : null}
                     </TableCell>
                     <TableCell className="w-[1%] whitespace-nowrap">
-                      {cat.iconImageUrl ? (
+                      {cat.category.icon && /^https?:\/\//.test(cat.category.icon) ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cat.iconImageUrl} alt="" className="h-9 w-9 rounded-md object-cover" />
+                        <img src={cat.category.icon} alt="" className="h-9 w-9 rounded-md object-cover" />
                       ) : (
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted/40">
                           {(() => {
-                            const Icon = getLucideIcon(cat.iconName ?? 'BookOpen')
+                            const Icon = getLucideIcon(cat.category.icon || 'BookOpen')
                             return <Icon className="h-5 w-5" />
                           })()}
                         </span>
@@ -261,7 +299,7 @@ export default function AdminCategoriesPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {(() => {
-                        const key = cat.categoryColor ?? 'primary'
+                        const key = cat.category.color ?? 'primary'
                         const choice = COLOR_CHOICES.find((c) => c.value === key) ?? COLOR_CHOICES[0]
                         return (
                           <span className="inline-flex items-center gap-2 text-sm">
@@ -275,20 +313,10 @@ export default function AdminCategoriesPage() {
                       })()}
                     </TableCell>
                     <TableCell className="max-w-md align-top">
-                      {cat.assignedBuildings && cat.assignedBuildings.length > 0 ? (
-                        <ul className="text-sm space-y-1">
-                          {cat.assignedBuildings.map((b) => (
-                            <li key={b.id}>
-                              <span className="font-medium text-foreground">{b.name}</span>
-                              {b.city ? (
-                                <span className="text-muted-foreground"> — {b.city}</span>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Not assigned</span>
-                      )}
+                      <div className="text-sm text-muted-foreground">
+                        {cat.content.sections.length} blocks
+                        {cat.content.intro?.trim() ? ' · intro set' : ''}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex gap-2">
@@ -296,7 +324,7 @@ export default function AdminCategoriesPage() {
                           size="sm"
                           variant="outline"
                           className="h-8 w-8 p-0"
-                          disabled={!canEdit}
+                          disabled={!canEdit || !selectedBuildingId}
                           onClick={() => openEdit(cat)}
                           title="Edit"
                         >
@@ -316,10 +344,12 @@ export default function AdminCategoriesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredCategories.length === 0 ? (
+                {categories.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                      No categories match the selected building.
+                      {selectedBuildingId
+                        ? 'No categories have been created for this building yet.'
+                        : 'Select a building to view its catalog.'}
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -452,35 +482,6 @@ export default function AdminCategoriesPage() {
                 </div>
               )}
             </div>
-            <div className="space-y-3 rounded-xl border border-border/80 bg-muted/20 p-3">
-              <div className="space-y-2">
-                <Label>
-                  Assign to building <span className="text-destructive">*</span>
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Creates the guide section for this building. Add a building first if the list is empty.
-                </p>
-                {buildings.length === 0 ? (
-                  <p className="text-sm text-destructive">No buildings yet — create one under Buildings first.</p>
-                ) : null}
-                <Select
-                  value={createForm.assignBuildingId || undefined}
-                  onValueChange={(v) => setCreateForm((p) => ({ ...p, assignBuildingId: v }))}
-                  disabled={!canEdit || buildings.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose building" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buildings.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name} — {b.city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="cat-desc">Short description (optional)</Label>
               <Textarea
@@ -522,29 +523,22 @@ export default function AdminCategoriesPage() {
               disabled={
                 !canEdit ||
                 saving ||
-                buildings.length === 0 ||
+                !selectedBuildingId ||
                 !createForm.title.trim() ||
-                !createForm.assignBuildingId ||
                 (createForm.iconMode === 'image' && !createForm.iconImageUrl.trim())
               }
               onClick={() =>
                 mutate(async () => {
                   const icons = payloadFromForm(createForm)
-                  const created = await adminRequest<GuideCategory>('/api/admin/categories', {
+                  await adminRequest<BuildingGuideCategory>('/api/admin/categories', {
                     method: 'POST',
                     body: JSON.stringify({
+                      buildingId: selectedBuildingId,
                       title: createForm.title,
                       shortDescription: createForm.shortDescription.trim() || '',
                       iconName: icons.iconName,
                       iconImageUrl: icons.iconImageUrl,
                       categoryColor: createForm.categoryColor,
-                    }),
-                  })
-                  await adminRequest('/api/admin/categories/assignments', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      buildingId: createForm.assignBuildingId,
-                      categoryId: created.id,
                     }),
                   })
                   await refreshCategories()
@@ -563,7 +557,7 @@ export default function AdminCategoriesPage() {
         <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-none overflow-visible">
           <DialogHeader>
             <DialogTitle>Edit category</DialogTitle>
-            <DialogDescription>Slug stays the same for existing guide links.</DialogDescription>
+            <DialogDescription>Changes apply only to the selected building.</DialogDescription>
           </DialogHeader>
           {editCategory && (
             <>
@@ -706,6 +700,7 @@ export default function AdminCategoriesPage() {
                   disabled={
                     !canEdit ||
                     saving ||
+                    !selectedBuildingId ||
                     !editForm.title.trim() ||
                     (editForm.iconMode === 'image' && !editForm.iconImageUrl.trim())
                   }
@@ -713,10 +708,11 @@ export default function AdminCategoriesPage() {
                     mutate(async () => {
                       if (!editCategory) return
                       const icons = payloadFromForm(editForm)
-                      await adminRequest<GuideCategory>('/api/admin/categories', {
+                      await adminRequest<BuildingGuideCategory>('/api/admin/categories', {
                         method: 'PUT',
                         body: JSON.stringify({
-                          id: editCategory.id,
+                          buildingId: selectedBuildingId,
+                          slug: editCategory.category.slug,
                           title: editForm.title,
                           shortDescription: editForm.shortDescription.trim() || '',
                           iconName: icons.iconName,
@@ -745,7 +741,7 @@ export default function AdminCategoriesPage() {
         title="Delete category?"
         description={
           deleteCategory
-            ? `Delete “${deleteCategory.title}”? Assignments and guide sections created from this category will be removed from affected buildings.`
+            ? `Delete “${deleteCategory.category.title}” from this building? The guide section will be removed here only.`
             : 'This action cannot be undone.'
         }
         disabled={saving}
@@ -754,7 +750,10 @@ export default function AdminCategoriesPage() {
           void mutate(async () => {
             await adminRequest('/api/admin/categories', {
               method: 'DELETE',
-              body: JSON.stringify({ id: deleteCategory.id }),
+              body: JSON.stringify({
+                buildingId: selectedBuildingId,
+                slug: deleteCategory.category.slug,
+              }),
             })
             await refreshCategories()
             setDeleteCategory(null)

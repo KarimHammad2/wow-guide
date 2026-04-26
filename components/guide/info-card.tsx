@@ -1,3 +1,4 @@
+import { ContentItemBody } from '@/components/guide/content-item-body'
 import { cn } from '@/lib/utils'
 import type { ContentItem } from '@/lib/data'
 
@@ -42,18 +43,20 @@ export function InfoCard({
           {items.map((item) => (
             <li key={item.id} className="flex gap-3">
               {item.description ? (
-                <div className="flex-1">
-                  <span className="font-medium text-foreground block">
-                    {item.title}
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-foreground">
+                    <ContentItemBody item={item} />
+                  </div>
                   <span className="text-muted-foreground text-sm">
                     {item.description}
                   </span>
                 </div>
               ) : (
-                <div className="flex items-start gap-2">
+                <div className="flex min-w-0 items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                  <span className="text-muted-foreground">{item.title}</span>
+                  <div className="min-w-0 text-muted-foreground">
+                    <ContentItemBody item={item} />
+                  </div>
                 </div>
               )}
             </li>
