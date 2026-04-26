@@ -56,7 +56,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </section>
 
         <section className="guide-shell space-y-6">
-          <header className="guide-section p-5 md:p-7">
+          <header
+            className="guide-section p-5 md:p-7 text-white"
+            style={{ backgroundColor: '#935071', color: '#fff' }}
+          >
             <div
               className={cn(
                 'w-14 h-14 rounded-2xl flex items-center justify-center mb-4',
@@ -71,10 +74,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             >
               <Icon className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-3">
+            <h1 className="text-2xl md:text-4xl font-bold mb-3">
               {category.title}
             </h1>
-            <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+            <p className="text-white/85 leading-relaxed text-sm md:text-base">
               {content.intro}
             </p>
           </header>

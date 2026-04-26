@@ -63,6 +63,8 @@ export interface ContentSection {
   mediaUrl?: string
   videoUrl?: string
   buttonUrl?: string
+  buttonVariant?: 'default' | 'secondary' | 'outline' | 'destructive'
+  buttonColor?: string
   textLinkUrl?: string
   /** Tiptap ProseMirror JSON for `text` blocks; takes precedence over plain `content` when rendering. */
   richText?: unknown
@@ -90,6 +92,8 @@ export interface ContentSection {
   blockMediaFit?: 'auto' | 'contain' | 'cover'
   /** Main media fit behavior for image/media blocks. */
   mediaFit?: 'auto' | 'contain' | 'cover'
+  /** Optional click-through link for image/media blocks. */
+  imageLinkUrl?: string
 }
 
 export interface ContentItem {

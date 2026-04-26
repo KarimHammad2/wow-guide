@@ -66,10 +66,21 @@ export function BlockInspector({ block, onUpdate }: BlockInspectorProps) {
       )}
 
       {block.type === 'button' && (
-        <LinkField
-          value={block.buttonUrl}
-          onChange={(value) => onUpdate({ buttonUrl: value })}
-        />
+        <div className="space-y-2">
+          <LinkField
+            value={block.buttonUrl}
+            onChange={(value) => onUpdate({ buttonUrl: value })}
+          />
+          <label className="block text-xs text-muted-foreground">
+            Button color
+            <Input
+              type="color"
+              className="mt-1 h-10 w-full px-1"
+              value={block.buttonColor ?? '#0f172a'}
+              onChange={(event) => onUpdate({ buttonColor: event.target.value })}
+            />
+          </label>
+        </div>
       )}
 
       {block.type === 'list' && (

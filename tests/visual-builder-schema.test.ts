@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  isLikelyMediaImageUrl,
   sectionsFromVisualDocument,
   validateVisualDocumentUrls,
   visualFromGuideContent,
@@ -205,6 +206,31 @@ describe('visual-builder-schema', () => {
     expect(back[1]?.blockMediaFit).toBe('cover')
   })
 
+  test('round-trips image link metadata for image blocks', () => {
+    const document = visualFromGuideContent({
+      intro: '',
+      sections: [
+        {
+          id: 'img',
+          type: 'image',
+          title: 'Photo',
+          mediaUrl: '/media/a.jpg',
+          imageLinkUrl: 'https://example.com/gallery',
+        },
+      ],
+    })
+
+    expect(document.blocks[0]?.imageLinkUrl).toBe('https://example.com/gallery')
+
+    const back = sectionsFromVisualDocument(document)
+    expect(back[0]?.imageLinkUrl).toBe('https://example.com/gallery')
+  })
+
+  test('does not treat plain links as legacy image sources', () => {
+    expect(isLikelyMediaImageUrl('https://example.com/gallery')).toBe(false)
+    expect(isLikelyMediaImageUrl('/guides/photo.jpg')).toBe(true)
+  })
+
   test('round-trips blockAlign through visual conversion', () => {
     const document = visualFromGuideContent({
       intro: '',
@@ -272,6 +298,22 @@ describe('visual-builder-schema', () => {
       contentVersion: 2,
       layout: 'single-column',
       blocks: [{ id: 'a', type: 'button', url: 'javascript:alert(1)' }],
+    })
+    expect(error).toBeTruthy()
+  })
+
+  test('rejects unsafe image link urls', () => {
+    const error = validateVisualDocumentUrls({
+      contentVersion: 2,
+      layout: 'single-column',
+      blocks: [
+        {
+          id: 'img',
+          type: 'image',
+          mediaUrl: '/media/a.jpg',
+          imageLinkUrl: 'javascript:alert(1)',
+        },
+      ],
     })
     expect(error).toBeTruthy()
   })

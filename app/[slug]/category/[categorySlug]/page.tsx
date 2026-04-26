@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import { cache } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { Header } from '@/components/guide/header'
@@ -24,23 +23,17 @@ interface CategoryPageProps {
 
 export const dynamic = 'force-dynamic'
 
-const getBuildingCached = cache(async (slug: string) => getBuildingById(slug))
-const getBuildingCategoriesCached = cache(async (buildingId: string) => getBuildingCategories(buildingId))
-const getBuildingCategoryContentCached = cache(async (buildingId: string, categorySlug: string) =>
-  getBuildingCategoryContent(buildingId, categorySlug)
-)
-
 export default async function BuildingCategoryPage({ params }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const building = await getBuildingCached(slug)
+  const building = await getBuildingById(slug)
 
   if (!building) {
     notFound()
   }
 
-  const buildingCategories = await getBuildingCategoriesCached(building.id)
+  const buildingCategories = await getBuildingCategories(building.id)
   const category = buildingCategories.find((item) => item.slug === categorySlug)
-  const content = await getBuildingCategoryContentCached(building.id, categorySlug)
+  const content = await getBuildingCategoryContent(building.id, categorySlug)
 
   if (!category || !content) {
     notFound()
@@ -59,7 +52,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
         supportEmail={building.supportEmail}
       />
 
-      <main className="pt-20 pb-24 md:pb-10 space-y-4 md:space-y-6">
+      <main className="pt-24 pb-24 md:pb-10 space-y-4 md:space-y-6">
         <section className="guide-shell pt-2">
           <Link
             href={`/${building.id}`}
@@ -139,7 +132,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
 
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const building = await getBuildingCached(slug)
+  const building = await getBuildingById(slug)
 
   if (!building) {
     return {
@@ -147,7 +140,7 @@ export async function generateMetadata({ params }: CategoryPageProps) {
     }
   }
 
-  const cats = await getBuildingCategoriesCached(building.id)
+  const cats = await getBuildingCategories(building.id)
   const category = cats.find((item) => item.slug === categorySlug)
 
   if (!category) {

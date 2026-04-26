@@ -6,6 +6,7 @@ interface ImageCardProps {
   src?: string
   alt: string
   caption?: string
+  href?: string
   aspectRatio?: 'square' | 'video' | 'wide'
   className?: string
   /**
@@ -20,6 +21,7 @@ export function ImageCard({
   src,
   alt,
   caption,
+  href,
   aspectRatio = 'video',
   className,
   fitEditorFrame = false,
@@ -34,35 +36,8 @@ export function ImageCard({
   const fitClass =
     fitMode === 'cover' ? 'object-cover' : fitMode === 'contain' ? 'object-contain' : 'object-contain'
 
-  if (fitEditorFrame) {
-    return (
-      <figure
-        className={cn(
-          'flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl',
-          className
-        )}
-      >
-        <div className="relative min-h-0 w-full flex-1 bg-secondary">
-          {src ? (
-            <Image src={src} alt={alt} fill className={fitClass} unoptimized />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-              <ImageIcon className="mb-2 h-12 w-12 opacity-50" />
-              <span className="text-sm">{alt}</span>
-            </div>
-          )}
-        </div>
-        {caption && (
-          <figcaption className="shrink-0 px-1 pt-2 text-sm text-muted-foreground">
-            {caption}
-          </figcaption>
-        )}
-      </figure>
-    )
-  }
-
-  return (
-    <figure className={cn('rounded-2xl overflow-hidden', className)}>
+  const figure = (
+    <figure className={cn('flex flex-col justify-center rounded-2xl overflow-hidden', className)}>
       {src ? (
         <div className="bg-secondary">
           <Image
@@ -90,10 +65,52 @@ export function ImageCard({
         </div>
       )}
       {caption && (
-        <figcaption className="text-sm text-muted-foreground mt-2 px-1">
+        <figcaption className="mt-2 px-1 text-center text-sm text-muted-foreground">
           {caption}
         </figcaption>
       )}
     </figure>
   )
+
+  const framedFigure = fitEditorFrame ? (
+    <figure
+      className={cn(
+        'flex h-full min-h-0 w-full min-w-0 flex-col justify-center overflow-hidden rounded-2xl',
+        className
+      )}
+    >
+      <div className="relative min-h-0 w-full flex-1 bg-secondary">
+        {src ? (
+          <Image src={src} alt={alt} fill className={fitClass} unoptimized />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+            <ImageIcon className="mb-2 h-12 w-12 opacity-50" />
+            <span className="text-sm">{alt}</span>
+          </div>
+        )}
+      </div>
+      {caption && (
+        <figcaption className="shrink-0 px-1 pt-2 text-center text-sm text-muted-foreground">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  ) : (
+    figure
+  )
+
+  if (href && src) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn('block w-full', fitEditorFrame && 'h-full')}
+      >
+        {framedFigure}
+      </a>
+    )
+  }
+
+  return framedFigure
 }

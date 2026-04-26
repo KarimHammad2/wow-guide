@@ -18,9 +18,23 @@ interface InstructionStepperProps {
    * and long step lists scroll inside the frame instead of growing past the sibling column.
    */
   fillRowHeight?: boolean
+  /** Let the parent block’s background show through (Builder custom `backgroundColor`). */
+  transparentCard?: boolean
+  /** Use inherited text color for title/body so Builder `textColor` applies. */
+  inheritBlockText?: boolean
+  /** Passed to list row `ContentItemBody` when the block has a custom text color. */
+  contentItemTone?: 'default' | 'inherit'
 }
 
-export function InstructionStepper({ title, steps, className, fillRowHeight }: InstructionStepperProps) {
+export function InstructionStepper({
+  title,
+  steps,
+  className,
+  fillRowHeight,
+  transparentCard,
+  inheritBlockText,
+  contentItemTone = 'default',
+}: InstructionStepperProps) {
   const listBody = (
     <>
       <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-border" aria-hidden />
@@ -32,11 +46,20 @@ export function InstructionStepper({ title, steps, className, fillRowHeight }: I
             </div>
 
             <div className="min-w-0 flex-1 pt-0.5">
-              <div className="font-medium text-foreground">
-                <ContentItemBody item={step} />
+              <div
+                className={cn('font-medium', inheritBlockText ? 'text-inherit' : 'text-foreground')}
+              >
+                <ContentItemBody item={step} tone={contentItemTone} />
               </div>
               {step.description && (
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                <p
+                  className={cn(
+                    'mt-1 text-sm leading-relaxed',
+                    inheritBlockText ? 'text-inherit opacity-90' : 'text-muted-foreground'
+                  )}
+                >
+                  {step.description}
+                </p>
               )}
             </div>
           </li>
@@ -48,13 +71,21 @@ export function InstructionStepper({ title, steps, className, fillRowHeight }: I
   return (
     <div
       className={cn(
-        'rounded-2xl bg-card border border-border p-5',
+        'rounded-2xl border border-border p-5',
+        transparentCard ? 'bg-transparent' : 'bg-card',
         fillRowHeight && 'flex h-full min-h-0 flex-col',
         className
       )}
     >
       {title && (
-        <h3 className="mb-5 shrink-0 font-semibold text-lg text-foreground">{title}</h3>
+        <h3
+          className={cn(
+            'mb-5 shrink-0 font-semibold text-lg',
+            inheritBlockText ? 'text-inherit' : 'text-foreground'
+          )}
+        >
+          {title}
+        </h3>
       )}
       <div className={cn('relative', fillRowHeight && 'min-h-0 flex-1 overflow-y-auto')}>{listBody}</div>
     </div>

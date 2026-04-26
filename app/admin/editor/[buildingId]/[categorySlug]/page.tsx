@@ -27,6 +27,7 @@ import { ListBlockItemsField } from '@/components/admin/builder/list-block-items
 import {
   contentItemToVisualListItem,
   sectionsFromVisualDocument,
+  isLikelyMediaImageUrl,
   visualListItemsFromEditorRows,
   visualListItemsToEditorRows,
   type VisualBlock,
@@ -40,6 +41,36 @@ const MEDIA_FIT_CHOICES = [
   { value: 'contain', label: 'Contain (no crop)' },
   { value: 'cover', label: 'Cover (fill frame)' },
 ] as const
+const DEFAULT_BUTTON_COLOR = '#0f172a'
+
+function getReadableTextColor(hexColor: string) {
+  const normalized = hexColor.trim().replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(normalized) && !/^[0-9a-f]{3}$/i.test(normalized)) return '#ffffff'
+  const expanded =
+    normalized.length === 3 ? normalized.split('').map((char) => `${char}${char}`).join('') : normalized
+  const value = Number.parseInt(expanded, 16)
+  const r = (value >> 16) & 255
+  const g = (value >> 8) & 255
+  const b = value & 255
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000
+  return luminance >= 160 ? '#111827' : '#ffffff'
+}
+
+function normalizeEditorDocument(document: VisualGuideDocument): VisualGuideDocument {
+  return {
+    ...document,
+    blocks: document.blocks.map((block) => {
+      if (block.type !== 'image') return block
+      if (block.mediaUrl) return block
+      if (!isLikelyMediaImageUrl(block.url)) return block
+      return {
+        ...block,
+        mediaUrl: block.url,
+        url: undefined,
+      }
+    }),
+  }
+}
 
 function createDefaultBlock(type: VisualBlock['type']): VisualBlock {
   const id = `block-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
@@ -130,7 +161,7 @@ export default function CategoryVisualEditorPage() {
     void Promise.all([adminRequest<Building[]>('/api/admin/buildings'), getEditorDocument(buildingId, categorySlug)])
       .then(([buildingsData, data]) => {
         setBuildings(buildingsData)
-        setDocument(data.document)
+        setDocument(normalizeEditorDocument(data.document))
         setActiveBlockId(data.document.blocks[0]?.id ?? null)
       })
       .catch((err: unknown) => {
@@ -247,11 +278,11 @@ export default function CategoryVisualEditorPage() {
     setMediaUploadState('uploading')
     setMediaUploadMessage(null)
 
-    const previousUrl = targetBlock.url?.trim() ?? ''
+    const previousUrl = targetBlock.mediaUrl?.trim() ?? ''
 
     try {
       const uploaded = await uploadEditorMedia(file)
-      updateBlock(blockId, { url: uploaded.url })
+      updateBlock(blockId, { mediaUrl: uploaded.url })
 
       if (previousUrl && previousUrl !== uploaded.url) {
         try {
@@ -298,14 +329,14 @@ export default function CategoryVisualEditorPage() {
       return
     }
 
-    if (!targetBlock.url) return
+    if (!targetBlock.mediaUrl) return
 
     setMediaUploadState('uploading')
     setMediaUploadMessage(null)
 
     try {
-      await deleteEditorMedia(targetBlock.url)
-      updateBlock(blockId, { url: undefined })
+      await deleteEditorMedia(targetBlock.mediaUrl)
+      updateBlock(blockId, { mediaUrl: undefined })
       setMediaUploadState('idle')
       setMediaUploadMessage(null)
     } catch (err) {
@@ -491,6 +522,11 @@ export default function CategoryVisualEditorPage() {
             title: patch.title ?? block.title,
             content: patch.content ?? block.content,
             richText: patch.richText !== undefined ? patch.richText : block.richText,
+            imageLinkUrl:
+              'imageLinkUrl' in patch ? patch.imageLinkUrl ?? undefined : block.imageLinkUrl,
+            buttonVariant:
+              'buttonVariant' in patch ? patch.buttonVariant ?? undefined : block.buttonVariant,
+            buttonColor: 'buttonColor' in patch ? patch.buttonColor ?? undefined : block.buttonColor,
             sideImageUrl:
               'blockMediaUrl' in patch
                 ? patch.blockMediaUrl?.trim()
@@ -745,20 +781,36 @@ export default function CategoryVisualEditorPage() {
                         activeBlock.type === 'link' ||
                         activeBlock.type === 'text') && (
                         <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">
-                            {activeBlock.type === 'text' ? 'Block link (optional)' : 'URL'}
-                            <Input
-                              value={activeBlock.url ?? ''}
-                              placeholder="https://..."
-                              title={
-                                activeBlock.type === 'text'
-                                  ? 'Optional: makes the whole block a link. Prefer the editor Link control for inline links inside the text.'
-                                  : undefined
-                              }
-                              className="mt-1"
-                              onChange={(event) => updateBlock(activeBlock.id, { url: event.target.value })}
-                            />
-                          </label>
+                          {activeBlock.type === 'image' ? (
+                            <label className="text-xs text-muted-foreground">
+                              Image link URL (optional)
+                              <Input
+                                value={activeBlock.imageLinkUrl ?? ''}
+                                placeholder="https://..."
+                                className="mt-1"
+                                onChange={(event) =>
+                                  updateBlock(activeBlock.id, { imageLinkUrl: event.target.value })
+                                }
+                              />
+                            </label>
+                          ) : (
+                            <>
+                              <label className="text-xs text-muted-foreground">
+                                {activeBlock.type === 'text' ? 'Block link (optional)' : 'URL'}
+                                <Input
+                                  value={activeBlock.url ?? ''}
+                                  placeholder="https://..."
+                                  title={
+                                    activeBlock.type === 'text'
+                                      ? 'Optional: makes the whole block a link. Prefer the editor Link control for inline links inside the text.'
+                                      : undefined
+                                  }
+                                  className="mt-1"
+                                  onChange={(event) => updateBlock(activeBlock.id, { url: event.target.value })}
+                                />
+                              </label>
+                            </>
+                          )}
                         </div>
                       )}
                       {(activeBlock.type === 'image' || activeBlock.type === 'video') && (
@@ -796,7 +848,7 @@ export default function CategoryVisualEditorPage() {
                               }`}
                             >
                               <Upload className="h-4 w-4" />
-                              {activeBlock.url ? 'Replace media' : 'Upload media'}
+                              {activeBlock.mediaUrl ? 'Replace media' : 'Upload media'}
                               <input
                                 type="file"
                                 className="sr-only"
@@ -812,7 +864,7 @@ export default function CategoryVisualEditorPage() {
                                 }}
                               />
                             </label>
-                            {activeBlock.url && (
+                            {activeBlock.mediaUrl && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -986,6 +1038,33 @@ export default function CategoryVisualEditorPage() {
                           />
                         </label>
                       </div>
+                      {activeBlock.type === 'button' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="text-xs text-muted-foreground">
+                            Button color
+                            <Input
+                              type="color"
+                              className="mt-1 h-10 px-1"
+                              value={activeBlock.buttonColor ?? DEFAULT_BUTTON_COLOR}
+                              onChange={(event) =>
+                                updateBlock(activeBlock.id, { buttonColor: event.target.value })
+                              }
+                            />
+                          </label>
+                          <div className="rounded-md border border-border p-3">
+                            <p className="text-xs text-muted-foreground">Preview</p>
+                            <div
+                              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium"
+                              style={{
+                                backgroundColor: activeBlock.buttonColor ?? DEFAULT_BUTTON_COLOR,
+                                color: getReadableTextColor(activeBlock.buttonColor ?? DEFAULT_BUTTON_COLOR),
+                              }}
+                            >
+                              {activeBlock.content?.trim() || 'Open'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-xs text-muted-foreground">
                           Font size

@@ -36,7 +36,7 @@ export function InlineLinkedText({ text, className, linkClassName }: InlineLinke
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              'wrap-break-word text-primary underline underline-offset-4 hover:text-foreground',
+              'wrap-break-word text-[#FFEB8A]! underline underline-offset-4 hover:text-[#FFEB8A]!',
               linkClassName
             )}
           >

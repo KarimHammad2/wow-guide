@@ -18,16 +18,17 @@ const colorStyles: Record<
 > = {
   primary: {
     tile:
-      'bg-primary/10 hover:bg-primary/15 border-primary/15 dark:bg-primary/20 dark:hover:bg-primary/30 dark:border-primary/25',
+      'bg-primary/10 hover:bg-primary/15 border-primary/20',
     icon: 'bg-primary text-primary-foreground',
   },
   accent: {
     tile:
-      'bg-accent/10 hover:bg-accent/15 border-accent/25 dark:bg-accent/15 dark:hover:bg-accent/25 dark:border-accent/30',
+      'bg-accent/40 hover:bg-accent/50 border-accent/50',
     icon: 'bg-accent text-accent-foreground',
   },
   muted: {
-    tile: 'bg-secondary/80 hover:bg-secondary border-border dark:bg-secondary/50 dark:hover:bg-secondary/70',
+    tile:
+      'bg-secondary/70 hover:bg-secondary border-border',
     icon: 'bg-secondary text-foreground border border-border',
   },
 }

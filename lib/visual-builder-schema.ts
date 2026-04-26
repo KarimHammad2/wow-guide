@@ -42,6 +42,9 @@ export const visualBlockSchema: z.ZodType<VisualBlock> = z.lazy(() =>
     title: z.string().optional(),
     content: z.string().optional(),
     url: z.string().optional(),
+    mediaUrl: z.string().optional(),
+    buttonVariant: z.enum(['default', 'secondary', 'outline', 'destructive']).optional(),
+    buttonColor: z.string().optional(),
     richText: z.unknown().optional(),
     items: z.array(visualListItemSchema).optional(),
     styles: z
@@ -65,6 +68,7 @@ export const visualBlockSchema: z.ZodType<VisualBlock> = z.lazy(() =>
     sideImagePosition: z.enum(['left', 'right']).optional(),
     sideImageFit: z.enum(['auto', 'contain', 'cover']).optional(),
     mediaFit: z.enum(['auto', 'contain', 'cover']).optional(),
+    imageLinkUrl: z.string().optional(),
   })
 )
 
@@ -80,12 +84,33 @@ export const visualGuideDocumentSchema = z.object({
     .optional(),
 })
 
+const MEDIA_IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i
+
+export function isLikelyMediaImageUrl(value: string | null | undefined): boolean {
+  const normalized = typeof value === 'string' ? value.trim() : ''
+  if (!normalized || normalized.startsWith('javascript:') || normalized.startsWith('data:')) return false
+
+  let pathname = normalized
+  try {
+    if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalized)) {
+      pathname = new URL(normalized).pathname
+    }
+  } catch {
+    return false
+  }
+
+  return MEDIA_IMAGE_EXTENSION_PATTERN.test(pathname)
+}
+
 export type VisualBlock = {
   id: string
   type: z.infer<typeof visualBlockTypeSchema>
   title?: string
   content?: string
   url?: string
+  mediaUrl?: string
+  buttonVariant?: 'default' | 'secondary' | 'outline' | 'destructive'
+  buttonColor?: string
   richText?: unknown
   items?: VisualListItem[]
   styles?: {
@@ -108,6 +133,7 @@ export type VisualBlock = {
   sideImagePosition?: 'left' | 'right'
   sideImageFit?: 'auto' | 'contain' | 'cover'
   mediaFit?: 'auto' | 'contain' | 'cover'
+  imageLinkUrl?: string
 }
 
 export type VisualGuideDocument = z.infer<typeof visualGuideDocumentSchema>
@@ -247,7 +273,13 @@ export function visualFromGuideContent(content: GuideContent): VisualGuideDocume
               ? section.textLinkUrl
             : section.type === 'links'
               ? section.items?.[0]?.link
-              : section.mediaUrl,
+              : section.imageLinkUrl,
+      mediaUrl:
+        section.type === 'image' || section.type === 'media'
+          ? section.mediaUrl ?? section.items?.[0]?.image
+          : undefined,
+      buttonVariant: section.type === 'button' ? section.buttonVariant : undefined,
+      buttonColor: section.type === 'button' ? section.buttonColor : undefined,
       items:
         section.type === 'checklist' || section.type === 'steps' || section.type === 'list'
           ? (section.items ?? []).map((item) => contentItemToVisualListItem(item))
@@ -273,6 +305,7 @@ export function visualFromGuideContent(content: GuideContent): VisualGuideDocume
           }
         : {}),
       mediaFit: section.mediaFit,
+      imageLinkUrl: section.imageLinkUrl,
     }
   })
   return {
@@ -290,13 +323,15 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
   return blocks.map((block, index) => {
     const id = block.id || `block-${index + 1}`
     if (block.type === 'image') {
+      const legacyMediaUrl = block.mediaUrl ?? (isLikelyMediaImageUrl(block.url) ? block.url : undefined)
       return {
         id,
         blockId: id,
         type: 'image',
         title: block.title,
         content: block.content,
-        mediaUrl: block.url,
+        mediaUrl: legacyMediaUrl,
+        imageLinkUrl: block.imageLinkUrl,
         textColor: block.styles?.textColor,
         backgroundColor: block.styles?.backgroundColor,
         fontSize: block.styles?.fontSize,
@@ -361,6 +396,8 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
         title: block.title ?? 'Call to action',
         content: block.content ?? 'Open',
         buttonUrl: block.url,
+        buttonVariant: block.buttonVariant,
+        buttonColor: block.buttonColor,
         textColor: block.styles?.textColor,
         backgroundColor: block.styles?.backgroundColor,
         fontSize: block.styles?.fontSize,
@@ -467,6 +504,7 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
       blockMediaPosition: block.sideImagePosition,
       blockMediaFit: block.sideImageFit,
       mediaFit: block.mediaFit,
+      imageLinkUrl: block.imageLinkUrl,
     }
   })
 }
@@ -519,6 +557,18 @@ export function validateVisualDocumentUrls(document: VisualGuideDocument): strin
           return `Invalid image URL in catalog band block "${block.id}".`
         }
       }
+    }
+    if (block.type === 'image') {
+      if (block.mediaUrl?.trim() && !isSafeNavigationTarget(block.mediaUrl.trim())) {
+        return `Invalid image URL for block "${block.id}".`
+      }
+      if (block.imageLinkUrl?.trim() && !isSafeNavigationTarget(block.imageLinkUrl.trim())) {
+        return `Invalid image link URL for block "${block.id}".`
+      }
+      if (!block.mediaUrl?.trim() && block.url?.trim() && !isLikelyMediaImageUrl(block.url)) {
+        return `Invalid legacy image URL for block "${block.id}".`
+      }
+      continue
     }
     if (!block.url) continue
     if (block.type === 'video') {

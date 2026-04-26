@@ -21,11 +21,25 @@ import { ListBlockItemsField } from '@/components/admin/builder/list-block-items
 import { ContentItemBody } from '@/components/guide/content-item-body'
 import { RichTextBlockEditor } from '@/components/editor/rich-text-block-editor'
 import { richTextJsonToSafeHtml } from '@/lib/tiptap/rich-text-html'
-import { normalizeSafeNavigationTarget } from '@/lib/url-safety'
+import { isSafeNavigationTarget, normalizeSafeNavigationTarget } from '@/lib/url-safety'
 import { safeVideoIframeSrc } from '@/lib/video-iframe-src'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import type { ContentSection } from '@/lib/data'
 import { getRowTemplate, groupSectionsByRow } from '@/lib/visual-row-groups'
+
+function getReadableTextColor(hexColor: string) {
+  const normalized = hexColor.trim().replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(normalized) && !/^[0-9a-f]{3}$/i.test(normalized)) return '#ffffff'
+  const expanded =
+    normalized.length === 3 ? normalized.split('').map((char) => `${char}${char}`).join('') : normalized
+  const value = Number.parseInt(expanded, 16)
+  const r = (value >> 16) & 255
+  const g = (value >> 8) & 255
+  const b = value & 255
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000
+  return luminance >= 160 ? '#111827' : '#ffffff'
+}
 
 function sectionSupportsInBlockSideImage(section: ContentSection): boolean {
   return (
@@ -91,20 +105,58 @@ function blockVerticalAlignClass(blockVerticalAlign: ContentSection['blockVertic
   return blockVerticalAlign === 'center' ? 'flex h-full flex-col justify-center' : 'flex h-full flex-col justify-end'
 }
 
-function renderSchedule(title: string | undefined, items: NonNullable<ContentSection['items']>) {
+function hasCustomTextColor(section: ContentSection): boolean {
+  return Boolean(section.textColor?.trim())
+}
+
+function hasCustomBackground(section: ContentSection): boolean {
+  return Boolean(section.backgroundColor?.trim())
+}
+
+function blockCardSurfaceClass(section: ContentSection): string {
+  return hasCustomBackground(section) ? 'bg-transparent' : 'bg-card'
+}
+
+function renderSchedule(
+  title: string | undefined,
+  items: NonNullable<ContentSection['items']>,
+  section: ContentSection
+) {
+  const customText = hasCustomTextColor(section)
+  const customBg = hasCustomBackground(section)
   return (
-    <div className="rounded-2xl bg-card border border-border p-4 sm:p-5">
-      {title && <h3 className="font-semibold text-lg mb-4 text-foreground">{title}</h3>}
+    <div
+      className={cn('rounded-2xl border border-border p-4 sm:p-5', customBg ? 'bg-transparent' : 'bg-card')}
+    >
+      {title && (
+        <h3
+          className={cn(
+            'font-semibold text-lg mb-4',
+            customText ? 'text-inherit' : 'text-foreground'
+          )}
+        >
+          {title}
+        </h3>
+      )}
       <div className="space-y-3">
         {items.map((item) => (
           <div
             key={item.id}
             className="flex flex-col gap-1.5 rounded-xl bg-secondary/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           >
-            <div className="min-w-0 font-medium text-foreground">
-              <ContentItemBody item={item} />
+            <div
+              className={cn('min-w-0 font-medium', customText ? 'text-inherit' : 'text-foreground')}
+            >
+              <ContentItemBody item={item} tone={customText ? 'inherit' : 'default'} />
             </div>
-            <span className="min-w-0 text-sm text-muted-foreground sm:shrink-0 sm:text-right">{item.description}</span>
+            <span
+              className={cn(
+                'min-w-0 sm:shrink-0 sm:text-right',
+                customText ? 'text-sm text-inherit opacity-90' : 'text-sm text-muted-foreground'
+              )}
+            >
+              {item.description}
+            </span>
           </div>
         ))}
       </div>
@@ -147,6 +199,7 @@ export function GuideBlockRenderer({
             }
           >
             {group.sections.map((section) => {
+              const transparentSurfaceClass = hasCustomBackground(section) ? 'bg-transparent' : undefined
               const key = section.blockId ?? section.id
               const videoIframeSrc =
                 section.type === 'video' ? safeVideoIframeSrc(section.videoUrl) : null
@@ -454,7 +507,16 @@ export function GuideBlockRenderer({
             return wrapEditable(
               <section key={key} className="rounded-3xl border border-primary/20 bg-linear-to-br from-primary/15 to-transparent p-6 md:p-8">
                 {section.title && <h2 className="text-2xl md:text-3xl font-bold mb-3">{section.title}</h2>}
-                {section.content && <p className="text-muted-foreground leading-relaxed">{section.content}</p>}
+                {section.content && (
+                  <p
+                    className={cn(
+                      'leading-relaxed',
+                      hasCustomTextColor(section) ? 'text-inherit' : 'text-muted-foreground'
+                    )}
+                  >
+                    {section.content}
+                  </p>
+                )}
               </section>
             )
           case 'text': {
@@ -464,6 +526,7 @@ export function GuideBlockRenderer({
             const sideImageFit = section.blockMediaFit ?? 'auto'
             const showSideImageChrome =
               Boolean(editable && isActive && hasSide && onInlinePatch && onRemoveBlockSideImage)
+            const customText = hasCustomTextColor(section)
             const textContent = (
               <>
                 {showSideImageChrome ? (
@@ -500,7 +563,13 @@ export function GuideBlockRenderer({
                     className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 font-semibold"
                   />
                 ) : (
-                  section.title && <h3 className="font-semibold text-lg mb-3">{section.title}</h3>
+                  section.title && (
+                    <h3
+                      className={cn('font-semibold text-lg mb-3', customText && 'text-inherit')}
+                    >
+                      {section.title}
+                    </h3>
+                  )
                 )}
                 {renderInlineText ? (
                   <RichTextBlockEditor
@@ -517,7 +586,10 @@ export function GuideBlockRenderer({
                       return (
                         <div
                           className={cn(
-                            'rich-text-html text-muted-foreground leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:text-foreground',
+                            'rich-text-html leading-relaxed',
+                            customText
+                              ? 'text-inherit [&_a]:text-inherit [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:opacity-90'
+                              : 'text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:text-foreground',
                             isRow && 'min-h-0 flex-1 overflow-y-auto'
                           )}
                           dangerouslySetInnerHTML={{ __html: richHtml }}
@@ -527,7 +599,8 @@ export function GuideBlockRenderer({
                     return (
                       <p
                         className={cn(
-                          'text-muted-foreground leading-relaxed',
+                          'leading-relaxed',
+                          customText ? 'text-inherit' : 'text-muted-foreground',
                           isRow && 'min-h-0 flex-1 overflow-y-auto'
                         )}
                       >
@@ -536,7 +609,10 @@ export function GuideBlockRenderer({
                             href={normalizeSafeNavigationTarget(section.textLinkUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline underline-offset-4 hover:text-foreground"
+                            className={cn(
+                              'underline underline-offset-4',
+                              customText ? 'text-inherit opacity-90 hover:opacity-100' : 'hover:text-foreground'
+                            )}
                           >
                             {section.content}
                           </Link>
@@ -575,7 +651,8 @@ export function GuideBlockRenderer({
               <section
                 key={key}
                 className={cn(
-                  'rounded-2xl border border-border bg-card p-5',
+                  'rounded-2xl border border-border p-5',
+                  blockCardSurfaceClass(section),
                   section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
                   isRow && 'flex h-full min-h-0 flex-col'
                 )}
@@ -690,7 +767,8 @@ export function GuideBlockRenderer({
                 <section
                   key={key}
                   className={cn(
-                    'rounded-2xl border border-border bg-card p-5',
+                    'rounded-2xl border border-border p-5',
+                    blockCardSurfaceClass(section),
                     section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
                     isRow && 'flex h-full min-h-0 flex-col',
                     !hasSide && 'space-y-3'
@@ -712,7 +790,8 @@ export function GuideBlockRenderer({
                   <section
                     key={key}
                     className={cn(
-                      'rounded-2xl border border-border bg-card p-5',
+                      'rounded-2xl border border-border p-5',
+                      blockCardSurfaceClass(section),
                       section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
                       isRow && 'flex h-full min-h-0 flex-col'
                     )}
@@ -754,10 +833,13 @@ export function GuideBlockRenderer({
                           </div>
                         ) : null}
                         <InstructionStepper
-                          className="border-0 bg-transparent p-0 shadow-none"
+                          className="border-0 p-0 shadow-none"
+                          transparentCard
                           title={section.title}
                           steps={section.items ?? []}
                           fillRowHeight={isRow}
+                          inheritBlockText={hasCustomTextColor(section)}
+                          contentItemTone={hasCustomTextColor(section) ? 'inherit' : 'default'}
                         />
                       </div>
                       {pos === 'right' ? (
@@ -779,34 +861,63 @@ export function GuideBlockRenderer({
                   title={section.title}
                   steps={section.items ?? []}
                   fillRowHeight={isRow}
+                  transparentCard={hasCustomBackground(section)}
+                  inheritBlockText={hasCustomTextColor(section)}
+                  contentItemTone={hasCustomTextColor(section) ? 'inherit' : 'default'}
                 />
               </div>
             )
           case 'accordion':
-            return wrapEditable(<FAQAccordion key={key} title={section.title} items={section.items ?? []} />)
+            return wrapEditable(
+              <FAQAccordion
+                key={key}
+                title={section.title}
+                items={section.items ?? []}
+                className={transparentSurfaceClass}
+                inheritBlockText={hasCustomTextColor(section)}
+              />
+            )
           case 'image':
-          case 'media':
+          case 'media': {
+            const imageSrc = section.mediaUrl ?? section.items?.[0]?.image
+            const mediaHref = section.imageLinkUrl && isSafeNavigationTarget(section.imageLinkUrl)
+              ? section.imageLinkUrl
+              : undefined
             return wrapEditable(
               <ImageCard
                 key={key}
-                src={section.mediaUrl ?? section.items?.[0]?.image}
+                src={imageSrc}
                 alt={section.title ?? 'Section media'}
                 caption={section.caption ?? section.content}
+                href={mediaHref}
                 fitEditorFrame={frameLocksImage}
                 fitMode={section.mediaFit ?? 'auto'}
+                className={transparentSurfaceClass}
               />
             )
+          }
           case 'video': {
             const useFixedVideoFrame = hasFrameHeight
+            const vCustomText = hasCustomTextColor(section)
             return wrapEditable(
               <section
                 key={key}
                 className={cn(
-                  'rounded-2xl border border-border bg-card p-3 sm:p-4',
+                  'rounded-2xl border border-border p-3 sm:p-4',
+                  blockCardSurfaceClass(section),
                   useFixedVideoFrame ? 'space-y-3 md:flex md:h-(--video-block-height) md:flex-col md:gap-3' : 'space-y-3'
                 )}
               >
-                {section.title && <h3 className="shrink-0 font-semibold text-base sm:text-lg">{section.title}</h3>}
+                {section.title && (
+                  <h3
+                    className={cn(
+                      'shrink-0 font-semibold text-base sm:text-lg',
+                      vCustomText && 'text-inherit'
+                    )}
+                  >
+                    {section.title}
+                  </h3>
+                )}
                 {videoIframeSrc ? (
                   <div
                     className={cn(
@@ -824,24 +935,53 @@ export function GuideBlockRenderer({
                     />
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Add a video URL from admin.</p>
+                  <p
+                    className={cn(
+                      'text-sm',
+                      vCustomText ? 'text-inherit opacity-90' : 'text-muted-foreground'
+                    )}
+                  >
+                    Add a video URL from admin.
+                  </p>
                 )}
               </section>
             )
           }
           case 'links':
             return wrapEditable(
-              <section key={key} className="rounded-2xl border border-border bg-card p-5">
-                {section.title && <h3 className="font-semibold text-lg mb-3">{section.title}</h3>}
+              <section
+                key={key}
+                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
+              >
+                {section.title && (
+                  <h3
+                    className={cn(
+                      'font-semibold text-lg mb-3',
+                      hasCustomTextColor(section) && 'text-inherit'
+                    )}
+                  >
+                    {section.title}
+                  </h3>
+                )}
                 <div className="space-y-2">
                   {(section.items ?? []).map((item) => (
                     <Link
                       key={item.id}
                       href={normalizeSafeNavigationTarget(item.link)}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 hover:border-primary/40 transition-colors min-h-11"
+                      className={cn(
+                        'flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition-colors min-h-11',
+                        hasCustomTextColor(section)
+                          ? 'border-border/50 text-inherit hover:opacity-90'
+                          : 'border-border hover:border-primary/40'
+                      )}
                     >
                       <span className="min-w-0 wrap-break-word text-left">{item.title}</span>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <ExternalLink
+                        className={cn(
+                          'h-4 w-4 shrink-0',
+                          hasCustomTextColor(section) ? 'text-inherit opacity-80' : 'text-muted-foreground'
+                        )}
+                      />
                     </Link>
                   ))}
                 </div>
@@ -849,7 +989,10 @@ export function GuideBlockRenderer({
             )
           case 'button':
             return wrapEditable(
-              <section key={key} className="rounded-2xl border border-border bg-card p-5">
+              <section
+                key={key}
+                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
+              >
                 {renderInlineButton ? (
                   <input
                     value={section.title ?? ''}
@@ -857,42 +1000,106 @@ export function GuideBlockRenderer({
                     className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 font-semibold"
                   />
                 ) : (
-                  section.title && <h3 className="font-semibold text-lg mb-3">{section.title}</h3>
+                  section.title && (
+                    <h3
+                      className={cn(
+                        'font-semibold text-lg mb-3',
+                        hasCustomTextColor(section) && 'text-inherit'
+                      )}
+                    >
+                      {section.title}
+                    </h3>
+                  )
                 )}
-                <Link
-                  href={normalizeSafeNavigationTarget(section.buttonUrl)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                <Button
+                  asChild
+                  variant={section.buttonColor ? 'default' : section.buttonVariant ?? 'default'}
+                  className="h-11 rounded-xl px-4 py-2.5"
+                  style={
+                    section.buttonColor
+                      ? {
+                          backgroundColor: section.buttonColor,
+                          color: getReadableTextColor(section.buttonColor),
+                        }
+                      : undefined
+                  }
                 >
-                  {renderInlineButton ? (
-                    <input
-                      value={section.content ?? ''}
-                      onChange={(event) => onInlinePatch?.(key, { content: event.target.value })}
-                      className="w-full max-w-56 rounded border border-primary-foreground/20 bg-primary px-2 py-1 text-center text-primary-foreground"
-                    />
-                  ) : (
-                    section.content?.trim() || 'Open'
-                  )}
-                </Link>
+                  <Link href={normalizeSafeNavigationTarget(section.buttonUrl)}>
+                    {renderInlineButton ? (
+                      <input
+                        value={section.content ?? ''}
+                        onChange={(event) => onInlinePatch?.(key, { content: event.target.value })}
+                        className="w-full max-w-56 rounded border border-current/20 bg-transparent px-2 py-1 text-center"
+                      />
+                    ) : (
+                      section.content?.trim() || 'Open'
+                    )}
+                  </Link>
+                </Button>
               </section>
             )
           case 'contact':
             return wrapEditable(
-              <section key={key} className="rounded-2xl border border-border bg-card p-5">
-                {section.title && <h3 className="font-semibold text-lg mb-2">{section.title}</h3>}
-                <p className="text-muted-foreground">{section.content}</p>
+              <section
+                key={key}
+                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
+              >
+                {section.title && (
+                  <h3
+                    className={cn(
+                      'font-semibold text-lg mb-2',
+                      hasCustomTextColor(section) && 'text-inherit'
+                    )}
+                  >
+                    {section.title}
+                  </h3>
+                )}
+                <p
+                  className={cn(
+                    hasCustomTextColor(section) ? 'text-inherit opacity-90' : 'text-muted-foreground'
+                  )}
+                >
+                  {section.content}
+                </p>
               </section>
             )
           case 'tabs':
             return wrapEditable(
-              <section key={key} className="rounded-2xl border border-border bg-card p-5">
-                {section.title && <h3 className="font-semibold text-lg mb-4">{section.title}</h3>}
+              <section
+                key={key}
+                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
+              >
+                {section.title && (
+                  <h3
+                    className={cn(
+                      'font-semibold text-lg mb-4',
+                      hasCustomTextColor(section) && 'text-inherit'
+                    )}
+                  >
+                    {section.title}
+                  </h3>
+                )}
                 <div className="space-y-3">
                   {(section.items ?? []).map((item) => (
                     <div key={item.id} className="rounded-xl bg-secondary/70 p-3">
-                      <div className="font-medium">
-                        <ContentItemBody item={item} />
+                      <div
+                        className={cn('font-medium', hasCustomTextColor(section) && 'text-inherit')}
+                      >
+                        <ContentItemBody
+                          item={item}
+                          tone={hasCustomTextColor(section) ? 'inherit' : 'default'}
+                        />
                       </div>
-                      {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+                      {item.description && (
+                        <p
+                          className={cn(
+                            'text-sm',
+                            hasCustomTextColor(section) ? 'text-inherit opacity-90' : 'text-muted-foreground'
+                          )}
+                        >
+                          {item.description}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -906,15 +1113,36 @@ export function GuideBlockRenderer({
                 description={section.content}
                 fileType={section.videoUrl ? 'video' : 'pdf'}
                 fileUrl={normalizeSafeNavigationTarget(section.videoUrl ?? section.mediaUrl)}
+                className={transparentSurfaceClass}
               />
             )
           case 'schedule':
-            return wrapEditable(renderSchedule(section.title, section.items ?? []))
+            return wrapEditable(renderSchedule(section.title, section.items ?? [], section))
           default:
             return wrapEditable(
-              <section key={key} className={cn('rounded-2xl border border-border bg-card p-5')}>
-                {section.title && <h3 className="font-semibold text-lg mb-3">{section.title}</h3>}
-                {section.content && <p className="text-muted-foreground">{section.content}</p>}
+              <section
+                key={key}
+                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
+              >
+                {section.title && (
+                  <h3
+                    className={cn(
+                      'font-semibold text-lg mb-3',
+                      hasCustomTextColor(section) && 'text-inherit'
+                    )}
+                  >
+                    {section.title}
+                  </h3>
+                )}
+                {section.content && (
+                  <p
+                    className={cn(
+                      hasCustomTextColor(section) ? 'text-inherit opacity-90' : 'text-muted-foreground'
+                    )}
+                  >
+                    {section.content}
+                  </p>
+                )}
               </section>
             )
               }
