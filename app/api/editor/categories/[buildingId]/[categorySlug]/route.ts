@@ -6,7 +6,9 @@ import {
   getEditorCategoryContent,
   publishEditorCategoryDraft,
   saveEditorCategoryDraft,
+  setCategoryContentInheritance,
 } from '@/lib/building-guides-repository'
+import { contentInheritancePayloadSchema } from '@/lib/content-inheritance'
 import {
   validateVisualDocumentUrls,
   visualFromGuideContent,
@@ -27,6 +29,7 @@ interface RouteContext {
 
 const savePayloadSchema = z.object({
   document: visualGuideDocumentSchema,
+  contentInheritance: contentInheritancePayloadSchema.optional(),
 })
 
 export async function GET(_request: NextRequest, context: RouteContext) {
@@ -41,13 +44,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     if (row.ownerUserId && row.ownerUserId !== auth.auth.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+    const resolvedDocument = row.content.visualDocument ?? visualFromGuideContent(row.content)
     return NextResponse.json({
       buildingId: row.buildingId,
       categorySlug: row.categorySlug,
       ownerUserId: row.ownerUserId,
       isPublished: row.isPublished,
-      document: row.draftContent ?? row.content.visualDocument ?? visualFromGuideContent(row.content),
+      /** Merged (inheritance + draft/local), not raw `draft_content` — that would hide inherited blocks. */
+      document: resolvedDocument,
       publishedSections: row.content.sections,
+      contentInheritance: row.contentStored.contentInheritance ?? null,
+      sourceInheritanceAvailable: row.sourceInheritanceAvailable,
     })
   } catch (error) {
     logApiError('editor-categories-get', error)
@@ -75,15 +82,35 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { buildingId, categorySlug } = await context.params
   try {
+    if (payload.data.contentInheritance !== undefined) {
+      await setCategoryContentInheritance(
+        buildingId,
+        categorySlug,
+        payload.data.contentInheritance,
+        auth.auth.userId
+      )
+    }
     const row = await saveEditorCategoryDraft(buildingId, categorySlug, auth.auth.userId, payload.data.document)
+    const resolvedAfterSave = row.content.visualDocument ?? visualFromGuideContent(row.content)
     return NextResponse.json({
       ownerUserId: row.ownerUserId,
       isPublished: row.isPublished,
-      document: row.draftContent ?? payload.data.document,
+      document: resolvedAfterSave,
+      contentInheritance: row.contentStored.contentInheritance ?? null,
+      sourceInheritanceAvailable: row.sourceInheritanceAvailable,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to save draft.'
     if (message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (
+      message === 'A category cannot inherit from itself.' ||
+      message === 'Inheritance would create a cycle.' ||
+      message === 'Inheritance chain is too long or would create a cycle.' ||
+      message === 'Source category was not found.' ||
+      message === 'Invalid inheritance: missing source building or category.'
+    ) {
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
     logApiError('editor-categories-save', error)
     return serverErrorResponse('Failed to save draft.')
   }
@@ -101,10 +128,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const { buildingId, categorySlug } = await context.params
   try {
     const row = await publishEditorCategoryDraft(buildingId, categorySlug, auth.auth.userId)
+    const resolvedAfterPublish = row.content.visualDocument ?? visualFromGuideContent(row.content)
     return NextResponse.json({
       ownerUserId: row.ownerUserId,
       isPublished: row.isPublished,
-      document: row.draftContent ?? row.content.visualDocument ?? visualFromGuideContent(row.content),
+      document: resolvedAfterPublish,
+      contentInheritance: row.contentStored.contentInheritance ?? null,
+      sourceInheritanceAvailable: row.sourceInheritanceAvailable,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to publish.'

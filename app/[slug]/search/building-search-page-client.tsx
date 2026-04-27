@@ -185,7 +185,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
   if (loadingBuilding) {
     return (
       <div className="min-h-screen bg-background">
-        <Header buildingName="Loading…" buildingSlug={slug} />
+        <Header buildingName="Loading…" buildingSlug={slug} navCategories={[]} />
         <main className="pt-24 pb-24 md:pb-10 space-y-5">
           <section className="guide-shell pt-2">
             <Link
@@ -219,7 +219,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
   if (loadingError || !building) {
     return (
       <div className="min-h-screen bg-background">
-        <Header buildingName="Guide unavailable" buildingSlug={slug} />
+        <Header buildingName="Guide unavailable" buildingSlug={slug} navCategories={[]} />
         <main className="pt-24 pb-24 md:pb-10 space-y-5">
           <section className="guide-shell pt-2">
             <Link
@@ -251,6 +251,7 @@ export function BuildingSearchPageClient({ params }: BuildingSearchPageClientPro
         buildingName={building.name}
         buildingSlug={building.id}
         supportEmail={building.supportEmail}
+        navCategories={categories}
       />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-5">

@@ -136,6 +136,18 @@ export async function requireMutableBuildingSections(): Promise<
   return auth
 }
 
+/** Site-wide CMS pages CRUD (requires service role on server). */
+export async function requireMutableSitePages(): Promise<
+  { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }
+> {
+  const auth = await requireMutableAdmin()
+  if (!auth.ok) return auth
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return serviceRoleUnavailable('Saving site pages requires SUPABASE_SERVICE_ROLE_KEY.')
+  }
+  return auth
+}
+
 /** Reusable guide categories + assignments persist to Supabase (requires service role on server). */
 export async function requireMutableGuideCategories(): Promise<
   { ok: true; auth: AdminAuthContext } | { ok: false; response: NextResponse }

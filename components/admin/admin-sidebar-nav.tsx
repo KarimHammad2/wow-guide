@@ -10,6 +10,7 @@ import {
   Hotel,
   Layers,
   BarChart3,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ const baseNavItems = [
   { href: '/admin/cities', label: 'Cities', icon: MapPinned },
   { href: '/admin/buildings', label: 'Buildings', icon: Hotel },
   { href: '/admin/categories', label: 'Category', icon: Layers },
+  { href: '/admin/pages', label: 'Pages', icon: FileText },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
 ] as const
 
@@ -46,7 +48,8 @@ export function AdminSidebarNavItems({
           pathname === item.href ||
           (item.href === '/admin/buildings' && pathname.startsWith('/admin/buildings/')) ||
           (item.href === '/admin/categories' && pathname.startsWith('/admin/categories')) ||
-          (item.href === '/admin/analytics' && pathname.startsWith('/admin/analytics'))
+          (item.href === '/admin/analytics' && pathname.startsWith('/admin/analytics')) ||
+          (item.href === '/admin/pages' && pathname.startsWith('/admin/pages'))
 
         return (
           <Link

@@ -12,7 +12,7 @@ const emergencyPhone = supportContacts.emergency.phone
 export default function EmergencyPage() {
   return (
     <div className="min-h-screen bg-background">
-      <Header buildingName={currentBuilding.name} />
+      <Header buildingName={currentBuilding.name} plumNav />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-5">
         <section className="guide-shell pt-2">

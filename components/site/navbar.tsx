@@ -13,6 +13,15 @@ export type NavbarProps = {
   transparent?: boolean
   /** `floating` = rounded inner card (default). `flat` = full-width bar with bottom border. */
   variant?: 'floating' | 'flat'
+  /** Replaces default flat bar background (e.g. solid CMS brand color). */
+  flatInnerClassName?: string
+  /**
+   * Brand-colored floating shell: merges into the rounded “pill” and disables the default frosted-glass + gloss.
+   * Used for category pages with a plum card while keeping the original rounded shape.
+   */
+  floatingBrandClassName?: string
+  /** Applied to the logo `<Image>` (e.g. invert on dark bars). */
+  logoImageClassName?: string
   brandHref?: string
   brandLabel?: string
   logoSrc?: string
@@ -63,6 +72,9 @@ export function Navbar({
   className,
   transparent = false,
   variant = 'floating',
+  flatInnerClassName,
+  floatingBrandClassName,
+  logoImageClassName,
   brandHref = '/',
   brandLabel = 'WOW Living',
   logoSrc,
@@ -72,6 +84,7 @@ export function Navbar({
   right,
 }: NavbarProps) {
   const isFlat = variant === 'flat'
+  const isBrandFloating = Boolean(floatingBrandClassName) && !isFlat
 
   const bar = (
     <div className="relative grid grid-cols-3 items-center px-5 py-3 md:px-6 md:py-3.5">
@@ -82,13 +95,13 @@ export function Navbar({
         className="flex items-center gap-3 min-w-0"
       >
         {logoSrc ? (
-          <div className="relative h-8 w-24 md:h-9 md:w-28">
+          <div className="relative h-8 w-28 min-w-0 sm:w-29 md:h-9 md:w-30">
             <Image
               src={logoSrc}
               alt={logoAlt}
               fill
-              sizes="(min-width: 768px) 112px, 96px"
-              className="object-contain object-left"
+              sizes="(min-width: 768px) 120px, 104px"
+              className={cn('object-contain object-left', logoImageClassName)}
               priority
             />
           </div>
@@ -133,9 +146,11 @@ export function Navbar({
         {isFlat ? (
           <div
             className={cn(
-              'relative border-b border-border/70 dark:border-border/55',
-              'bg-background/85 dark:bg-background/45',
-              'backdrop-blur-xl supports-backdrop-filter:bg-background/65 dark:supports-backdrop-filter:bg-background/35',
+              'relative',
+              flatInnerClassName
+                ? null
+                : 'border-b border-border/70 dark:border-border/55 bg-background/85 dark:bg-background/45 backdrop-blur-xl supports-backdrop-filter:bg-background/65 dark:supports-backdrop-filter:bg-background/35',
+              flatInnerClassName,
             )}
           >
             {bar}
@@ -144,14 +159,18 @@ export function Navbar({
           <div
             className={cn(
               'relative',
-              'rounded-[28px] border border-border/70 dark:border-border/55',
-              'bg-background/80 dark:bg-background/40 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_30px_-20px_rgba(0,0,0,0.65)]',
-              'backdrop-blur-xl',
-              'supports-backdrop-filter:bg-background/60 dark:supports-backdrop-filter:bg-background/30',
+              isBrandFloating
+                ? 'rounded-[28px] border shadow-[0_10px_30px_-20px_rgba(0,0,0,0.12)]'
+                : 'rounded-[28px] border border-border/70 dark:border-border/55 bg-background/80 dark:bg-background/40 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_30px_-20px_rgba(0,0,0,0.65)] backdrop-blur-xl supports-backdrop-filter:bg-background/60 dark:supports-backdrop-filter:bg-background/30',
+              floatingBrandClassName,
             )}
           >
-            <div className="absolute inset-0 rounded-[28px] bg-[linear-gradient(110deg,transparent,rgba(155,90,116,0.10),transparent)] opacity-35 dark:opacity-20 pointer-events-none" />
-            <div className="absolute inset-px rounded-[27px] border border-white/45 dark:border-white/10 pointer-events-none" />
+            {!isBrandFloating && (
+              <>
+                <div className="absolute inset-0 rounded-[28px] bg-[linear-gradient(110deg,transparent,rgba(155,90,116,0.10),transparent)] opacity-35 dark:opacity-20 pointer-events-none" />
+                <div className="absolute inset-px rounded-[27px] border border-white/45 dark:border-white/10 pointer-events-none" />
+              </>
+            )}
             {bar}
           </div>
         )}

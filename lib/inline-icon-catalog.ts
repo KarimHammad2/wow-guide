@@ -29,6 +29,7 @@ const LUCIDE_ICON_SYMBOLS: Record<AdminCategoryIconName, string> = {
   Phone: '☎️',
   Mail: '✉️',
   Smartphone: '📱',
+  Tv: '📺',
   Search: '🔍',
   QrCode: '▣',
   Camera: '📷',

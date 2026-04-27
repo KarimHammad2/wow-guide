@@ -1,6 +1,19 @@
 import { categoryContent as seedCategoryContent, type Category, type ContentSection } from '@/lib/data'
 import type { BuildingGuideCategory, GuideContent } from '@/lib/admin-types'
 
+/** Slugs that appear on the building home Quick Access row for newly created buildings (1–4). */
+export const DEFAULT_QUICK_ACCESS_ORDER: Record<string, number> = {
+  'check-in': 1,
+  internet: 2,
+  cleaning: 3,
+  'home-devices': 4,
+}
+
+export function defaultQuickAccessOrderForSlug(slug: string): number | null {
+  const n = DEFAULT_QUICK_ACCESS_ORDER[slug]
+  return n === undefined ? null : n
+}
+
 export const DEFAULT_GUIDE_SECTIONS: Array<{
   slug: string
   title: string
@@ -16,6 +29,13 @@ export const DEFAULT_GUIDE_SECTIONS: Array<{
   { slug: 'laundry', title: 'Laundry', subtitle: 'Washer and dryer guidance', icon: 'Shirt', color: 'muted' },
   { slug: 'waste-plan', title: 'Waste Plan', subtitle: 'Waste sorting and pickup', icon: 'Trash2', color: 'primary' },
   { slug: 'sport-activity', title: 'Sport & Activity', subtitle: 'Fitness and outdoor activity', icon: 'Dumbbell', color: 'accent' },
+  {
+    slug: 'emergency',
+    title: 'Emergency?',
+    subtitle: 'Urgent issues outside office hours',
+    icon: 'AlertTriangle',
+    color: 'primary',
+  },
   { slug: 'check-out', title: 'Check-out', subtitle: 'Departure steps', icon: 'LogOut', color: 'muted' },
 ]
 

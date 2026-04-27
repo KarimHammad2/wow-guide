@@ -204,6 +204,7 @@ export type Database = {
           building_id: string
           category_slug: string
           sort_order: number
+          quick_access_order: number | null
           category: Json
           content: Json
           draft_content: Json | null
@@ -218,6 +219,7 @@ export type Database = {
           building_id: string
           category_slug: string
           sort_order: number
+          quick_access_order?: number | null
           category: Json
           content: Json
           draft_content?: Json | null
@@ -231,6 +233,7 @@ export type Database = {
           building_id?: string
           category_slug?: string
           sort_order?: number
+          quick_access_order?: number | null
           category?: Json
           content?: Json
           draft_content?: Json | null
@@ -292,6 +295,30 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      site_pages: {
+        Row: {
+          slug: string
+          title: string
+          content: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          slug: string
+          title: string
+          content?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          slug?: string
+          title?: string
+          content?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

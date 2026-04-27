@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Home, Search } from 'lucide-react'
 import { Header } from '@/components/guide/header'
+import { WowWordmark } from '@/components/site/wow-wordmark'
 import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
@@ -11,15 +11,10 @@ export default function NotFound() {
 
       <main className="flex-1 flex items-center justify-center pt-24 pb-10 px-4 safe-bottom">
         <div className="max-w-md mx-auto w-full text-center">
-          {/* Logo */}
-          <div className="relative h-20 w-52 sm:h-24 sm:w-60 mx-auto mb-6 shrink-0">
-            <Image
-              src="/logo.png"
-              alt="WOW Living"
-              fill
-              className="object-contain"
-              sizes="(min-width: 640px) 240px, 208px"
+          <div className="mb-6 flex justify-center">
+            <WowWordmark
               priority
+              className="h-20 w-auto max-w-[min(16rem,90vw)] object-center sm:h-24"
             />
           </div>
 

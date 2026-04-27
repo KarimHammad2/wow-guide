@@ -39,7 +39,7 @@ export function ImageCard({
   const figure = (
     <figure className={cn('flex flex-col justify-center rounded-2xl overflow-hidden', className)}>
       {src ? (
-        <div className="bg-secondary">
+        <div className="bg-transparent">
           <Image
             src={src}
             alt={alt}
@@ -79,7 +79,7 @@ export function ImageCard({
         className
       )}
     >
-      <div className="relative min-h-0 w-full flex-1 bg-secondary">
+      <div className="relative min-h-0 w-full flex-1 bg-transparent">
         {src ? (
           <Image src={src} alt={alt} fill className={fitClass} unoptimized />
         ) : (

@@ -14,17 +14,46 @@
   text-underline-offset: 4px;
 }
 
-/* Guest (and elsewhere): block-level lists from Tiptap must not sit inside inline boxes */
-.rich-text-html ul,
-.rich-text-html ol {
+/*
+ * Tiptap + guest HTML: Tailwind preflight strips markers; restore with explicit `list-style`.
+ * Use **outside** (not inside): Tiptap wraps each item in a block <p>, and `list-style: inside`
+ * puts the marker in the first line box while the <p> is a separate block — the bullet then
+ * sits alone on the first line. Outside keeps the marker on the same line as the first text line.
+ * Padding leaves room for markers so `html { overflow-x: clip }` is less likely to clip them.
+ */
+.tiptap-editor .ProseMirror ul,
+.rich-text-html ul {
+  list-style: disc outside;
   margin: 0.35em 0;
-  padding-left: 1.25em;
+  padding-inline-start: 1.75em;
 }
+.tiptap-editor .ProseMirror ol,
+.rich-text-html ol {
+  list-style: decimal outside;
+  margin: 0.35em 0;
+  padding-inline-start: 1.75em;
+}
+.tiptap-editor .ProseMirror li,
 .rich-text-html li {
+  display: list-item;
+  margin: 0.2em 0;
+  padding-inline-start: 0.25em;
+}
+.tiptap-editor .ProseMirror li::marker,
+.rich-text-html li::marker {
+  color: currentColor;
+}
+.tiptap-editor .ProseMirror li > p,
+.rich-text-html li > p {
   margin: 0.2em 0;
 }
-.rich-text-html li > p {
-  margin: 0.15em 0;
+.tiptap-editor .ProseMirror li > p:first-child,
+.rich-text-html li > p:first-child {
+  margin-top: 0;
+}
+.tiptap-editor .ProseMirror li > p:last-child,
+.rich-text-html li > p:last-child {
+  margin-bottom: 0;
 }
 
 .tiptap-editor .ProseMirror table,
@@ -49,6 +78,23 @@
 .rich-text-html th {
   font-weight: 600;
   background: var(--muted);
+}
+
+.tiptap-editor .ProseMirror img,
+.tiptap-editor .ProseMirror video,
+.rich-text-html img,
+.rich-text-html video {
+  max-width: 100%;
+  height: auto;
+}
+.tiptap-editor .ProseMirror iframe,
+.rich-text-html iframe {
+  max-width: 100%;
+}
+.tiptap-editor .ProseMirror pre,
+.rich-text-html pre {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -277,4 +323,134 @@
       );
     box-shadow: 0 18px 36px -32px rgba(30, 15, 22, 0.6);
   }
+
+  /*
+   * Building /{slug}/category/* — plum surface + white type.
+   * Do not override --primary (mobile menu panel uses bg-primary).
+   */
+  [data-guide-category-surface] {
+    /* Required so descendants inherit white type (body’s color stays dark otherwise). */
+    color: var(--foreground);
+    --background: #935071;
+    --foreground: #ffffff;
+    --card: color-mix(in srgb, #935071 88%, white);
+    --card-foreground: #ffffff;
+    --popover: color-mix(in srgb, #935071 92%, white);
+    --popover-foreground: #ffffff;
+    --secondary: color-mix(in srgb, #935071 82%, white);
+    --secondary-foreground: #ffffff;
+    --muted: color-mix(in srgb, #935071 80%, white);
+    --muted-foreground: #ffffff;
+    --border: color-mix(in srgb, white 30%, #935071);
+    --input: color-mix(in srgb, white 24%, #935071);
+  }
+
+  [data-guide-category-surface] .rich-text-html {
+    color: #ffffff;
+  }
+
+  [data-guide-category-surface] .rich-text-html a,
+  [data-guide-category-surface] .tiptap-editor .ProseMirror a {
+    color: var(--accent) !important;
+  }
+
+  /* Hero header + catalog band: match page plum (CMS may set catalog to white). */
+  [data-guide-category-surface] header.guide-section {
+    background: #935071 !important;
+    background-image: none !important;
+  }
+
+  [data-guide-category-surface] .catalog-band {
+    background-color: #935071 !important;
+    color: #ffffff !important;
+  }
+
+  [data-guide-category-surface] .catalog-band * {
+    color: #ffffff !important;
+  }
+
+  [data-guide-category-surface] .catalog-band a {
+    color: var(--accent) !important;
+  }
+
+  [data-guide-category-surface] .catalog-band img {
+    color: unset !important;
+  }
+
+  [data-guide-category-surface] .need-help-card svg {
+    color: #ffeb8a !important;
+  }
+
+  /*
+   * Hero icon tile: yellow glyph must not sit on bg-accent (also ~yellow) or it disappears.
+   * Use a deep plum chip everywhere except emergency (keeps bg-destructive).
+   */
+  [data-guide-category-surface] .category-page-hero-icon:not(.bg-destructive) {
+    background-color: color-mix(in srgb, #935071 72%, #000000) !important;
+    color: #ffeb8a !important;
+  }
+
+  [data-guide-category-surface] .category-page-hero-icon svg {
+    color: #ffeb8a !important;
+  }
+
+  /* Catalog band: row icons (first column), not body copy */
+  [data-guide-category-surface] .catalog-band .grid > div:first-child svg {
+    color: #ffeb8a !important;
+  }
+
+  /*
+   * CMS site pages /{slug} (terms, policies) — brand plum #9A5477 + white type.
+   */
+  [data-site-page-surface] {
+    color: var(--foreground);
+    --background: #9a5477;
+    --foreground: #ffffff;
+    --card: color-mix(in srgb, #9a5477 88%, white);
+    --card-foreground: #ffffff;
+    --popover: color-mix(in srgb, #9a5477 92%, white);
+    --popover-foreground: #ffffff;
+    --secondary: color-mix(in srgb, #9a5477 82%, white);
+    --secondary-foreground: #ffffff;
+    --muted: color-mix(in srgb, #9a5477 78%, white);
+    --muted-foreground: #ffffff;
+    --border: color-mix(in srgb, white 30%, #9a5477);
+    --input: color-mix(in srgb, white 24%, #9a5477);
+  }
+
+  [data-site-page-surface] .rich-text-html {
+    color: #ffffff;
+  }
+
+  [data-site-page-surface] .rich-text-html a,
+  [data-site-page-surface] .tiptap-editor .ProseMirror a {
+    color: var(--accent) !important;
+  }
+
+  [data-site-page-surface] .catalog-band {
+    background-color: #9a5477 !important;
+    color: #ffffff !important;
+  }
+
+  [data-site-page-surface] .catalog-band * {
+    color: #ffffff !important;
+  }
+
+  [data-site-page-surface] .catalog-band a {
+    color: var(--accent) !important;
+  }
+
+  [data-site-page-surface] .catalog-band img {
+    color: unset !important;
+  }
+}
+
+/* Last-resort: win over any utility / component `list-none` on nested wrappers. */
+.tiptap-editor .ProseMirror ul,
+.rich-text-html ul {
+  list-style: disc outside !important;
+}
+.tiptap-editor .ProseMirror ol,
+.rich-text-html ol {
+  list-style: decimal outside !important;
 }

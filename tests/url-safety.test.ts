@@ -22,8 +22,17 @@ describe('url safety helpers', () => {
 
   it('normalizes unsafe navigation targets to fallback', () => {
     expect(normalizeSafeNavigationTarget('javascript:alert(1)')).toBe('#')
-    expect(normalizeSafeNavigationTarget('https://example.com')).toBe('https://example.com')
+    expect(normalizeSafeNavigationTarget('https://example.com')).toBe(
+      new URL('https://example.com').href
+    )
     expect(normalizeSafeNavigationTarget('/safe/path')).toBe('/safe/path')
+  })
+
+  it('accepts scheme-less host URLs and normalizes to https', () => {
+    const raw = 'stadtzug.ch/vereinsliste#Liste%20von%20'
+    expect(isSafeNavigationTarget(raw)).toBe(true)
+    expect(normalizeSafeNavigationTarget(raw)).toBe(new URL(`https://${raw}`).href)
+    expect(isSafeNavigationTarget('//stadtzug.ch/foo')).toBe(true)
   })
 
   it('keeps only safe embed URLs', () => {

@@ -30,6 +30,8 @@ export default async function CheckInOutPage() {
         buildingName={currentBuilding.name}
         buildingSlug={currentBuilding.id}
         supportEmail={currentBuilding.supportEmail}
+        navCategories={buildingCategories}
+        plumNav
       />
 
       <main className="pt-24 pb-24 md:pb-10">

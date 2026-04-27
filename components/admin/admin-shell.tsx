@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import Image from 'next/image'
 import { LogOut, Mail, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AdminSidebarNavItems } from '@/components/admin/admin-sidebar-nav'
+import { WowWordmark } from '@/components/site/wow-wordmark'
 import { cn } from '@/lib/utils'
 
 export function AdminShell({
@@ -38,17 +38,8 @@ export function AdminShell({
     <main className="w-full px-3 py-4 md:px-6 md:py-6 lg:min-h-screen">
       <div className="grid w-full gap-5 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[auto_1fr] lg:items-stretch">
         <div className="lg:hidden flex items-center justify-between rounded-2xl border border-border/70 bg-card/90 px-3 py-2 safe-top">
-          <div className="inline-flex items-center gap-2">
-            <div className="relative h-7 w-20">
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                fill
-                sizes="80px"
-                className="object-contain object-left"
-                priority
-              />
-            </div>
+          <div className="inline-flex min-w-0 items-center gap-2">
+            <WowWordmark className="h-7" />
           </div>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen((v) => !v)}>
             {mobileOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
@@ -85,16 +76,8 @@ export function AdminShell({
                 collapsed ? 'justify-center pt-3 pb-1' : 'justify-center px-1 min-h-10'
               )}
             >
-              <div className={cn('inline-flex items-center justify-center w-full pr-11', collapsed && 'hidden')}>
-                <div className="relative h-8 w-24">
-                  <Image
-                    src="/logo.png"
-                    alt="Logo"
-                    fill
-                    sizes="96px"
-                    className="object-contain object-center"
-                  />
-                </div>
+              <div className={cn('flex w-full min-w-0 items-center justify-center pr-11', collapsed && 'hidden')}>
+                <WowWordmark />
               </div>
 
               <Button

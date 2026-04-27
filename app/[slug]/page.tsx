@@ -1,15 +1,18 @@
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { Header } from '@/components/guide/header'
+import { AlertBox } from '@/components/guide/alert-box'
 import { BuildingHero, BUILDING_HERO_WELCOME_TEXT } from '@/components/guide/building-hero'
 import { SearchBar } from '@/components/guide/search-bar'
 import { QuickActions } from '@/components/guide/quick-actions'
 import { CategoryTile } from '@/components/guide/category-tile'
 import { EmergencyBanner } from '@/components/guide/emergency-banner'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
+import { GuideBlockRenderer } from '@/components/guide/blocks/guide-block-renderer'
 import { BuildingAnalyticsTracker } from '@/components/site/building-analytics-tracker'
 import { getBuildingById } from '@/lib/buildings-repository'
-import { getBuildingCategories } from '@/lib/building-guides-repository'
+import { getBuildingCategories, getBuildingQuickAccessCategories } from '@/lib/building-guides-repository'
+import { getSitePageBySlug } from '@/lib/site-pages-repository'
 import { DEFAULT_SUPPORT_EMAIL } from '@/lib/emergency-defaults'
 import { formatQuietHoursDisplay } from '@/lib/quiet-hours'
 
@@ -19,16 +22,29 @@ interface BuildingPageProps {
 
 export const dynamic = 'force-dynamic'
 
+const getSitePageCached = cache(async (slug: string) => getSitePageBySlug(slug))
 const getBuildingCached = cache(async (slug: string) => getBuildingById(slug))
 const getBuildingCategoriesCached = cache(async (buildingId: string) => getBuildingCategories(buildingId))
+const getBuildingQuickAccessCached = cache(async (buildingId: string) =>
+  getBuildingQuickAccessCategories(buildingId)
+)
 
 export async function generateMetadata({ params }: BuildingPageProps) {
   const { slug } = await params
+  const sitePage = await getSitePageCached(slug)
+  if (sitePage) {
+    const description = sitePage.content.intro.trim() || sitePage.title
+    return {
+      title: `${sitePage.title} | WOW Guide`,
+      description,
+    }
+  }
+
   const building = await getBuildingCached(slug)
 
   if (!building) {
     return {
-      title: 'Building Not Found | WOW Guide',
+      title: 'Not Found | WOW Guide',
     }
   }
 
@@ -43,6 +59,51 @@ export async function generateMetadata({ params }: BuildingPageProps) {
 
 export default async function BuildingPage({ params }: BuildingPageProps) {
   const { slug } = await params
+  const sitePage = await getSitePageCached(slug)
+  if (sitePage) {
+    const leadIsCatalogBand = sitePage.content.sections[0]?.type === 'catalogBand'
+    return (
+      <div
+        data-site-page-surface
+        className="min-h-screen bg-background text-foreground antialiased"
+      >
+        <Header flatNavbar sitePage={{ title: sitePage.title }} />
+
+        <main className="pt-24 pb-24 md:pb-10 space-y-6">
+          <section className="guide-shell">
+            <div className="mx-auto w-full max-w-3xl space-y-6">
+              {!leadIsCatalogBand ? (
+                <header className="space-y-3 py-1">
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white tracking-tight text-balance wrap-break-word">
+                    {sitePage.title}
+                  </h1>
+                  {sitePage.content.intro.trim() ? (
+                    <p className="text-white/90 leading-relaxed text-base md:text-lg">
+                      {sitePage.content.intro}
+                    </p>
+                  ) : null}
+                </header>
+              ) : null}
+
+              {sitePage.content.alert ? (
+                <AlertBox
+                  type={sitePage.content.alert.type}
+                  message={sitePage.content.alert.message}
+                />
+              ) : null}
+
+              <div className="text-white [&_.text-muted-foreground]:text-white/85 [&_.text-foreground]:text-white">
+                <GuideBlockRenderer surface="flat" sections={sitePage.content.sections} />
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <StickyBottomBar />
+      </div>
+    )
+  }
+
   const building = await getBuildingCached(slug)
 
   if (!building) {
@@ -51,7 +112,10 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
 
   const contactEmail = building.supportEmail.trim() || DEFAULT_SUPPORT_EMAIL
 
-  const categories = await getBuildingCategoriesCached(building.id)
+  const [categories, quickAccessCategories] = await Promise.all([
+    getBuildingCategoriesCached(building.id),
+    getBuildingQuickAccessCached(building.id),
+  ])
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,6 +123,7 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
         buildingName={building.name}
         buildingSlug={building.id}
         supportEmail={building.supportEmail}
+        navCategories={categories}
       />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-6">
@@ -79,9 +144,15 @@ export default async function BuildingPage({ params }: BuildingPageProps) {
           </div>
         </section>
 
-        <section className="guide-shell">
-          <QuickActions buildingSlug={building.id} className="guide-section p-4 md:p-6" />
-        </section>
+        {quickAccessCategories.length > 0 ? (
+          <section className="guide-shell">
+            <QuickActions
+              buildingSlug={building.id}
+              categories={quickAccessCategories}
+              className="guide-section p-4 md:p-6"
+            />
+          </section>
+        ) : null}
 
         <section className="guide-shell">
           <section className="guide-section p-4 md:p-6 space-y-4">

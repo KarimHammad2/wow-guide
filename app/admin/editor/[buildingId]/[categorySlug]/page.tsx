@@ -1,39 +1,39 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, ChevronsLeft, ChevronsRight, Eye, Save, Upload } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
 import { adminRequest } from '@/components/admin/admin-api'
-import {
-  getEditorDocument,
-  deleteEditorMedia,
-  publishEditorDocument,
-  saveEditorDocument,
-  uploadEditorMedia,
-} from '@/components/editor/editor-api'
+import { getEditorDocument, publishEditorDocument, saveEditorDocument } from '@/components/editor/editor-api'
 import { LiveCanvas } from '@/components/editor/live-canvas'
+import {
+  createDefaultBlock,
+  normalizeEditorDocument,
+  useVisualGuideLiveDocumentHandlers,
+} from '@/components/editor/use-visual-guide-live-document'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Slider } from '@/components/ui/slider'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { RichTextBlockEditor } from '@/components/editor/rich-text-block-editor'
-import { EMPTY_RICH_TEXT_DOC } from '@/lib/tiptap/empty-doc'
 import { ListBlockItemsField } from '@/components/admin/builder/list-block-items-field'
 import {
-  contentItemToVisualListItem,
   sectionsFromVisualDocument,
-  isLikelyMediaImageUrl,
   visualListItemsFromEditorRows,
   visualListItemsToEditorRows,
   type VisualBlock,
   type VisualGuideDocument,
 } from '@/lib/visual-builder-schema'
 import type { Building, ContentSection } from '@/lib/data'
+import type { BuildingGuideCategory, ContentInheritance } from '@/lib/admin-types'
+import { toast } from '@/hooks/use-toast'
 
 const FONT_CHOICES = ['Inter', 'Poppins', 'Montserrat', 'Lora', 'Merriweather', 'JetBrains Mono']
 const MEDIA_FIT_CHOICES = [
@@ -42,6 +42,8 @@ const MEDIA_FIT_CHOICES = [
   { value: 'cover', label: 'Cover (fill frame)' },
 ] as const
 const DEFAULT_BUTTON_COLOR = '#0f172a'
+const INHERITANCE_NONE = '__none__'
+const INHERITANCE_CATEGORY_PICK = '__category_pick__'
 
 function getReadableTextColor(hexColor: string) {
   const normalized = hexColor.trim().replace('#', '')
@@ -54,51 +56,6 @@ function getReadableTextColor(hexColor: string) {
   const b = value & 255
   const luminance = (r * 299 + g * 587 + b * 114) / 1000
   return luminance >= 160 ? '#111827' : '#ffffff'
-}
-
-function normalizeEditorDocument(document: VisualGuideDocument): VisualGuideDocument {
-  return {
-    ...document,
-    blocks: document.blocks.map((block) => {
-      if (block.type !== 'image') return block
-      if (block.mediaUrl) return block
-      if (!isLikelyMediaImageUrl(block.url)) return block
-      return {
-        ...block,
-        mediaUrl: block.url,
-        url: undefined,
-      }
-    }),
-  }
-}
-
-function createDefaultBlock(type: VisualBlock['type']): VisualBlock {
-  const id = `block-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-  if (type === 'catalogBand') {
-    return {
-      id,
-      type,
-      title: 'Section title',
-      catalogRows: [
-        { title: 'First row body text', icon: 'Wifi' },
-        { title: 'Second row body text', icon: 'Tv' },
-      ],
-      styles: { backgroundColor: '#9b5d72', textColor: '#ffffff' },
-    }
-  }
-  if (type === 'list') {
-    return { id, type, title: 'List', items: ['First item'] }
-  }
-  if (type === 'button') {
-    return { id, type, title: 'Call to action', content: 'Open', url: '#' }
-  }
-  if (type === 'link') {
-    return { id, type, title: 'Useful link', content: 'Open link', url: '#' }
-  }
-  if (type === 'text') {
-    return { id, type, title: `${type[0]?.toUpperCase()}${type.slice(1)}`, content: '', richText: EMPTY_RICH_TEXT_DOC }
-  }
-  return { id, type, title: `${type[0]?.toUpperCase()}${type.slice(1)}`, content: '' }
 }
 
 export default function CategoryVisualEditorPage() {
@@ -114,8 +71,19 @@ export default function CategoryVisualEditorPage() {
   const [publishing, setPublishing] = useState(false)
   const [hasPendingChanges, setHasPendingChanges] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(true)
-  const [mediaUploadState, setMediaUploadState] = useState<'idle' | 'uploading' | 'error' | 'warning'>('idle')
-  const [mediaUploadMessage, setMediaUploadMessage] = useState<string | null>(null)
+  const [contentInheritance, setContentInheritance] = useState<ContentInheritance | null | undefined>(undefined)
+  const [sourceInheritanceAvailable, setSourceInheritanceAvailable] = useState(true)
+  const [inheritanceHydrated, setInheritanceHydrated] = useState(false)
+  const [sourceCategoryOptions, setSourceCategoryOptions] = useState<BuildingGuideCategory[]>([])
+  const [inheritSourceBuilding, setInheritSourceBuilding] = useState<string>(INHERITANCE_NONE)
+  const [inheritSourceCategory, setInheritSourceCategory] = useState<string>(INHERITANCE_NONE)
+
+  const contentInheritanceRef = useRef<ContentInheritance | null | undefined>(undefined)
+  const inheritanceHydratedRef = useRef(false)
+  useEffect(() => {
+    contentInheritanceRef.current = contentInheritance
+    inheritanceHydratedRef.current = inheritanceHydrated
+  }, [contentInheritance, inheritanceHydrated])
 
   const activeBlock = useMemo(
     () => document?.blocks.find((block) => block.id === activeBlockId) ?? null,
@@ -142,6 +110,25 @@ export default function CategoryVisualEditorPage() {
     [document]
   )
 
+  const {
+    mediaUploadState,
+    mediaUploadMessage,
+    patchSectionFromCanvas,
+    moveBlockDirection,
+    reorderToIndex,
+    duplicateBlock,
+    insertBlock,
+    deleteBlock,
+    dropBlockOnBlock,
+    applyMediaFile,
+    removeBlockSideImage,
+    removeMedia,
+    addBlock,
+    getBlockById,
+    updateBlock,
+    updateBlockStyles,
+  } = useVisualGuideLiveDocumentHandlers(document, setDocument, setActiveBlockId)
+
   /** Public guest guide URL for this category (same route as end users). */
   const publicCategoryHref = useMemo(() => {
     const raw = building?.appPath?.trim() ?? ''
@@ -163,19 +150,53 @@ export default function CategoryVisualEditorPage() {
         setBuildings(buildingsData)
         setDocument(normalizeEditorDocument(data.document))
         setActiveBlockId(data.document.blocks[0]?.id ?? null)
+        setContentInheritance(data.contentInheritance)
+        setSourceInheritanceAvailable(data.sourceInheritanceAvailable)
+        setInheritSourceBuilding(data.contentInheritance?.sourceBuildingId ?? INHERITANCE_NONE)
+        setInheritSourceCategory(
+          data.contentInheritance?.sourceCategorySlug
+            ? data.contentInheritance.sourceCategorySlug
+            : data.contentInheritance?.sourceBuildingId
+              ? INHERITANCE_CATEGORY_PICK
+              : INHERITANCE_NONE
+        )
+        setInheritanceHydrated(true)
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load editor')
       })
   }, [loading, buildingId, categorySlug, setError])
 
+  const sourceForCategories =
+    inheritSourceBuilding && inheritSourceBuilding !== INHERITANCE_NONE ? inheritSourceBuilding : null
+  useEffect(() => {
+    if (!sourceForCategories) {
+      setSourceCategoryOptions([])
+      return
+    }
+    void adminRequest<BuildingGuideCategory[]>(`/api/admin/categories?buildingId=${encodeURIComponent(sourceForCategories)}`)
+      .then((rows) => setSourceCategoryOptions(rows))
+      .catch(() => setSourceCategoryOptions([]))
+  }, [sourceForCategories])
+
   useEffect(() => {
     if (!document) return
     setHasPendingChanges(true)
     setSaveState('saving')
     const timeout = setTimeout(() => {
-      void saveEditorDocument(buildingId, categorySlug, document)
-        .then(() => {
+      const inh = contentInheritanceRef.current
+      const hy = inheritanceHydratedRef.current
+      void saveEditorDocument(
+        buildingId,
+        categorySlug,
+        document,
+        hy ? (inh === undefined ? null : inh) : undefined
+      )
+        .then((res) => {
+          if (res.contentInheritance !== undefined) {
+            setContentInheritance(res.contentInheritance)
+            setSourceInheritanceAvailable(res.sourceInheritanceAvailable)
+          }
           setSaveState('saved')
           setHasPendingChanges(false)
         })
@@ -194,366 +215,58 @@ export default function CategoryVisualEditorPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasPendingChanges, saveState])
 
-  function updateBlock(blockId: string, patch: Partial<VisualBlock>) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        blocks: prev.blocks.map((block) => (block.id === blockId ? { ...block, ...patch } : block)),
-      }
-    })
-  }
+  const filteredSourceCategories = useMemo(
+    () =>
+      sourceCategoryOptions.filter(
+        (row) => row.category.slug !== categorySlug || inheritSourceBuilding !== buildingId
+      ),
+    [sourceCategoryOptions, categorySlug, inheritSourceBuilding, buildingId]
+  )
 
-  function updateBlockStyles(
-    blockId: string,
-    patch: NonNullable<VisualBlock['styles']>
-  ) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        blocks: prev.blocks.map((block) =>
-          block.id === blockId
-            ? {
-                ...block,
-                styles: {
-                  ...block.styles,
-                  ...patch,
-                },
-              }
-            : block
-        ),
-      }
-    })
-  }
-
-  function getBlockById(blockId: string) {
-    return document?.blocks.find((block) => block.id === blockId) ?? null
-  }
-
-  async function applyMediaFile(
-    blockId: string,
-    file: File,
-    options?: { side?: 'left' | 'right' }
-  ) {
-    const targetBlock = getBlockById(blockId)
-    if (!targetBlock) {
-      setMediaUploadState('error')
-      setMediaUploadMessage('Block not found.')
-      return
-    }
-
-    if (targetBlock.type === 'text' || targetBlock.type === 'list') {
-      setMediaUploadState('uploading')
-      setMediaUploadMessage(null)
-      const previousUrl = targetBlock.sideImageUrl?.trim() ?? ''
-      const pos = options?.side ?? targetBlock.sideImagePosition ?? 'right'
-      try {
-        const uploaded = await uploadEditorMedia(file)
-        updateBlock(blockId, { sideImageUrl: uploaded.url, sideImagePosition: pos })
-        if (previousUrl && previousUrl !== uploaded.url) {
-          try {
-            await deleteEditorMedia(previousUrl)
-          } catch {
-            setMediaUploadState('warning')
-            setMediaUploadMessage('The image was replaced, but the old file could not be removed.')
-            return
-          }
-        }
-        setMediaUploadState('idle')
-        setMediaUploadMessage(null)
-      } catch (err) {
-        setMediaUploadState('error')
-        setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
-      }
-      return
-    }
-
-    if (targetBlock.type !== 'image' && targetBlock.type !== 'video') {
-      setMediaUploadState('error')
-      setMediaUploadMessage('Select an image or video block before uploading media.')
-      return
-    }
-
-    setMediaUploadState('uploading')
-    setMediaUploadMessage(null)
-
-    const previousUrl = targetBlock.mediaUrl?.trim() ?? ''
-
+  async function applyInheritanceMetadata(next: ContentInheritance | null) {
+    if (!document) return
+    setError(null)
+    setSaveState('saving')
     try {
-      const uploaded = await uploadEditorMedia(file)
-      updateBlock(blockId, { mediaUrl: uploaded.url })
-
-      if (previousUrl && previousUrl !== uploaded.url) {
-        try {
-          await deleteEditorMedia(previousUrl)
-        } catch {
-          setMediaUploadState('warning')
-          setMediaUploadMessage('The media was replaced, but the old file could not be removed.')
-          return
-        }
-      }
-
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
-    } catch (err) {
-      setMediaUploadState('error')
-      setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
+      await saveEditorDocument(buildingId, categorySlug, document, next)
+      const r = await getEditorDocument(buildingId, categorySlug)
+      setDocument(normalizeEditorDocument(r.document))
+      setContentInheritance(r.contentInheritance)
+      setInheritSourceBuilding(r.contentInheritance?.sourceBuildingId ?? INHERITANCE_NONE)
+      setInheritSourceCategory(
+        r.contentInheritance?.sourceCategorySlug
+          ? r.contentInheritance.sourceCategorySlug
+          : r.contentInheritance?.sourceBuildingId
+            ? INHERITANCE_CATEGORY_PICK
+            : INHERITANCE_NONE
+      )
+      setSourceInheritanceAvailable(r.sourceInheritanceAvailable)
+      setSaveState('saved')
+    } catch (e) {
+      setSaveState('error')
+      setError(e instanceof Error ? e.message : 'Failed to update inheritance')
     }
   }
 
-  async function removeBlockSideImage(blockId: string) {
-    const target = getBlockById(blockId)
-    if (!target || (target.type !== 'text' && target.type !== 'list') || !target.sideImageUrl?.trim()) {
+  function onInheritSourceBuilding(v: string) {
+    setInheritSourceBuilding(v)
+    if (v === INHERITANCE_NONE) {
+      setInheritSourceCategory(INHERITANCE_NONE)
+      void applyInheritanceMetadata(null)
       return
     }
-    const url = target.sideImageUrl.trim()
-    setMediaUploadState('uploading')
-    setMediaUploadMessage(null)
-    try {
-      await deleteEditorMedia(url)
-      updateBlock(blockId, { sideImageUrl: undefined, sideImagePosition: undefined })
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
-    } catch (err) {
-      setMediaUploadState('error')
-      setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
-    }
+    setInheritSourceCategory(INHERITANCE_CATEGORY_PICK)
   }
 
-  async function removeMedia(blockId: string) {
-    const targetBlock = getBlockById(blockId)
-    if (!targetBlock || (targetBlock.type !== 'image' && targetBlock.type !== 'video')) {
-      setMediaUploadState('error')
-      setMediaUploadMessage('Select an image or video block before removing media.')
+  function onInheritSourceCategory(v: string) {
+    if (v === INHERITANCE_NONE || v === INHERITANCE_CATEGORY_PICK) return
+    if (inheritSourceBuilding === INHERITANCE_NONE) return
+    if (inheritSourceBuilding === buildingId && v === categorySlug) {
+      setError('A category cannot inherit from itself.')
       return
     }
-
-    if (!targetBlock.mediaUrl) return
-
-    setMediaUploadState('uploading')
-    setMediaUploadMessage(null)
-
-    try {
-      await deleteEditorMedia(targetBlock.mediaUrl)
-      updateBlock(blockId, { mediaUrl: undefined })
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
-    } catch (err) {
-      setMediaUploadState('error')
-      setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
-    }
-  }
-
-  function dropBlockOnBlock(
-    sourceBlockId: string,
-    targetBlockId: string,
-    options?: { side?: 'left' | 'right' }
-  ) {
-    const preSource = getBlockById(sourceBlockId)
-    const preTarget = getBlockById(targetBlockId)
-    const mergeInBlockImage =
-      preSource?.type === 'image' &&
-      (preTarget?.type === 'text' || preTarget?.type === 'list') &&
-      Boolean(preSource?.url?.trim())
-
-    if (mergeInBlockImage) {
-      const url = preSource!.url!.trim()
-      const side = options?.side === 'left' || options?.side === 'right' ? options.side : 'right'
-      setDocument((prev) => {
-        if (!prev) return prev
-        const withoutSource = prev.blocks.filter((b) => b.id !== sourceBlockId)
-        const ti = withoutSource.findIndex((b) => b.id === targetBlockId)
-        if (ti < 0) return prev
-        const previousSide = withoutSource[ti].sideImageUrl?.trim()
-        if (previousSide && previousSide !== url) {
-          void deleteEditorMedia(previousSide).catch(() => {
-            // best-effort cleanup; merge still applied
-          })
-        }
-        const next = [...withoutSource]
-        next[ti] = {
-          ...next[ti],
-          sideImageUrl: url,
-          sideImagePosition: side,
-        }
-        return { ...prev, blocks: next }
-      })
-      setActiveBlockId(targetBlockId)
-      return
-    }
-
-    setDocument((prev) => {
-      if (!prev) return prev
-      const sourceIndex = prev.blocks.findIndex((block) => block.id === sourceBlockId)
-      const targetIndex = prev.blocks.findIndex((block) => block.id === targetBlockId)
-      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return prev
-
-      const source = prev.blocks[sourceIndex]
-      const target = prev.blocks[targetIndex]
-      const rowId = target.styles?.rowId ?? `row-${Date.now().toString(36)}`
-
-      const next = [...prev.blocks]
-      // ensure target is in a row
-      next[targetIndex] = {
-        ...target,
-        styles: {
-          ...target.styles,
-          rowId,
-        },
-      }
-
-      // remove source then insert right after target for side-by-side layout
-      next.splice(sourceIndex, 1)
-      const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-      const updatedSource: VisualBlock = {
-        ...source,
-        styles: {
-          ...source.styles,
-          rowId,
-        },
-      }
-      next.splice(adjustedTargetIndex + 1, 0, updatedSource)
-
-      return {
-        ...prev,
-        blocks: next,
-      }
-    })
-  }
-
-  function addBlock(type: VisualBlock['type']) {
-    const block = createDefaultBlock(type)
-    setDocument((prev) => (prev ? { ...prev, blocks: [...prev.blocks, block] } : prev))
-    setActiveBlockId(block.id)
-  }
-
-  function insertBlock(index: number, type: VisualBlock['type']) {
-    const block = createDefaultBlock(type)
-    setDocument((prev) => {
-      if (!prev) return prev
-      const next = [...prev.blocks]
-      next.splice(index, 0, block)
-      return { ...prev, blocks: next }
-    })
-    setActiveBlockId(block.id)
-  }
-
-  function deleteBlock(blockId: string) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      return { ...prev, blocks: prev.blocks.filter((block) => block.id !== blockId) }
-    })
-    setActiveBlockId(null)
-  }
-
-  function moveBlockDirection(blockId: string, direction: 'up' | 'down') {
-    setDocument((prev) => {
-      if (!prev) return prev
-      const sourceIndex = prev.blocks.findIndex((b) => b.id === blockId)
-      const targetIndex = direction === 'up' ? sourceIndex - 1 : sourceIndex + 1
-      if (sourceIndex < 0 || targetIndex < 0) return prev
-      if (targetIndex >= prev.blocks.length) return prev
-      const next = [...prev.blocks]
-      const [removed] = next.splice(sourceIndex, 1)
-      next.splice(targetIndex, 0, removed)
-      return { ...prev, blocks: next }
-    })
-  }
-
-  function reorderToIndex(sourceId: string, targetIndex: number) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      const sourceIndex = prev.blocks.findIndex((b) => b.id === sourceId)
-      if (sourceIndex < 0) return prev
-      const clampedTarget = Math.max(0, Math.min(targetIndex, prev.blocks.length))
-      const next = [...prev.blocks]
-      const [removed] = next.splice(sourceIndex, 1)
-      const insertIndex = sourceIndex < clampedTarget ? clampedTarget - 1 : clampedTarget
-      next.splice(insertIndex, 0, removed)
-      return { ...prev, blocks: next }
-    })
-  }
-
-  function duplicateBlock(blockId: string) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      const index = prev.blocks.findIndex((item) => item.id === blockId)
-      if (index < 0) return prev
-      const source = prev.blocks[index]
-      const copy: VisualBlock = {
-        ...source,
-        id: `block-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      }
-      const next = [...prev.blocks]
-      next.splice(index + 1, 0, copy)
-      return { ...prev, blocks: next }
-    })
-  }
-
-  function patchSectionFromCanvas(blockId: string, patch: Partial<ContentSection>) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        blocks: prev.blocks.map((block) => {
-          if (block.id !== blockId) return block
-          if (patch.items) {
-            if (block.type === 'catalogBand') {
-              return {
-                ...block,
-                title: patch.title ?? block.title,
-                catalogRows: patch.items.map((item) => ({
-                  title: item.title,
-                  icon: item.icon,
-                  image: item.image,
-                  description: item.description,
-                })),
-              }
-            }
-            return {
-              ...block,
-              title: patch.title ?? block.title,
-              items: patch.items.map((item) => contentItemToVisualListItem(item)),
-            }
-          }
-          return {
-            ...block,
-            title: patch.title ?? block.title,
-            content: patch.content ?? block.content,
-            richText: patch.richText !== undefined ? patch.richText : block.richText,
-            imageLinkUrl:
-              'imageLinkUrl' in patch ? patch.imageLinkUrl ?? undefined : block.imageLinkUrl,
-            buttonVariant:
-              'buttonVariant' in patch ? patch.buttonVariant ?? undefined : block.buttonVariant,
-            buttonColor: 'buttonColor' in patch ? patch.buttonColor ?? undefined : block.buttonColor,
-            sideImageUrl:
-              'blockMediaUrl' in patch
-                ? patch.blockMediaUrl?.trim()
-                  ? patch.blockMediaUrl.trim()
-                  : undefined
-                : block.sideImageUrl,
-            sideImagePosition:
-              'blockMediaPosition' in patch ? patch.blockMediaPosition : block.sideImagePosition,
-            sideImageFit: 'blockMediaFit' in patch ? patch.blockMediaFit : block.sideImageFit,
-            mediaFit: 'mediaFit' in patch ? patch.mediaFit : block.mediaFit,
-            styles: {
-              ...block.styles,
-              textColor: patch.textColor ?? block.styles?.textColor,
-              backgroundColor: patch.backgroundColor ?? block.styles?.backgroundColor,
-              fontSize: patch.fontSize ?? block.styles?.fontSize,
-              fontFamily: patch.fontFamily ?? block.styles?.fontFamily,
-              width: patch.blockWidth ?? block.styles?.width,
-              height: patch.blockHeight ?? block.styles?.height,
-              rowId: patch.rowId ?? block.styles?.rowId,
-              align: patch.blockAlign ?? block.styles?.align,
-              marginTop: patch.blockMarginTop ?? block.styles?.marginTop,
-              marginBottom: patch.blockMarginBottom ?? block.styles?.marginBottom,
-            },
-          }
-        }),
-      }
-    })
+    setInheritSourceCategory(v)
+    void applyInheritanceMetadata({ sourceBuildingId: inheritSourceBuilding, sourceCategorySlug: v })
   }
 
   async function publish() {
@@ -561,12 +274,32 @@ export default function CategoryVisualEditorPage() {
     setPublishing(true)
     setError(null)
     try {
-      await saveEditorDocument(buildingId, categorySlug, document)
+      await saveEditorDocument(
+        buildingId,
+        categorySlug,
+        document,
+        inheritanceHydrated ? (contentInheritance === undefined ? null : contentInheritance) : undefined
+      )
       await publishEditorDocument(buildingId, categorySlug)
       setSaveState('saved')
       setHasPendingChanges(false)
+      const place = building?.name
+        ? `${building.name} · ${categorySlug.replace(/-/g, ' ')}`
+        : categorySlug.replace(/-/g, ' ')
+      toast({
+        className:
+          'border-emerald-500/35 bg-emerald-50/95 text-emerald-950 shadow-md dark:border-emerald-500/40 dark:bg-emerald-950/55 dark:text-emerald-50',
+        title: 'Published',
+        description: `${place} is live for guests. Open Preview to see the public page.`,
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Publish failed')
+      const message = err instanceof Error ? err.message : 'Publish failed'
+      setError(message)
+      toast({
+        variant: 'destructive',
+        title: 'Could not publish',
+        description: message,
+      })
     } finally {
       setPublishing(false)
     }
@@ -582,24 +315,24 @@ export default function CategoryVisualEditorPage() {
         title={`Visual Builder · ${building?.name ?? buildingId} · ${categorySlug}`}
         description="Single live canvas: drag blocks in-place on the rendered page."
         actions={
-          <div className="flex gap-2">
-            <Link href="/admin/categories">
-              <Button variant="outline" className="gap-2">
+          <div className="flex w-full max-w-full flex-wrap gap-2 sm:w-auto sm:max-w-none sm:justify-end">
+            <Link href="/admin/categories" className="min-w-0 flex-1 sm:flex-initial">
+              <Button variant="outline" className="w-full gap-2 sm:w-auto">
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
             </Link>
-            <Button asChild variant="outline" className="gap-2">
-              <Link href={publicCategoryHref} target="_blank" rel="noopener noreferrer">
+            <Button asChild variant="outline" className="min-w-0 flex-1 gap-2 sm:flex-initial sm:w-auto">
+              <Link href={publicCategoryHref} target="_blank" rel="noopener noreferrer" className="inline-flex w-full justify-center sm:w-auto">
                 <Eye className="h-4 w-4" />
                 Preview
               </Link>
             </Button>
-            <Button variant="outline" disabled={saveState === 'saving'} className="gap-2">
+            <Button variant="outline" disabled={saveState === 'saving'} className="min-w-0 flex-1 gap-2 sm:flex-initial sm:w-auto">
               <Save className="h-4 w-4" />
               {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Draft'}
             </Button>
-            <Button onClick={() => void publish()} disabled={publishing}>
+            <Button onClick={() => void publish()} disabled={publishing} className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
               {publishing ? 'Publishing…' : 'Publish'}
             </Button>
           </div>
@@ -607,6 +340,71 @@ export default function CategoryVisualEditorPage() {
       />
 
       {error && <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+
+      <Card className="rounded-3xl border-dashed">
+        <CardHeader className="space-y-1 pb-2">
+          <CardTitle className="text-base">Content inheritance</CardTitle>
+          <CardDescription>
+            Merge the latest page from another building and category. Same block id overrides the source. New source blocks
+            appear automatically. You can still add and edit blocks here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="text-xs text-muted-foreground">Source building</p>
+            <Select value={inheritSourceBuilding} onValueChange={onInheritSourceBuilding}>
+              <SelectTrigger className="w-full min-w-0 sm:max-w-md">
+                <SelectValue placeholder="No inheritance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={INHERITANCE_NONE}>No inheritance</SelectItem>
+                {buildings.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                    {b.city ? ` — ${b.city}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="text-xs text-muted-foreground">Source category</p>
+            <Select
+              value={
+                inheritSourceBuilding === INHERITANCE_NONE
+                  ? INHERITANCE_NONE
+                  : inheritSourceCategory === INHERITANCE_NONE || inheritSourceCategory === INHERITANCE_CATEGORY_PICK
+                    ? INHERITANCE_CATEGORY_PICK
+                    : inheritSourceCategory
+              }
+              onValueChange={onInheritSourceCategory}
+              disabled={inheritSourceBuilding === INHERITANCE_NONE}
+            >
+              <SelectTrigger className="w-full min-w-0 sm:max-w-md">
+                <SelectValue placeholder="Choose category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={INHERITANCE_CATEGORY_PICK} disabled>
+                  {inheritSourceBuilding === INHERITANCE_NONE ? 'Select a building first' : 'Choose a category…'}
+                </SelectItem>
+                {filteredSourceCategories.map((row) => (
+                  <SelectItem key={row.category.id} value={row.category.slug}>
+                    {row.category.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+        {contentInheritance && !sourceInheritanceAvailable && (
+          <CardContent className="pt-0">
+            <p className="text-sm text-amber-800 dark:text-amber-200/90">
+              The source page was not found. Showing only content saved for this building until you pick a valid source
+              or clear inheritance.
+            </p>
+          </CardContent>
+        )}
+      </Card>
 
       <div
         className={`grid min-w-0 gap-4 ${inspectorOpen ? 'lg:grid-cols-[1fr_minmax(300px,380px)]' : 'lg:grid-cols-[1fr_56px]'}`}
@@ -708,6 +506,12 @@ export default function CategoryVisualEditorPage() {
                     >
                       {activeBlock.type === 'text' ? (
                         <RichTextBlockEditor
+                          surface={
+                            activeBlock.styles?.textColor?.trim() ||
+                            activeBlock.styles?.backgroundColor?.trim()
+                              ? 'inherit'
+                              : 'default'
+                          }
                           value={activeBlock.richText}
                           plainFallback={activeBlock.content ?? ''}
                           editorScrollMaxClassName="max-h-[min(42vh,260px)]"
@@ -857,10 +661,7 @@ export default function CategoryVisualEditorPage() {
                                   const file = event.target.files?.[0]
                                   event.currentTarget.value = ''
                                   if (!file) return
-                                  void applyMediaFile(activeBlock.id, file).catch((err: unknown) => {
-                                    setMediaUploadState('error')
-                                    setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
-                                  })
+                                  void applyMediaFile(activeBlock.id, file)
                                 }}
                               />
                             </label>
@@ -870,10 +671,7 @@ export default function CategoryVisualEditorPage() {
                                 variant="outline"
                                 disabled={mediaUploadState === 'uploading'}
                                 onClick={() =>
-                                  void removeMedia(activeBlock.id).catch((err: unknown) => {
-                                    setMediaUploadState('error')
-                                    setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
-                                  })
+                                  void removeMedia(activeBlock.id)
                                 }
                               >
                                 Remove media
@@ -957,6 +755,44 @@ export default function CategoryVisualEditorPage() {
                               ))}
                             </select>
                           </label>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-muted-foreground">Side image width (desktop)</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs tabular-nums text-foreground">
+                                  {activeBlock.sideImageWidthPercent ?? 40}%
+                                </span>
+                                {activeBlock.sideImageWidthPercent !== undefined ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() =>
+                                      updateBlock(activeBlock.id, { sideImageWidthPercent: undefined })
+                                    }
+                                  >
+                                    Reset
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                            <Slider
+                              min={5}
+                              max={60}
+                              step={1}
+                              value={[activeBlock.sideImageWidthPercent ?? 40]}
+                              onValueChange={(values) => {
+                                const n = values[0] ?? 40
+                                updateBlock(activeBlock.id, {
+                                  sideImageWidthPercent: n === 40 ? undefined : n,
+                                })
+                              }}
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              Share of the row used by the image on larger screens; stacks full width on mobile.
+                            </p>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             <label
                               className={`inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${
@@ -975,9 +811,6 @@ export default function CategoryVisualEditorPage() {
                                   if (!file) return
                                   void applyMediaFile(activeBlock.id, file, {
                                     side: activeBlock.sideImagePosition ?? 'right',
-                                  }).catch((err: unknown) => {
-                                    setMediaUploadState('error')
-                                    setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
                                   })
                                 }}
                               />
@@ -989,10 +822,7 @@ export default function CategoryVisualEditorPage() {
                                 size="sm"
                                 disabled={mediaUploadState === 'uploading'}
                                 onClick={() =>
-                                  void removeBlockSideImage(activeBlock.id).catch((err: unknown) => {
-                                    setMediaUploadState('error')
-                                    setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
-                                  })
+                                  void removeBlockSideImage(activeBlock.id)
                                 }
                               >
                                 Remove side image
@@ -1038,6 +868,25 @@ export default function CategoryVisualEditorPage() {
                           />
                         </label>
                       </div>
+                      {(!activeBlock.styles?.textColor?.trim() ||
+                        !activeBlock.styles?.backgroundColor?.trim()) && (
+                        <p className="text-xs text-muted-foreground">
+                          {(!activeBlock.styles?.textColor?.trim() &&
+                            !activeBlock.styles?.backgroundColor?.trim()) ? (
+                            <>
+                              Text and background are unset: the live guide uses the page theme. Swatches
+                              show editor placeholders until you pick colors.
+                            </>
+                          ) : !activeBlock.styles?.textColor?.trim() ? (
+                            <>Text color is unset: the live guide uses theme text until you pick a color.</>
+                          ) : (
+                            <>
+                              Background is unset: the live guide uses the default card surface until you pick
+                              a color.
+                            </>
+                          )}
+                        </p>
+                      )}
                       {activeBlock.type === 'button' && (
                         <div className="grid grid-cols-2 gap-2">
                           <label className="text-xs text-muted-foreground">

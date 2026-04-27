@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { JSONContent } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import {
@@ -34,6 +34,11 @@ import { cn } from '@/lib/utils'
 
 const TABLE_ROWS_MAX = 20
 const TABLE_COLS_MAX = 12
+
+/** TipTap: avoid focusing the toolbar button so the editor keeps its text selection. */
+function toolbarPointerDown(e: MouseEvent) {
+  e.preventDefault()
+}
 
 function clampTableDimension(raw: string, max: number, fallback: number): number {
   const n = Number.parseInt(raw.trim(), 10)
@@ -73,6 +78,11 @@ export interface RichTextBlockEditorProps {
    * so parent panels stay compact.
    */
   editorScrollMaxClassName?: string
+  /**
+   * `inherit`: transparent surface and `text-inherit` so Builder block `color` / `backgroundColor` show through.
+   * `default`: theme background and foreground (admin panel, list row chrome).
+   */
+  surface?: 'default' | 'inherit'
 }
 
 export function RichTextBlockEditor({
@@ -83,6 +93,7 @@ export function RichTextBlockEditor({
   toolbar = 'full',
   immediatelyRender = false,
   editorScrollMaxClassName,
+  surface = 'default',
 }: RichTextBlockEditorProps) {
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -198,7 +209,15 @@ export function RichTextBlockEditor({
   )
 
   if (!editor) {
-    return <div className={cn('min-h-24 rounded-md border border-border bg-muted/30', className)} />
+    return (
+      <div
+        className={cn(
+          'min-h-24 rounded-md border border-border',
+          surface === 'inherit' ? 'bg-transparent' : 'bg-muted/30',
+          className
+        )}
+      />
+    )
   }
 
   function markVariant(active: boolean): 'secondary' | 'ghost' {
@@ -206,13 +225,20 @@ export function RichTextBlockEditor({
   }
 
   return (
-    <div className={cn('rich-text-block-editor rounded-md border border-border bg-background', className)}>
+    <div
+      className={cn(
+        'rich-text-block-editor rounded-md border border-border',
+        surface === 'inherit' ? 'bg-transparent' : 'bg-background',
+        className
+      )}
+    >
       <div className="flex flex-wrap gap-1 border-b border-border p-1">
         <Button
           type="button"
           size="sm"
           variant={markVariant(editor.isActive('bold'))}
           className="h-8 w-8 shrink-0 px-0"
+          onMouseDown={toolbarPointerDown}
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!editor.can().chain().focus().toggleBold().run()}
           title="Bold"
@@ -224,6 +250,7 @@ export function RichTextBlockEditor({
           size="sm"
           variant={markVariant(editor.isActive('italic'))}
           className="h-8 w-8 shrink-0 px-0"
+          onMouseDown={toolbarPointerDown}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={!editor.can().chain().focus().toggleItalic().run()}
           title="Italic"
@@ -237,6 +264,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant={markVariant(editor.isActive('strike'))}
               className="h-8 w-8 shrink-0 px-0"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().toggleStrike().run()}
               disabled={!editor.can().chain().focus().toggleStrike().run()}
               title="Strikethrough"
@@ -248,6 +276,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant={markVariant(editor.isActive('bulletList'))}
               className="h-8 w-8 shrink-0 px-0"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               title="Bullet list"
             >
@@ -258,6 +287,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant={markVariant(editor.isActive('orderedList'))}
               className="h-8 w-8 shrink-0 px-0"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               title="Numbered list"
             >
@@ -268,6 +298,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant={markVariant(editor.isActive('blockquote'))}
               className="h-8 w-8 shrink-0 px-0"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               title="Quote"
             >
@@ -280,6 +311,7 @@ export function RichTextBlockEditor({
           size="sm"
           variant="ghost"
           className="h-8 gap-1"
+          onMouseDown={toolbarPointerDown}
           onClick={openLinkDialog}
           title="Add or edit link"
         >
@@ -291,6 +323,7 @@ export function RichTextBlockEditor({
           size="sm"
           variant="ghost"
           className="h-8 gap-1"
+          onMouseDown={toolbarPointerDown}
           onClick={openIconDialog}
           title="Insert icon"
         >
@@ -304,6 +337,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant="ghost"
               className="h-8 gap-1"
+              onMouseDown={toolbarPointerDown}
               onClick={openTableDialog}
               title="Insert table"
             >
@@ -315,6 +349,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant="ghost"
               className="h-8 gap-1"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().addRowAfter().run()}
               disabled={!editor.can().addRowAfter()}
               title="Add row below"
@@ -326,6 +361,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant="ghost"
               className="h-8 gap-1"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().addColumnAfter().run()}
               disabled={!editor.can().addColumnAfter()}
               title="Add column after"
@@ -337,6 +373,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant="ghost"
               className="h-8 gap-1"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().toggleHeaderRow().run()}
               disabled={!editor.can().toggleHeaderRow()}
               title="Toggle header row"
@@ -348,6 +385,7 @@ export function RichTextBlockEditor({
               size="sm"
               variant="ghost"
               className="h-8 gap-1 text-destructive hover:text-destructive"
+              onMouseDown={toolbarPointerDown}
               onClick={() => editor.chain().focus().deleteTable().run()}
               disabled={!editor.can().deleteTable()}
               title="Delete table"
@@ -366,7 +404,10 @@ export function RichTextBlockEditor({
       >
         <EditorContent
           editor={editor}
-          className="tiptap-editor min-h-24 max-w-none px-3 py-2 text-sm text-foreground"
+          className={cn(
+            'tiptap-editor min-h-24 max-w-none px-3 py-2 text-sm',
+            surface === 'inherit' ? 'text-inherit' : 'text-foreground'
+          )}
         />
       </div>
 

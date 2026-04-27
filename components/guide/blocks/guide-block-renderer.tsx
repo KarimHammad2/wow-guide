@@ -22,7 +22,7 @@ import { ContentItemBody } from '@/components/guide/content-item-body'
 import { RichTextBlockEditor } from '@/components/editor/rich-text-block-editor'
 import { richTextJsonToSafeHtml } from '@/lib/tiptap/rich-text-html'
 import { isSafeNavigationTarget, normalizeSafeNavigationTarget } from '@/lib/url-safety'
-import { safeVideoIframeSrc } from '@/lib/video-iframe-src'
+import { safeVideoElementSrc, safeVideoIframeSrc } from '@/lib/video-iframe-src'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { ContentSection } from '@/lib/data'
@@ -54,14 +54,19 @@ function BlockInCardSideImage({
   url,
   alt,
   fit = 'auto',
+  widthPercent = 40,
 }: {
   url: string
   alt: string
   fit?: 'auto' | 'contain' | 'cover'
+  widthPercent?: number
 }) {
   void fit
   return (
-    <div className="w-full shrink-0 sm:max-w-[40%] sm:basis-[40%]">
+    <div
+      className="w-full shrink-0 sm:max-w-(--side-w) sm:basis-(--side-w)"
+      style={{ ['--side-w' as string]: `${widthPercent}%` } as CSSProperties}
+    >
       {/* Side images should render at their natural aspect ratio with no crop or zoom. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- uploads are already served unoptimized */}
       <img src={url} alt={alt} className="block h-auto w-full rounded-xl" />
@@ -69,8 +74,12 @@ function BlockInCardSideImage({
   )
 }
 
+export type GuideBlockGuestSurface = 'card' | 'flat'
+
 interface GuideBlockRendererProps {
   sections: ContentSection[]
+  /** Guest view only: when `flat`, blocks render without an outer card frame (ignored if `editable`). */
+  surface?: GuideBlockGuestSurface
   editable?: boolean
   activeBlockId?: string | null
   onSelectBlock?: (blockId: string) => void
@@ -100,9 +109,33 @@ function blockAlignCss(
   return { justifySelf }
 }
 
-function blockVerticalAlignClass(blockVerticalAlign: ContentSection['blockVerticalAlign']) {
-  if (!blockVerticalAlign || blockVerticalAlign === 'top') return ''
-  return blockVerticalAlign === 'center' ? 'flex h-full flex-col justify-center' : 'flex h-full flex-col justify-end'
+function blockVerticalAlignClass(blockVerticalAlign: ContentSection['blockVerticalAlign']): string {
+  const v: 'top' | 'center' | 'bottom' =
+    blockVerticalAlign === 'center' || blockVerticalAlign === 'bottom' ? blockVerticalAlign : 'top'
+  return cn(
+    'flex min-h-0 min-w-0 flex-1 flex-col',
+    v === 'top' && 'justify-start',
+    v === 'center' && 'justify-center',
+    v === 'bottom' && 'justify-end',
+  )
+}
+
+/**
+ * When a block has a custom min-height, `h-full` on children does not reliably fill the frame
+ * (percentage height needs a definite parent height). Use this on the inner card/section so it
+ * grows with `flex-1` inside a column flex wrapper on the block root (see `wrapEditable`).
+ */
+function blockFrameSectionClass(
+  hasFrameHeight: boolean,
+  isRow: boolean,
+  blockVerticalAlign: ContentSection['blockVerticalAlign']
+): string {
+  const v = Boolean(blockVerticalAlign)
+  return cn(
+    (v || isRow) && 'flex min-h-0 flex-col',
+    isRow && !(hasFrameHeight && v) && 'h-full',
+    hasFrameHeight && v && 'min-h-0 flex-1'
+  )
 }
 
 function hasCustomTextColor(section: ContentSection): boolean {
@@ -113,21 +146,38 @@ function hasCustomBackground(section: ContentSection): boolean {
   return Boolean(section.backgroundColor?.trim())
 }
 
+function blockEditorSurface(section: ContentSection): 'default' | 'inherit' {
+  return hasCustomTextColor(section) || hasCustomBackground(section) ? 'inherit' : 'default'
+}
+
 function blockCardSurfaceClass(section: ContentSection): string {
   return hasCustomBackground(section) ? 'bg-transparent' : 'bg-card'
+}
+
+type GuestBlockFrameVariant = 'standard' | 'compact' | 'schedule'
+
+function guestBlockFrameClass(
+  flat: boolean,
+  section: ContentSection,
+  variant: GuestBlockFrameVariant
+): string {
+  if (flat) {
+    return 'rounded-none border-0 bg-transparent p-0 shadow-none'
+  }
+  const padding =
+    variant === 'compact' ? 'p-3 sm:p-4' : variant === 'schedule' ? 'p-4 sm:p-5' : 'p-5'
+  return cn('rounded-2xl border border-border', padding, blockCardSurfaceClass(section))
 }
 
 function renderSchedule(
   title: string | undefined,
   items: NonNullable<ContentSection['items']>,
-  section: ContentSection
+  section: ContentSection,
+  flatGuest: boolean
 ) {
   const customText = hasCustomTextColor(section)
-  const customBg = hasCustomBackground(section)
   return (
-    <div
-      className={cn('rounded-2xl border border-border p-4 sm:p-5', customBg ? 'bg-transparent' : 'bg-card')}
-    >
+    <div className={guestBlockFrameClass(flatGuest, section, 'schedule')}>
       {title && (
         <h3
           className={cn(
@@ -166,6 +216,7 @@ function renderSchedule(
 
 export function GuideBlockRenderer({
   sections,
+  surface = 'card',
   editable = false,
   activeBlockId = null,
   onSelectBlock,
@@ -179,6 +230,7 @@ export function GuideBlockRenderer({
   onResizeBlock,
   onDropBlockOnBlock,
 }: GuideBlockRendererProps) {
+  const flatGuest = !editable && surface === 'flat'
   const groups = groupSectionsByRow(sections)
   return (
     <div className="space-y-4 md:space-y-6">
@@ -203,6 +255,8 @@ export function GuideBlockRenderer({
               const key = section.blockId ?? section.id
               const videoIframeSrc =
                 section.type === 'video' ? safeVideoIframeSrc(section.videoUrl) : null
+              const nativeVideoSrc =
+                section.type === 'video' ? safeVideoElementSrc(section.mediaUrl) : null
               const isActive = editable && activeBlockId === key
               const renderInlineText = isActive && section.type === 'text'
               const renderInlineList = isActive && section.type === 'list'
@@ -252,7 +306,25 @@ export function GuideBlockRenderer({
                 ...blockAlignCss(section.blockAlign, { isRow }),
               }
 
-              const widthClass = !isRow && section.blockWidth ? 'w-full md:w-[var(--block-width)]' : 'w-full'
+              const blockAlign = section.blockAlign ?? 'left'
+              /** Full-width flex children ignore justify-center/end; use text-align and/or margin auto instead. */
+              const widthClass = (() => {
+                if (isRow) {
+                  return !section.blockWidth ? 'w-full' : 'w-full md:w-[var(--block-width)]'
+                }
+                if (section.blockWidth) {
+                  return cn(
+                    'w-full max-w-full md:w-[var(--block-width)]',
+                    blockAlign === 'center' && 'md:mx-auto',
+                    blockAlign === 'right' && 'md:ml-auto',
+                  )
+                }
+                return cn(
+                  'w-full min-w-0',
+                  blockAlign === 'center' && 'text-center',
+                  blockAlign === 'right' && 'text-right',
+                )
+              })()
 
                 const rowStretchClass = isRow ? 'flex h-full min-h-0 flex-col' : ''
 
@@ -265,6 +337,7 @@ export function GuideBlockRenderer({
                         'min-w-0',
                         widthClass,
                         isRow && rowStretchClass,
+                        hasFrameHeight && section.blockVerticalAlign && !isRow && 'flex min-h-0 flex-col',
                         hasFrameHeight && 'min-h-0',
                         frameLocksImage && 'flex min-h-0 flex-col overflow-hidden'
                       )}
@@ -274,20 +347,6 @@ export function GuideBlockRenderer({
                   )
                   if (isRow) {
                     return isValidElement(guestBlock) ? cloneElement(guestBlock, { key }) : guestBlock
-                  }
-                  if (section.blockAlign === 'center') {
-                    return (
-                      <div key={key} className="flex w-full min-w-0 justify-center">
-                        {guestBlock}
-                      </div>
-                    )
-                  }
-                  if (section.blockAlign === 'right') {
-                    return (
-                      <div key={key} className="flex w-full min-w-0 justify-end">
-                        {guestBlock}
-                      </div>
-                    )
                   }
                   return isValidElement(guestBlock) ? cloneElement(guestBlock, { key }) : guestBlock
                 }
@@ -299,6 +358,7 @@ export function GuideBlockRenderer({
                       'group relative rounded-2xl border border-transparent transition',
                       widthClass,
                       isRow && rowStretchClass,
+                      hasFrameHeight && section.blockVerticalAlign && !isRow && 'flex min-h-0 flex-col',
                       hasFrameHeight && 'min-h-0',
                       frameLocksImage && 'flex min-h-0 flex-col overflow-hidden',
                       isActive ? 'border-primary/60 shadow-sm' : 'hover:border-primary/30'
@@ -474,21 +534,6 @@ export function GuideBlockRenderer({
                     : editorBlock
                 }
 
-                if (section.blockAlign === 'center') {
-                  return (
-                    <div key={key} className="flex w-full min-w-0 justify-center">
-                      {editorBlock}
-                    </div>
-                  )
-                }
-                if (section.blockAlign === 'right') {
-                  return (
-                    <div key={key} className="flex w-full min-w-0 justify-end">
-                      {editorBlock}
-                    </div>
-                  )
-                }
-
                 return isValidElement(editorBlock) ? cloneElement(editorBlock, { key }) : editorBlock
               }
 
@@ -505,7 +550,14 @@ export function GuideBlockRenderer({
             )
           case 'hero':
             return wrapEditable(
-              <section key={key} className="rounded-3xl border border-primary/20 bg-linear-to-br from-primary/15 to-transparent p-6 md:p-8">
+              <section
+                key={key}
+                className={
+                  flatGuest
+                    ? 'rounded-none border-0 bg-transparent p-0 shadow-none'
+                    : 'rounded-3xl border border-primary/20 bg-linear-to-br from-primary/15 to-transparent p-6 md:p-8'
+                }
+              >
                 {section.title && <h2 className="text-2xl md:text-3xl font-bold mb-3">{section.title}</h2>}
                 {section.content && (
                   <p
@@ -524,6 +576,7 @@ export function GuideBlockRenderer({
             const hasSide = Boolean(sideUrl)
             const pos = section.blockMediaPosition === 'left' ? 'left' : 'right'
             const sideImageFit = section.blockMediaFit ?? 'auto'
+            const sideImageWidth = section.blockMediaWidthPercent ?? 40
             const showSideImageChrome =
               Boolean(editable && isActive && hasSide && onInlinePatch && onRemoveBlockSideImage)
             const customText = hasCustomTextColor(section)
@@ -560,7 +613,14 @@ export function GuideBlockRenderer({
                   <input
                     value={section.title ?? ''}
                     onChange={(event) => onInlinePatch?.(key, { title: event.target.value })}
-                    className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 font-semibold"
+                    className={cn(
+                      'mb-3 w-full rounded-md border border-border px-3 py-2 font-semibold',
+                      customText
+                        ? 'bg-transparent text-inherit'
+                        : hasCustomBackground(section)
+                          ? 'bg-transparent'
+                          : 'bg-background',
+                    )}
                   />
                 ) : (
                   section.title && (
@@ -573,6 +633,7 @@ export function GuideBlockRenderer({
                 )}
                 {renderInlineText ? (
                   <RichTextBlockEditor
+                    surface={blockEditorSurface(section)}
                     value={section.richText}
                     plainFallback={section.content ?? ''}
                     onChange={(json, plain) =>
@@ -633,17 +694,27 @@ export function GuideBlockRenderer({
                 )}
               >
                 {pos === 'left' ? (
-                  <BlockInCardSideImage url={sideUrl} alt={section.title ?? 'Block image'} fit={sideImageFit} />
+                  <BlockInCardSideImage
+                    url={sideUrl}
+                    alt={section.title ?? 'Block image'}
+                    fit={sideImageFit}
+                    widthPercent={sideImageWidth}
+                  />
                 ) : null}
-                <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+                <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                   {textContent}
                 </div>
                 {pos === 'right' ? (
-                  <BlockInCardSideImage url={sideUrl} alt={section.title ?? 'Block image'} fit={sideImageFit} />
+                  <BlockInCardSideImage
+                    url={sideUrl}
+                    alt={section.title ?? 'Block image'}
+                    fit={sideImageFit}
+                    widthPercent={sideImageWidth}
+                  />
                 ) : null}
               </div>
             ) : (
-              <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+              <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                 {textContent}
               </div>
             )
@@ -651,10 +722,8 @@ export function GuideBlockRenderer({
               <section
                 key={key}
                 className={cn(
-                  'rounded-2xl border border-border p-5',
-                  blockCardSurfaceClass(section),
-                  section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
-                  isRow && 'flex h-full min-h-0 flex-col'
+                  guestBlockFrameClass(flatGuest, section, 'standard'),
+                  blockFrameSectionClass(hasFrameHeight, isRow, section.blockVerticalAlign),
                 )}
               >
                 {textBody}
@@ -679,6 +748,7 @@ export function GuideBlockRenderer({
               const hasSide = Boolean(sideUrl)
               const pos = section.blockMediaPosition === 'left' ? 'left' : 'right'
               const sideImageFit = section.blockMediaFit ?? 'auto'
+              const sideImageWidth = section.blockMediaWidthPercent ?? 40
               const showSideImageChrome =
                 Boolean(editable && isActive && hasSide && onInlinePatch && onRemoveBlockSideImage)
               const listEditorMain = (
@@ -713,10 +783,18 @@ export function GuideBlockRenderer({
                   <input
                     value={section.title ?? ''}
                     onChange={(event) => onInlinePatch?.(key, { title: event.target.value })}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 font-semibold"
+                    className={cn(
+                      'w-full rounded-md border border-border px-3 py-2 font-semibold',
+                      hasCustomTextColor(section)
+                        ? 'bg-transparent text-inherit'
+                        : hasCustomBackground(section)
+                          ? 'bg-transparent'
+                          : 'bg-background',
+                    )}
                   />
                   <div className={cn(isRow && 'min-h-0 flex-1 overflow-y-auto')}>
                     <ListBlockItemsField
+                      surface={blockEditorSurface(section)}
                       items={(section.items ?? []).map((item) => ({
                         id: item.id,
                         title: item.title,
@@ -745,9 +823,10 @@ export function GuideBlockRenderer({
                         url={sideUrl}
                         alt={section.title ?? 'List image'}
                         fit={sideImageFit}
+                        widthPercent={sideImageWidth}
                       />
                     ) : null}
-                    <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+                    <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                       {listEditorMain}
                     </div>
                     {pos === 'right' ? (
@@ -755,11 +834,12 @@ export function GuideBlockRenderer({
                         url={sideUrl}
                         alt={section.title ?? 'List image'}
                         fit={sideImageFit}
+                        widthPercent={sideImageWidth}
                       />
                     ) : null}
                   </div>
                 ) : (
-                  <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+                  <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                     {listEditorMain}
                   </div>
                 )
@@ -767,10 +847,8 @@ export function GuideBlockRenderer({
                 <section
                   key={key}
                   className={cn(
-                    'rounded-2xl border border-border p-5',
-                    blockCardSurfaceClass(section),
-                    section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
-                    isRow && 'flex h-full min-h-0 flex-col',
+                    guestBlockFrameClass(flatGuest, section, 'standard'),
+                    blockFrameSectionClass(hasFrameHeight, isRow, section.blockVerticalAlign),
                     !hasSide && 'space-y-3'
                   )}
                 >
@@ -783,6 +861,7 @@ export function GuideBlockRenderer({
               const hasSide = Boolean(sideUrl)
               const pos = section.blockMediaPosition === 'left' ? 'left' : 'right'
               const sideImageFit = section.blockMediaFit ?? 'auto'
+              const sideImageWidth = section.blockMediaWidthPercent ?? 40
               const showSideImageChrome =
                 Boolean(editable && isActive && hasSide && onInlinePatch && onRemoveBlockSideImage)
               if (hasSide && sideUrl) {
@@ -790,10 +869,8 @@ export function GuideBlockRenderer({
                   <section
                     key={key}
                     className={cn(
-                      'rounded-2xl border border-border p-5',
-                      blockCardSurfaceClass(section),
-                      section.blockVerticalAlign && 'flex h-full min-h-0 flex-col',
-                      isRow && 'flex h-full min-h-0 flex-col'
+                      guestBlockFrameClass(flatGuest, section, 'standard'),
+                      blockFrameSectionClass(hasFrameHeight, isRow, section.blockVerticalAlign)
                     )}
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-stretch sm:gap-4">
@@ -802,9 +879,10 @@ export function GuideBlockRenderer({
                           url={sideUrl}
                           alt={section.title ?? 'List image'}
                           fit={sideImageFit}
+                          widthPercent={sideImageWidth}
                         />
                       ) : null}
-                    <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+                    <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                         {showSideImageChrome ? (
                           <div
                             className="mb-3 flex flex-wrap gap-2"
@@ -838,6 +916,7 @@ export function GuideBlockRenderer({
                           title={section.title}
                           steps={section.items ?? []}
                           fillRowHeight={isRow}
+                          blockVerticalAlign={section.blockVerticalAlign}
                           inheritBlockText={hasCustomTextColor(section)}
                           contentItemTone={hasCustomTextColor(section) ? 'inherit' : 'default'}
                         />
@@ -847,6 +926,7 @@ export function GuideBlockRenderer({
                           url={sideUrl}
                           alt={section.title ?? 'List image'}
                           fit={sideImageFit}
+                          widthPercent={sideImageWidth}
                         />
                       ) : null}
                     </div>
@@ -855,12 +935,13 @@ export function GuideBlockRenderer({
               }
             }
             return wrapEditable(
-              <div className={cn('min-w-0 flex-1', blockVerticalAlignClass(section.blockVerticalAlign))}>
+              <div className={blockVerticalAlignClass(section.blockVerticalAlign)}>
                 <InstructionStepper
                   key={key}
                   title={section.title}
                   steps={section.items ?? []}
                   fillRowHeight={isRow}
+                  blockVerticalAlign={section.blockVerticalAlign}
                   transparentCard={hasCustomBackground(section)}
                   inheritBlockText={hasCustomTextColor(section)}
                   contentItemTone={hasCustomTextColor(section) ? 'inherit' : 'default'}
@@ -903,8 +984,7 @@ export function GuideBlockRenderer({
               <section
                 key={key}
                 className={cn(
-                  'rounded-2xl border border-border p-3 sm:p-4',
-                  blockCardSurfaceClass(section),
+                  guestBlockFrameClass(flatGuest, section, 'compact'),
                   useFixedVideoFrame ? 'space-y-3 md:flex md:h-(--video-block-height) md:flex-col md:gap-3' : 'space-y-3'
                 )}
               >
@@ -934,6 +1014,23 @@ export function GuideBlockRenderer({
                       allowFullScreen
                     />
                   </div>
+                ) : nativeVideoSrc ? (
+                  <div
+                    className={cn(
+                      'overflow-hidden rounded-xl bg-secondary/40',
+                      useFixedVideoFrame ? 'aspect-video md:min-h-0 md:flex-1' : 'aspect-video'
+                    )}
+                  >
+                    <video
+                      src={nativeVideoSrc}
+                      controls
+                      playsInline
+                      className="block h-full w-full border-0 object-contain"
+                      title={section.title ?? 'Video guide'}
+                    >
+                      Your browser does not support embedded video.
+                    </video>
+                  </div>
                 ) : (
                   <p
                     className={cn(
@@ -941,7 +1038,7 @@ export function GuideBlockRenderer({
                       vCustomText ? 'text-inherit opacity-90' : 'text-muted-foreground'
                     )}
                   >
-                    Add a video URL from admin.
+                    Add a YouTube link or upload a video in the guide editor.
                   </p>
                 )}
               </section>
@@ -949,10 +1046,7 @@ export function GuideBlockRenderer({
           }
           case 'links':
             return wrapEditable(
-              <section
-                key={key}
-                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
-              >
+              <section key={key} className={guestBlockFrameClass(flatGuest, section, 'standard')}>
                 {section.title && (
                   <h3
                     className={cn(
@@ -989,15 +1083,19 @@ export function GuideBlockRenderer({
             )
           case 'button':
             return wrapEditable(
-              <section
-                key={key}
-                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
-              >
+              <section key={key} className={guestBlockFrameClass(flatGuest, section, 'standard')}>
                 {renderInlineButton ? (
                   <input
                     value={section.title ?? ''}
                     onChange={(event) => onInlinePatch?.(key, { title: event.target.value })}
-                    className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 font-semibold"
+                    className={cn(
+                      'mb-3 w-full rounded-md border border-border px-3 py-2 font-semibold',
+                      hasCustomTextColor(section)
+                        ? 'bg-transparent text-inherit'
+                        : hasCustomBackground(section)
+                          ? 'bg-transparent'
+                          : 'bg-background',
+                    )}
                   />
                 ) : (
                   section.title && (
@@ -1040,10 +1138,7 @@ export function GuideBlockRenderer({
             )
           case 'contact':
             return wrapEditable(
-              <section
-                key={key}
-                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
-              >
+              <section key={key} className={guestBlockFrameClass(flatGuest, section, 'standard')}>
                 {section.title && (
                   <h3
                     className={cn(
@@ -1065,10 +1160,7 @@ export function GuideBlockRenderer({
             )
           case 'tabs':
             return wrapEditable(
-              <section
-                key={key}
-                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
-              >
+              <section key={key} className={guestBlockFrameClass(flatGuest, section, 'standard')}>
                 {section.title && (
                   <h3
                     className={cn(
@@ -1117,13 +1209,10 @@ export function GuideBlockRenderer({
               />
             )
           case 'schedule':
-            return wrapEditable(renderSchedule(section.title, section.items ?? [], section))
+            return wrapEditable(renderSchedule(section.title, section.items ?? [], section, flatGuest))
           default:
             return wrapEditable(
-              <section
-                key={key}
-                className={cn('rounded-2xl border border-border p-5', blockCardSurfaceClass(section))}
-              >
+              <section key={key} className={guestBlockFrameClass(flatGuest, section, 'standard')}>
                 {section.title && (
                   <h3
                     className={cn(

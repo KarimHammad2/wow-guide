@@ -99,6 +99,7 @@ export const ADMIN_CATEGORY_ICON_OPTIONS = [
   'Phone',
   'Mail',
   'Smartphone',
+  'Tv',
   'Search',
   'QrCode',
   'Camera',

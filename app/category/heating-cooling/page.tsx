@@ -17,7 +17,7 @@ import {
 export default function HeatingCoolingPage() {
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header plumNav />
       
       <main className="px-4 py-6 pb-24">
         <div className="max-w-2xl mx-auto">

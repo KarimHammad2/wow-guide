@@ -206,6 +206,37 @@ describe('visual-builder-schema', () => {
     expect(back[1]?.blockMediaFit).toBe('cover')
   })
 
+  test('round-trips side-image width percent for text and list', () => {
+    const document = visualFromGuideContent({
+      intro: '',
+      sections: [
+        {
+          id: 'txt',
+          type: 'text',
+          title: 'A',
+          content: 'Body',
+          blockMediaUrl: '/media/side.jpg',
+          blockMediaWidthPercent: 50,
+        },
+        {
+          id: 'lst',
+          type: 'list',
+          title: 'List',
+          items: [{ id: '1', title: 'Item' }],
+          blockMediaUrl: '/media/list-side.jpg',
+          blockMediaWidthPercent: 5,
+        },
+      ],
+    })
+
+    expect(document.blocks[0]?.sideImageWidthPercent).toBe(50)
+    expect(document.blocks[1]?.sideImageWidthPercent).toBe(5)
+
+    const back = sectionsFromVisualDocument(document)
+    expect(back[0]?.blockMediaWidthPercent).toBe(50)
+    expect(back[1]?.blockMediaWidthPercent).toBe(5)
+  })
+
   test('round-trips image link metadata for image blocks', () => {
     const document = visualFromGuideContent({
       intro: '',
@@ -332,5 +363,89 @@ describe('visual-builder-schema', () => {
       ],
     })
     expect(error).toBeTruthy()
+  })
+
+  test('round-trips video with YouTube URL, uploaded mediaUrl, or both', () => {
+    const youtubeOnly = visualFromGuideContent({
+      intro: '',
+      sections: [
+        {
+          id: 'v1',
+          type: 'video',
+          title: 'YT',
+          videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      ],
+    })
+    expect(youtubeOnly.blocks[0]?.url).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(youtubeOnly.blocks[0]?.mediaUrl).toBeUndefined()
+    let back = sectionsFromVisualDocument(youtubeOnly)
+    expect(back[0]?.videoUrl).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(back[0]?.mediaUrl).toBeUndefined()
+
+    const uploadOnly = visualFromGuideContent({
+      intro: '',
+      sections: [
+        {
+          id: 'v2',
+          type: 'video',
+          title: 'File',
+          mediaUrl: 'https://storage.example.com/bucket/file.mp4',
+        },
+      ],
+    })
+    expect(uploadOnly.blocks[0]?.mediaUrl).toBe('https://storage.example.com/bucket/file.mp4')
+    expect(uploadOnly.blocks[0]?.url).toBeUndefined()
+    back = sectionsFromVisualDocument(uploadOnly)
+    expect(back[0]?.mediaUrl).toBe('https://storage.example.com/bucket/file.mp4')
+    expect(back[0]?.videoUrl).toBeUndefined()
+
+    const both = visualFromGuideContent({
+      intro: '',
+      sections: [
+        {
+          id: 'v3',
+          type: 'video',
+          title: 'Both',
+          videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          mediaUrl: 'https://storage.example.com/bucket/file.mp4',
+        },
+      ],
+    })
+    expect(both.blocks[0]?.url).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(both.blocks[0]?.mediaUrl).toBe('https://storage.example.com/bucket/file.mp4')
+    back = sectionsFromVisualDocument(both)
+    expect(back[0]?.videoUrl).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(back[0]?.mediaUrl).toBe('https://storage.example.com/bucket/file.mp4')
+  })
+
+  test('allows video block with only uploaded mediaUrl', () => {
+    const error = validateVisualDocumentUrls({
+      contentVersion: 2,
+      layout: 'single-column',
+      blocks: [
+        {
+          id: 'v',
+          type: 'video',
+          mediaUrl: 'https://example.com/video.mp4',
+        },
+      ],
+    })
+    expect(error).toBeNull()
+  })
+
+  test('rejects unsafe video file URL on video block', () => {
+    const error = validateVisualDocumentUrls({
+      contentVersion: 2,
+      layout: 'single-column',
+      blocks: [
+        {
+          id: 'v',
+          type: 'video',
+          mediaUrl: 'javascript:alert(1)',
+        },
+      ],
+    })
+    expect(error).toContain('video file URL')
   })
 })

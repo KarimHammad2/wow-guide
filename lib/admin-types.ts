@@ -22,6 +22,12 @@ export interface City {
   country: string
 }
 
+/** When set, guest/editor views merge the latest source category document with this row’s local draft/published content (by block id). */
+export interface ContentInheritance {
+  sourceBuildingId: string
+  sourceCategorySlug: string
+}
+
 export interface GuideContent {
   intro: string
   alert?: {
@@ -30,6 +36,7 @@ export interface GuideContent {
   }
   sections: ContentSection[]
   visualDocument?: VisualGuideDocument
+  contentInheritance?: ContentInheritance | null
 }
 
 export interface BuildingGuideCategory {

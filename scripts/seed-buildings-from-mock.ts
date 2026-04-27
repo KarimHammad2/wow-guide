@@ -15,7 +15,7 @@ import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
 import type { Database, Json } from '@/lib/database.types'
 import { buildings as seedBuildings } from '@/lib/data'
-import { createDefaultGuidesForBuilding } from '@/lib/guide-seed-defaults'
+import { createDefaultGuidesForBuilding, defaultQuickAccessOrderForSlug } from '@/lib/guide-seed-defaults'
 
 function loadEnvLocal() {
   const p = resolve(process.cwd(), '.env.local')
@@ -76,6 +76,7 @@ async function main() {
       building_id: b.id,
       category_slug: categorySlug,
       sort_order: entry.category.order,
+      quick_access_order: defaultQuickAccessOrderForSlug(categorySlug),
       category: entry.category as unknown as Json,
       content: entry.content as unknown as Json,
     }))

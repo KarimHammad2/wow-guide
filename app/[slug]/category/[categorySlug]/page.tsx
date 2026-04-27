@@ -14,6 +14,8 @@ import {
   getBuildingCategories,
   getBuildingCategoryContent,
 } from '@/lib/building-guides-repository'
+import { getCategoryBySlug, getCategoryContent } from '@/lib/data'
+import type { GuideContent } from '@/lib/admin-types'
 import { cn } from '@/lib/utils'
 import { getLucideIcon, isCategoryIconImageUrl } from '@/lib/icons'
 
@@ -22,6 +24,23 @@ interface CategoryPageProps {
 }
 
 export const dynamic = 'force-dynamic'
+
+const EMERGENCY_SLUG = 'emergency'
+
+function emergencyGuideFallback(): GuideContent {
+  const seed = getCategoryContent(EMERGENCY_SLUG)
+  if (seed) {
+    return {
+      intro: seed.intro,
+      alert: seed.alert,
+      sections: seed.sections,
+    }
+  }
+  return {
+    intro: 'For urgent issues outside office hours, use the emergency number below.',
+    sections: [],
+  }
+}
 
 export default async function BuildingCategoryPage({ params }: CategoryPageProps) {
   const { slug, categorySlug } = await params
@@ -32,8 +51,19 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
   }
 
   const buildingCategories = await getBuildingCategories(building.id)
-  const category = buildingCategories.find((item) => item.slug === categorySlug)
-  const content = await getBuildingCategoryContent(building.id, categorySlug)
+  let category =
+    buildingCategories.find((item) => item.slug === categorySlug) ?? null
+  let content = (await getBuildingCategoryContent(building.id, categorySlug)) ?? null
+
+  // Banner and deep links use /category/emergency even when the section was not seeded in DB.
+  if (categorySlug === EMERGENCY_SLUG) {
+    if (!category) {
+      category = getCategoryBySlug(EMERGENCY_SLUG) ?? null
+    }
+    if (!content) {
+      content = emergencyGuideFallback()
+    }
+  }
 
   if (!category || !content) {
     notFound()
@@ -45,11 +75,13 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
   const leadIsCatalogBand = content.sections[0]?.type === 'catalogBand'
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground" data-guide-category-surface>
       <Header
         buildingName={building.name}
         buildingSlug={building.id}
         supportEmail={building.supportEmail}
+        navCategories={buildingCategories}
+        plumNav
       />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-4 md:space-y-6">
@@ -68,7 +100,7 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
             <header className="guide-section p-4 sm:p-6 md:p-8 shadow-sm border border-border/70 bg-linear-to-br from-card to-secondary/20">
               <div
                 className={cn(
-                  'w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ring-8 ring-background',
+                  'category-page-hero-icon w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ring-8 ring-background',
                   isEmergency
                     ? 'bg-destructive text-destructive-foreground'
                     : category.color === 'primary'
@@ -141,7 +173,9 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   }
 
   const cats = await getBuildingCategories(building.id)
-  const category = cats.find((item) => item.slug === categorySlug)
+  const category =
+    cats.find((item) => item.slug === categorySlug) ??
+    (categorySlug === EMERGENCY_SLUG ? getCategoryBySlug(EMERGENCY_SLUG) : undefined)
 
   if (!category) {
     return {

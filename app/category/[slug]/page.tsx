@@ -10,6 +10,7 @@ import { ContactCard } from '@/components/guide/contact-card'
 import { NeedHelpCard } from '@/components/guide/need-help-card'
 import { RelatedCategories } from '@/components/guide/related-categories'
 import { StickyBottomBar } from '@/components/guide/sticky-bottom-bar'
+import { getBuildingCategories } from '@/lib/building-guides-repository'
 import {
   getCategoryBySlug,
   getCategoryContent,
@@ -28,6 +29,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const category = getCategoryBySlug(slug)
   const content = getCategoryContent(slug)
   const currentBuilding = buildings[0]
+  const navCategories = await getBuildingCategories(currentBuilding.id)
 
   if (!category || !content) {
     notFound()
@@ -42,6 +44,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         buildingName={currentBuilding.name}
         buildingSlug={currentBuilding.id}
         supportEmail={currentBuilding.supportEmail}
+        navCategories={navCategories}
+        plumNav
       />
 
       <main className="pt-24 pb-24 md:pb-10 space-y-5">

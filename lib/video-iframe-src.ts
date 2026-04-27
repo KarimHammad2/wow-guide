@@ -1,4 +1,4 @@
-import { isSafeHttpUrl } from './url-safety'
+import { isSafeHttpUrl, isSafeNavigationTarget } from './url-safety'
 
 function trimInput(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -20,6 +20,15 @@ export function safeVideoIframeSrc(value: string | null | undefined): string | n
   const fromYouTube = youtubeUrlToEmbedSrc(raw)
   if (fromYouTube !== undefined) return fromYouTube
 
+  return raw
+}
+
+/**
+ * Returns a URL safe to use as a `<video src>` (uploaded file, e.g. Supabase public URL).
+ */
+export function safeVideoElementSrc(value: string | null | undefined): string | null {
+  const raw = trimInput(value)
+  if (!raw || !isSafeNavigationTarget(raw)) return null
   return raw
 }
 

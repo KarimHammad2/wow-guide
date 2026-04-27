@@ -35,7 +35,7 @@ export function NeedHelpCard({ className }: NeedHelpCardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl bg-secondary border border-border p-5',
+        'need-help-card rounded-2xl bg-secondary border border-border p-5',
         className
       )}
     >

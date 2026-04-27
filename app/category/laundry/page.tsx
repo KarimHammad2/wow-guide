@@ -84,7 +84,7 @@ export default function LaundryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header buildingName={currentBuilding.name} />
+      <Header buildingName={currentBuilding.name} plumNav />
 
       <main className="pt-16 pb-24 md:pb-8">
         <div className="max-w-2xl mx-auto px-4 py-6">

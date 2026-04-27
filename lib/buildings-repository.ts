@@ -78,6 +78,28 @@ export async function getExistingBuildingIdSet(): Promise<Set<string>> {
   return new Set((data ?? []).map((r) => r.id))
 }
 
+/** First URL segment derived from `app_path`, plus every building `id`, for CMS slug collision checks. */
+export async function getBuildingReservedUrlSegments(): Promise<Set<string>> {
+  const admin = createSupabaseAdmin()
+  const { data, error } = await admin.from('buildings').select('id, app_path')
+  if (error) throw new Error(error.message)
+  const set = new Set<string>()
+  for (const row of data ?? []) {
+    const r = row as { id: string; app_path: string }
+    set.add(r.id)
+    const p = (r.app_path ?? '').trim()
+    if (!p) continue
+    const normalized = p.startsWith('/') ? p.slice(1) : p
+    const legacy = normalized.match(/^building\/(.+)$/i)
+    if (legacy?.[1]) set.add(legacy[1])
+    else {
+      const first = normalized.split('/').filter(Boolean)[0]
+      if (first) set.add(first)
+    }
+  }
+  return set
+}
+
 function resolveAppPath(input: Omit<Building, 'id'>, id: string): string {
   const p = input.appPath.trim()
   if (/^\/[a-z0-9-]+$/i.test(p)) return p

@@ -90,6 +90,8 @@ export interface ContentSection {
   blockMediaPosition?: 'left' | 'right'
   /** In-block side-image fit behavior: auto prefers full image visibility. */
   blockMediaFit?: 'auto' | 'contain' | 'cover'
+  /** In-block side column width on sm+ (percent of row). Omitted = 40. */
+  blockMediaWidthPercent?: number
   /** Main media fit behavior for image/media blocks. */
   mediaFit?: 'auto' | 'contain' | 'cover'
   /** Optional click-through link for image/media blocks. */

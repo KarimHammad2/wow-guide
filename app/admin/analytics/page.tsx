@@ -263,28 +263,30 @@ export default function AdminAnalyticsPage() {
                     <Bar dataKey="visits" radius={[0, 8, 8, 0]} fill="var(--color-value)" />
                   </BarChart>
                 </ChartContainer>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Building</TableHead>
-                      <TableHead className="text-right">Visits</TableHead>
-                      <TableHead className="text-right">Unique</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.topBuildings.slice(0, 5).map((row) => (
-                      <TableRow key={row.buildingId}>
-                        <TableCell className="max-w-48 truncate">
-                          <Link href={row.appPath} className="text-primary hover:underline" target="_blank" rel="noreferrer">
-                            {row.buildingName}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{row.visits}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.uniqueVisitors}</TableCell>
+                <div className="mt-4 w-full min-w-0 overflow-x-auto -mx-1 px-1 pb-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Building</TableHead>
+                        <TableHead className="text-right">Visits</TableHead>
+                        <TableHead className="text-right">Unique</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {data.topBuildings.slice(0, 5).map((row) => (
+                        <TableRow key={row.buildingId}>
+                          <TableCell className="max-w-48 truncate">
+                            <Link href={row.appPath} className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                              {row.buildingName}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{row.visits}</TableCell>
+                          <TableCell className="text-right tabular-nums">{row.uniqueVisitors}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </>
             ) : (
               <p className="py-8 text-sm text-muted-foreground">No building analytics available yet.</p>
@@ -304,31 +306,33 @@ export default function AdminAnalyticsPage() {
             {dataLoading ? (
               <p className="py-8 text-sm text-muted-foreground">Loading page breakdown...</p>
             ) : data?.topPages.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Page</TableHead>
-                    <TableHead>Building</TableHead>
-                    <TableHead className="text-right">Visits</TableHead>
-                    <TableHead className="text-right">Unique</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.topPages.map((row) => (
-                    <TableRow key={`${row.buildingId}:${row.pathname}`}>
-                      <TableCell className="max-w-[16rem]">
-                        <Link href={row.pathname} className="truncate text-primary hover:underline" target="_blank" rel="noreferrer">
-                          {row.pageTitle}
-                        </Link>
-                        <div className="truncate text-xs text-muted-foreground">{row.pathname}</div>
-                      </TableCell>
-                      <TableCell className="max-w-48 truncate">{row.buildingName}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.visits}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.uniqueVisitors}</TableCell>
+              <div className="w-full min-w-0 overflow-x-auto -mx-1 px-1 pb-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Page</TableHead>
+                      <TableHead>Building</TableHead>
+                      <TableHead className="text-right">Visits</TableHead>
+                      <TableHead className="text-right">Unique</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {data.topPages.map((row) => (
+                      <TableRow key={`${row.buildingId}:${row.pathname}`}>
+                        <TableCell className="max-w-[16rem]">
+                          <Link href={row.pathname} className="truncate text-primary hover:underline" target="_blank" rel="noreferrer">
+                            {row.pageTitle}
+                          </Link>
+                          <div className="truncate text-xs text-muted-foreground">{row.pathname}</div>
+                        </TableCell>
+                        <TableCell className="max-w-48 truncate">{row.buildingName}</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.visits}</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.uniqueVisitors}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <p className="py-8 text-sm text-muted-foreground">No page visits tracked yet.</p>
             )}

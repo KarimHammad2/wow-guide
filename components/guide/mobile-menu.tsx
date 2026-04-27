@@ -5,11 +5,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Mail, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { categories } from '@/lib/data'
+import type { Category } from '@/lib/data'
 import { DEFAULT_SUPPORT_EMAIL } from '@/lib/emergency-defaults'
 import { cn } from '@/lib/utils'
-import { getLucideIcon } from '@/lib/icons'
 import { setMobileMenuOpen } from '@/lib/mobile-menu-open'
+import { CategoryIconDisplay } from '@/components/guide/category-icon'
 
 interface MobileMenuProps {
   open: boolean
@@ -17,9 +17,18 @@ interface MobileMenuProps {
   buildingName?: string
   buildingSlug?: string
   supportEmail?: string
+  /** Building guide sections from `getBuildingCategories` (same order as "All Topics"). */
+  navCategories: Category[]
 }
 
-export function MobileMenu({ open, onClose, buildingName, buildingSlug, supportEmail }: MobileMenuProps) {
+export function MobileMenu({
+  open,
+  onClose,
+  buildingName,
+  buildingSlug,
+  supportEmail,
+  navCategories,
+}: MobileMenuProps) {
   // Prevent body scroll when menu is open; hide global UI (e.g. back-to-top) while open
   useEffect(() => {
     if (open) {
@@ -67,7 +76,7 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug, supportE
                 className="block relative h-8 w-[72px] shrink-0 min-w-0"
               >
                 <Image
-                  src="/wow-logo-white.png"
+                  src="/wow-wordmark-white.png"
                   alt="WOW"
                   fill
                   sizes="72px"
@@ -96,9 +105,8 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug, supportE
               Categories
             </p>
             <ul className="space-y-1">
-              {categories.map((category) => {
-                const Icon = getLucideIcon(category.icon)
-                const href = buildingSlug 
+              {navCategories.map((category) => {
+                const href = buildingSlug
                   ? `/${buildingSlug}/category/${category.slug}`
                   : `/category/${category.slug}`
                 return (
@@ -108,7 +116,13 @@ export function MobileMenu({ open, onClose, buildingName, buildingSlug, supportE
                       onClick={onClose}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-primary-foreground hover:bg-primary-foreground/10 transition-colors"
                     >
-                      <Icon className="w-5 h-5 text-accent" />
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-accent overflow-hidden">
+                        <CategoryIconDisplay
+                          icon={category.icon}
+                          className="h-5 w-5"
+                          imgClassName="h-5 w-5 object-cover"
+                        />
+                      </span>
                       <div>
                         <span className="font-medium">{category.title}</span>
                       </div>

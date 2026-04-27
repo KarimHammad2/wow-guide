@@ -109,6 +109,32 @@ const sampleWithInlineIcon: JSONContent = {
   ],
 }
 
+const sampleBulletListOnly: JSONContent = {
+  type: 'doc',
+  content: [
+    {
+      type: 'bulletList',
+      content: [
+        { type: 'listItem', content: [{ type: 'paragraph' }] },
+        { type: 'listItem', content: [{ type: 'paragraph' }] },
+      ],
+    },
+  ],
+}
+
+const sampleWithBulletList: JSONContent = {
+  type: 'doc',
+  content: [
+    {
+      type: 'bulletList',
+      content: [
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'g' }] }] },
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'dgdg' }] }] },
+      ],
+    },
+  ],
+}
+
 describe('rich text json helpers', () => {
   test('collects link hrefs', () => {
     expect(collectLinkHrefsFromRichTextJson(sampleWithLink)).toEqual(['https://example.com'])
@@ -120,6 +146,8 @@ describe('rich text json helpers', () => {
     expect(hasSubstantiveRichTextJson(sampleWithTable)).toBe(true)
     expect(hasSubstantiveRichTextJson(sampleEmptyTable)).toBe(true)
     expect(hasSubstantiveRichTextJson(sampleWithInlineIcon)).toBe(true)
+    expect(hasSubstantiveRichTextJson(sampleBulletListOnly)).toBe(true)
+    expect(hasSubstantiveRichTextJson(sampleWithBulletList)).toBe(true)
   })
 })
 
@@ -158,6 +186,15 @@ describe('richTextJsonToSafeHtml', () => {
     expect(html).toMatch(/<span/i)
     expect(html).toMatch(/inline-icon/)
     expect(html).toMatch(/📶/)
+  })
+
+  test('renders ul/li for bullet lists', () => {
+    const html = richTextJsonToSafeHtml(sampleWithBulletList)
+    expect(html).toBeTruthy()
+    expect(html).toMatch(/<ul/i)
+    expect(html).toMatch(/<li/i)
+    expect(html).toMatch(/g/)
+    expect(html).toMatch(/dgdg/)
   })
 })
 

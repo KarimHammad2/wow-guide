@@ -21,7 +21,10 @@ export function CatalogBand({ title, items, backgroundColor, textColor, classNam
 
   return (
     <section
-      className={cn('overflow-hidden rounded-3xl px-5 py-8 shadow-md sm:px-8 sm:py-10 md:px-10 md:py-12', className)}
+      className={cn(
+        'catalog-band overflow-hidden rounded-3xl px-5 py-8 shadow-md sm:px-8 sm:py-10 md:px-10 md:py-12',
+        className
+      )}
       style={{ backgroundColor: bg, color: fg }}
     >
       {title ? (
@@ -77,12 +80,12 @@ export function CatalogBand({ title, items, backgroundColor, textColor, classNam
               </p>
 
               {hasImage ? (
-                <figure className="relative mx-auto aspect-3/4 w-full max-w-[min(100%,18rem)] overflow-hidden rounded-2xl bg-black/10 shadow-inner sm:mx-0 sm:max-w-none sm:justify-self-end md:max-w-88">
+                <figure className="relative mx-auto aspect-3/4 w-full max-w-[min(100%,18rem)] overflow-hidden rounded-2xl bg-transparent sm:mx-0 sm:max-w-none sm:justify-self-end md:max-w-88">
                   <Image
                     src={item.image as string}
                     alt={item.description?.trim() || 'Guide panel photo'}
                     fill
-                    className="object-contain object-center p-1.5 sm:p-2"
+                    className="object-contain object-center"
                     sizes="(max-width: 640px) 90vw, (max-width: 1024px) 280px, 360px"
                   />
                 </figure>

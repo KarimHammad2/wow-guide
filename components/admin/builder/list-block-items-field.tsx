@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { RichTextBlockEditor } from '@/components/editor/rich-text-block-editor'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { EMPTY_RICH_TEXT_DOC } from '@/lib/tiptap/empty-doc'
 import type { VisualListEditorRow } from '@/lib/visual-builder-schema'
 
@@ -18,9 +19,11 @@ function newRowId() {
 interface ListBlockItemsFieldProps {
   items: ListBlockItemRow[]
   onChange: (items: ListBlockItemRow[]) => void
+  /** Passes through to `RichTextBlockEditor` when the list block uses custom Design colors. */
+  surface?: 'default' | 'inherit'
 }
 
-export function ListBlockItemsField({ items, onChange }: ListBlockItemsFieldProps) {
+export function ListBlockItemsField({ items, onChange, surface = 'default' }: ListBlockItemsFieldProps) {
   function updateRow(index: number, patch: Partial<ListBlockItemRow>) {
     onChange(items.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
@@ -37,11 +40,18 @@ export function ListBlockItemsField({ items, onChange }: ListBlockItemsFieldProp
         to add a web address or inline icon—no special code.
       </p>
       {items.map((row, index) => (
-        <div key={row.id} className="space-y-2 rounded-lg border border-border bg-muted/20 p-2.5">
+        <div
+          key={row.id}
+          className={cn(
+            'space-y-2 rounded-lg border border-border p-2.5',
+            surface === 'inherit' ? 'bg-transparent' : 'bg-muted/20',
+          )}
+        >
           <div className="flex items-start gap-2">
             <RichTextBlockEditor
               toolbar="essential"
               className="min-w-0 flex-1 text-sm"
+              surface={surface}
               value={row.richText}
               plainFallback={row.title}
               editorScrollMaxClassName="max-h-[min(42vh,280px)]"

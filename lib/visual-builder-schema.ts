@@ -67,6 +67,7 @@ export const visualBlockSchema: z.ZodType<VisualBlock> = z.lazy(() =>
     sideImageUrl: z.string().optional(),
     sideImagePosition: z.enum(['left', 'right']).optional(),
     sideImageFit: z.enum(['auto', 'contain', 'cover']).optional(),
+    sideImageWidthPercent: z.number().int().min(5).max(60).optional(),
     mediaFit: z.enum(['auto', 'contain', 'cover']).optional(),
     imageLinkUrl: z.string().optional(),
   })
@@ -132,6 +133,8 @@ export type VisualBlock = {
   sideImageUrl?: string
   sideImagePosition?: 'left' | 'right'
   sideImageFit?: 'auto' | 'contain' | 'cover'
+  /** Side column width on sm+ (percent of flex row). Omitted = 40. */
+  sideImageWidthPercent?: number
   mediaFit?: 'auto' | 'contain' | 'cover'
   imageLinkUrl?: string
 }
@@ -275,9 +278,11 @@ export function visualFromGuideContent(content: GuideContent): VisualGuideDocume
               ? section.items?.[0]?.link
               : section.imageLinkUrl,
       mediaUrl:
-        section.type === 'image' || section.type === 'media'
-          ? section.mediaUrl ?? section.items?.[0]?.image
-          : undefined,
+        section.type === 'video'
+          ? section.mediaUrl
+          : section.type === 'image' || section.type === 'media'
+            ? section.mediaUrl ?? section.items?.[0]?.image
+            : undefined,
       buttonVariant: section.type === 'button' ? section.buttonVariant : undefined,
       buttonColor: section.type === 'button' ? section.buttonColor : undefined,
       items:
@@ -302,6 +307,7 @@ export function visualFromGuideContent(content: GuideContent): VisualGuideDocume
             sideImageUrl: section.blockMediaUrl,
             sideImagePosition: section.blockMediaPosition,
             sideImageFit: section.blockMediaFit,
+            sideImageWidthPercent: section.blockMediaWidthPercent,
           }
         : {}),
       mediaFit: section.mediaFit,
@@ -354,6 +360,7 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
         title: block.title,
         content: block.content,
         videoUrl: block.url,
+        mediaUrl: block.mediaUrl,
         textColor: block.styles?.textColor,
         backgroundColor: block.styles?.backgroundColor,
         fontSize: block.styles?.fontSize,
@@ -478,6 +485,7 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
         blockMediaUrl: block.sideImageUrl,
         blockMediaPosition: block.sideImagePosition,
         blockMediaFit: block.sideImageFit,
+        blockMediaWidthPercent: block.sideImageWidthPercent,
         mediaFit: block.mediaFit,
       }
     }
@@ -503,6 +511,7 @@ export function sectionsFromVisualDocument(document: VisualGuideDocument): Conte
       blockMediaUrl: block.sideImageUrl,
       blockMediaPosition: block.sideImagePosition,
       blockMediaFit: block.sideImageFit,
+      blockMediaWidthPercent: block.sideImageWidthPercent,
       mediaFit: block.mediaFit,
       imageLinkUrl: block.imageLinkUrl,
     }
@@ -570,11 +579,16 @@ export function validateVisualDocumentUrls(document: VisualGuideDocument): strin
       }
       continue
     }
-    if (!block.url) continue
     if (block.type === 'video') {
-      if (!isSafeHttpUrl(block.url)) return `Invalid video URL for block "${block.id}".`
+      if (block.url?.trim() && !isSafeHttpUrl(block.url)) {
+        return `Invalid video URL for block "${block.id}".`
+      }
+      if (block.mediaUrl?.trim() && !isSafeNavigationTarget(block.mediaUrl.trim())) {
+        return `Invalid video file URL for block "${block.id}".`
+      }
       continue
     }
+    if (!block.url) continue
     if (!isSafeNavigationTarget(block.url)) return `Invalid URL for block "${block.id}".`
   }
   return null

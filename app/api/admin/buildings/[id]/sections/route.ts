@@ -9,8 +9,6 @@ import {
   serverErrorResponse,
   tooManyRequestsResponse,
 } from '@/lib/api-route-utils'
-import { collectLinkHrefsFromRichTextJson } from '@/lib/tiptap/rich-text-json'
-import { isSafeHttpUrl, isSafeNavigationTarget } from '@/lib/url-safety'
 import { checkRateLimit } from '@/lib/rate-limit'
 import {
   createBuildingGuideCategory,
@@ -19,71 +17,17 @@ import {
   updateBuildingGuideCategory,
   listBuildingGuideSections,
 } from '@/lib/building-guides-repository'
+import { contentInheritancePayloadSchema } from '@/lib/content-inheritance'
+import {
+  contentSectionSchema,
+  firstUnsafeSectionUrl,
+  normalizeSections,
+} from '@/lib/admin-content-sections-validation'
 import type { Category, ContentSection } from '@/lib/data'
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
-
-const contentItemSchema: z.ZodTypeAny = z.lazy(() =>
-  z.object({
-    id: z.string().min(1),
-    title: z.string().min(1),
-    description: z.string().optional(),
-    icon: z.string().optional(),
-    image: z.string().optional(),
-    link: z.string().optional(),
-    items: z.array(contentItemSchema).optional(),
-  })
-)
-
-const contentSectionSchema = z.object({
-  id: z.string().min(1),
-  blockId: z.string().optional(),
-  type: z.enum([
-    'text',
-    'steps',
-    'alert',
-    'card',
-    'accordion',
-    'schedule',
-    'contact',
-    'manual',
-    'image',
-    'tabs',
-    'hero',
-    'checklist',
-    'media',
-    'video',
-    'links',
-    'gallery',
-    'list',
-    'button',
-  ]),
-  title: z.string().optional(),
-  content: z.string().optional(),
-  items: z.array(contentItemSchema).optional(),
-  variant: z.enum(['info', 'warning', 'success', 'danger']).optional(),
-  mediaUrl: z.string().optional(),
-  videoUrl: z.string().optional(),
-  buttonUrl: z.string().optional(),
-  textLinkUrl: z.string().optional(),
-  richText: z.unknown().optional(),
-  caption: z.string().optional(),
-  layout: z.enum(['default', 'split', 'full-bleed']).optional(),
-  styleVariant: z.enum(['default', 'highlighted', 'minimal']).optional(),
-  textColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  fontSize: z.number().int().min(10).max(72).optional(),
-  fontFamily: z.string().optional(),
-  blockWidth: z.number().int().min(120).max(1400).optional(),
-  blockHeight: z.number().int().min(60).max(1200).optional(),
-  blockAlign: z.enum(['left', 'center', 'right']).optional(),
-  blockVerticalAlign: z.enum(['top', 'center', 'bottom']).optional(),
-  blockMarginTop: z.number().int().min(0).max(400).optional(),
-  blockMarginBottom: z.number().int().min(0).max(400).optional(),
-  rowId: z.string().optional(),
-})
 
 const sectionMutationSchema = z.object({
   slug: z.string().min(1),
@@ -100,73 +44,14 @@ const sectionMutationSchema = z.object({
     .optional(),
   sections: z.array(contentSectionSchema).optional(),
   order: z.number().int().positive().optional(),
+  /** Building home Quick Access; null clears. Omitted leaves unchanged on update. */
+  quickAccessOrder: z.union([z.number().int().min(1).max(32), z.null()]).optional(),
+  contentInheritance: contentInheritancePayloadSchema.optional(),
 })
 
 const bulkSectionMutationSchema = z.object({
   sections: z.array(sectionMutationSchema),
 })
-
-function firstUnsafeSectionUrl(sections: z.infer<typeof contentSectionSchema>[]): string | null {
-  const stack = [...sections]
-  while (stack.length > 0) {
-    const section = stack.pop()
-    if (!section) continue
-
-    if (section.videoUrl && !isSafeHttpUrl(section.videoUrl)) {
-      return `Invalid videoUrl for section "${section.id}".`
-    }
-    if (section.mediaUrl && !isSafeNavigationTarget(section.mediaUrl)) {
-      return `Invalid mediaUrl for section "${section.id}".`
-    }
-    if (section.buttonUrl && !isSafeNavigationTarget(section.buttonUrl)) {
-      return `Invalid buttonUrl for section "${section.id}".`
-    }
-    if (section.textLinkUrl && !isSafeNavigationTarget(section.textLinkUrl)) {
-      return `Invalid textLinkUrl for section "${section.id}".`
-    }
-    if (section.type === 'text' && section.richText) {
-      for (const href of collectLinkHrefsFromRichTextJson(section.richText)) {
-        if (!isSafeNavigationTarget(href)) {
-          return `Invalid link URL in text section "${section.id}".`
-        }
-      }
-    }
-
-    for (const item of section.items ?? []) {
-      if (item.link && !isSafeNavigationTarget(item.link)) {
-        return `Invalid link for item "${item.id}" in section "${section.id}".`
-      }
-      if (item.image && !isSafeNavigationTarget(item.image)) {
-        return `Invalid image URL for item "${item.id}" in section "${section.id}".`
-      }
-      if (item.items?.length) {
-        stack.push({
-          id: section.id,
-          type: section.type,
-          title: section.title,
-          content: section.content,
-          items: item.items,
-          variant: section.variant,
-          mediaUrl: section.mediaUrl,
-          videoUrl: section.videoUrl,
-          caption: section.caption,
-          layout: section.layout,
-          styleVariant: section.styleVariant,
-        })
-      }
-    }
-  }
-
-  return null
-}
-
-function normalizeSections(sections: z.infer<typeof contentSectionSchema>[]): ContentSection[] {
-  return sections.map((section, index) => ({
-    ...section,
-    blockId: section.blockId ?? section.id,
-    title: section.title ?? `${section.type} block ${index + 1}`,
-  })) as ContentSection[]
-}
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   const auth = await requireAdminSession()
@@ -203,11 +88,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       subtitle: payload.subtitle ?? 'Guide details',
       icon: payload.icon ?? 'BookOpen',
       color: (payload.color as Category['color']) ?? 'primary',
+      quickAccessOrder: payload.quickAccessOrder,
       intro: payload.intro ?? '',
       alert: payload.alert,
       sections: normalizeSections(payload.sections ?? []),
     })
-    return NextResponse.json(created)
+    return NextResponse.json({
+      category: created.category,
+      content: created.content,
+      quickAccessOrder: payload.quickAccessOrder ?? null,
+    })
   } catch (error) {
     logApiError('admin-sections-create', error)
     return serverErrorResponse('Unable to create guide section.')
@@ -247,9 +137,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             icon: payload.icon ?? existing.category.icon,
             color: (payload.color as Category['color']) ?? existing.category.color,
             order: payload.order ?? existing.category.order,
+            quickAccessOrder:
+              payload.quickAccessOrder !== undefined ? payload.quickAccessOrder : undefined,
             intro: payload.intro ?? existing.content.intro,
             alert: payload.alert,
             sections: payload.sections ? normalizeSections(payload.sections) : existing.content.sections,
+            contentInheritance:
+              payload.contentInheritance !== undefined
+                ? payload.contentInheritance
+                : existing.content.contentInheritance,
           })
         })
       )
@@ -282,9 +178,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       icon: payload.icon ?? existing.category.icon,
       color: (payload.color as Category['color']) ?? existing.category.color,
       order: payload.order ?? existing.category.order,
+      quickAccessOrder:
+        payload.quickAccessOrder !== undefined ? payload.quickAccessOrder : undefined,
       intro: payload.intro ?? existing.content.intro,
       alert: payload.alert,
       sections: payload.sections ? normalizeSections(payload.sections) : existing.content.sections,
+      contentInheritance:
+        payload.contentInheritance !== undefined
+          ? payload.contentInheritance
+          : existing.content.contentInheritance,
     })
     return NextResponse.json(updated)
   } catch (error) {

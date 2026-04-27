@@ -46,6 +46,9 @@ export function hasSubstantiveRichTextJson(doc: unknown): boolean {
     ) {
       substantive = true
     }
+    if (nodeType === 'bulletList' || nodeType === 'orderedList' || nodeType === 'listItem') {
+      substantive = true
+    }
     if (nodeType === 'inlineIcon') substantive = true
     if (typeof n.text === 'string' && n.text.length > 0) substantive = true
     const marks = n.marks

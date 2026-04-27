@@ -71,7 +71,7 @@ export function CookieConsentBanner() {
   return (
     <section
       aria-label="Cookie preferences"
-      className="fixed inset-x-0 bottom-0 z-70 border-t border-border/70 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/75"
+      className="fixed inset-x-0 bottom-0 z-70 border-t border-border/70 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/75 safe-bottom"
     >
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6">
         <p className="text-sm text-foreground">

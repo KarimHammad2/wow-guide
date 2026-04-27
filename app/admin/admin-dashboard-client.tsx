@@ -37,6 +37,8 @@ type BuildingSectionRecord = {
     alert?: { type: 'info' | 'warning' | 'success' | 'danger'; message: string }
     sections: ContentSection[]
   }
+  /** 1–4 = position on building home Quick Access; null = hidden. */
+  quickAccessOrder: number | null
 }
 
 const sidebarItems = [
@@ -583,7 +585,8 @@ export function AdminDashboardClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Hotel className="w-5 h-5" />Building Guide Sections</CardTitle>
               <CardDescription>
-                Edit guide content for one building at a time. You can fully edit intro, alert, and JSON sections payload.
+                Edit guide content for one building at a time. Set Quick access (1–4) to show a section on the
+                building home; leave empty to omit. All Topics always lists every section below.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -621,6 +624,26 @@ export function AdminDashboardClient() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid md:grid-cols-[1fr] max-w-xs gap-1">
+                    <Label className="text-xs text-muted-foreground">Quick access order (1–4, empty = off)</Label>
+                    <Input
+                      inputMode="numeric"
+                      value={section.quickAccessOrder ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value.trim()
+                        setSections((prev) =>
+                          prev.map((p) => {
+                            if (p.category.slug !== section.category.slug) return p
+                            if (v === '') return { ...p, quickAccessOrder: null }
+                            const n = Number(v)
+                            if (!Number.isFinite(n) || n < 1 || n > 32) return p
+                            return { ...p, quickAccessOrder: n }
+                          })
+                        )
+                      }}
+                      placeholder="e.g. 1"
+                    />
+                  </div>
                   <Textarea value={section.content.intro} onChange={(e) => setSections((prev) => prev.map((p) => p.category.slug === section.category.slug ? { ...p, content: { ...p.content, intro: e.target.value } } : p))} rows={2} placeholder="Intro text" />
                   <Textarea
                     value={JSON.stringify(section.content.sections, null, 2)}
@@ -648,6 +671,7 @@ export function AdminDashboardClient() {
                           subtitle: section.category.subtitle,
                           icon: section.category.icon,
                           color: section.category.color,
+                          quickAccessOrder: section.quickAccessOrder,
                           intro: section.content.intro,
                           sections: section.content.sections,
                         }),
