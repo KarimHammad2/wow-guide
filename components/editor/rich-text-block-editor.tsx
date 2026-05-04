@@ -96,8 +96,11 @@ export function RichTextBlockEditor({
   surface = 'default',
 }: RichTextBlockEditorProps) {
   const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
-  const initial = useRef(initialDocFromProps(value, plainFallback))
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
+
+  const [initialContent] = useState(() => initialDocFromProps(value, plainFallback))
   const linkSelectionRef = useRef<{ from: number; to: number } | null>(null)
   const iconSelectionRef = useRef<{ from: number; to: number } | null>(null)
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
@@ -113,12 +116,12 @@ export function RichTextBlockEditor({
       immediatelyRender,
       shouldRerenderOnTransaction: true,
       extensions: getRichTextExtensions(),
-      content: initial.current,
+      content: initialContent,
       onUpdate: ({ editor: e }) => {
         onChangeRef.current(e.getJSON() as JSONContent, e.getText())
       },
     },
-    [immediatelyRender]
+    [immediatelyRender, initialContent]
   )
 
   useEffect(() => {

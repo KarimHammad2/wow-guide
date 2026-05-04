@@ -7,6 +7,7 @@ import {
   guestBuildingCookieOptions,
 } from '@/lib/guest-building-cookie'
 
+/** Next.js 16 edge entry (`proxy` + `config`). Do not add `middleware.ts`; the build fails if both exist. */
 function isPublicAdminPath(pathname: string) {
   return pathname === '/admin/login' || pathname === '/api/admin/auth/login'
 }

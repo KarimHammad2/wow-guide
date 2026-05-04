@@ -71,6 +71,14 @@ function isMissingQuickAccessColumnError(message: string): boolean {
   )
 }
 
+function warnMissingQuickAccessColumn() {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(
+      '[wow_guide] Apply supabase/migrations/015_quick_access_order.sql (or `npx supabase db push`) so Quick Access loads from the database.'
+    )
+  }
+}
+
 export async function insertDefaultGuideCategoriesForBuilding(
   buildingId: string,
   guides: Record<string, BuildingGuideCategory>
@@ -85,8 +93,16 @@ export async function insertDefaultGuideCategoriesForBuilding(
     content: entry.content as unknown as Json,
   }))
 
-  const { error } = await admin.from('building_guide_categories').insert(rows)
-  if (error) throw new Error(error.message)
+  const withQuick = await admin.from('building_guide_categories').insert(rows)
+  if (!withQuick.error) return
+  if (!isMissingQuickAccessColumnError(withQuick.error.message)) {
+    throw new Error(withQuick.error.message)
+  }
+
+  warnMissingQuickAccessColumn()
+  const fallbackRows = rows.map(({ quick_access_order: _quickAccessOrder, ...rest }) => rest)
+  const fallback = await admin.from('building_guide_categories').insert(fallbackRows)
+  if (fallback.error) throw new Error(fallback.error.message)
 }
 
 export async function getBuildingCategories(buildingId: string): Promise<Category[]> {
@@ -114,11 +130,7 @@ export async function getBuildingQuickAccessCategories(buildingId: string): Prom
 
   if (error) {
     if (isMissingQuickAccessColumnError(error.message)) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(
-          '[wow_guide] Apply supabase/migrations/015_quick_access_order.sql (or `npx supabase db push`) so Quick Access loads from the database.'
-        )
-      }
+      warnMissingQuickAccessColumn()
       return []
     }
     throw new Error(error.message)
@@ -271,7 +283,7 @@ export async function createBuildingGuideCategory(
     },
   }
 
-  const { error } = await admin.from('building_guide_categories').insert({
+  const withQuick = await admin.from('building_guide_categories').insert({
     building_id: buildingId,
     category_slug: categorySlug,
     sort_order: order,
@@ -280,7 +292,20 @@ export async function createBuildingGuideCategory(
     content: created.content as unknown as Json,
   })
 
-  if (error) throw new Error(error.message)
+  if (withQuick.error) {
+    if (!isMissingQuickAccessColumnError(withQuick.error.message)) {
+      throw new Error(withQuick.error.message)
+    }
+    warnMissingQuickAccessColumn()
+    const fallback = await admin.from('building_guide_categories').insert({
+      building_id: buildingId,
+      category_slug: categorySlug,
+      sort_order: order,
+      category: created.category as unknown as Json,
+      content: created.content as unknown as Json,
+    })
+    if (fallback.error) throw new Error(fallback.error.message)
+  }
   return created
 }
 
@@ -342,22 +367,36 @@ export async function updateBuildingGuideCategory(
   }
 
   const admin = createSupabaseAdmin()
-  const { error } = await admin
+  const updatePayload = {
+    sort_order: updated.category.order,
+    ...(input.quickAccessOrder !== undefined ? { quick_access_order: input.quickAccessOrder } : {}),
+    category: updated.category as unknown as Json,
+    content: updated.content as unknown as Json,
+    /** Published JSON is source of truth for guests; drop stale visual drafts so the editor reloads from content. */
+    draft_content: null,
+    is_published: true,
+    updated_at: new Date().toISOString(),
+  }
+
+  const withQuick = await admin
     .from('building_guide_categories')
-    .update({
-      sort_order: updated.category.order,
-      ...(input.quickAccessOrder !== undefined ? { quick_access_order: input.quickAccessOrder } : {}),
-      category: updated.category as unknown as Json,
-      content: updated.content as unknown as Json,
-      /** Published JSON is source of truth for guests; drop stale visual drafts so the editor reloads from content. */
-      draft_content: null,
-      is_published: true,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('building_id', buildingId)
     .eq('category_slug', categorySlug)
 
-  if (error) throw new Error(error.message)
+  if (!withQuick.error) return updated
+  if (!isMissingQuickAccessColumnError(withQuick.error.message) || input.quickAccessOrder === undefined) {
+    throw new Error(withQuick.error.message)
+  }
+
+  warnMissingQuickAccessColumn()
+  const { quick_access_order: _quickAccessOrder, ...fallbackPayload } = updatePayload
+  const fallback = await admin
+    .from('building_guide_categories')
+    .update(fallbackPayload)
+    .eq('building_id', buildingId)
+    .eq('category_slug', categorySlug)
+  if (fallback.error) throw new Error(fallback.error.message)
   return updated
 }
 
