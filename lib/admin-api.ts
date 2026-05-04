@@ -67,13 +67,22 @@ export async function requireMutableAdmin(): Promise<
 > {
   const auth = await requireAdminSession()
   if (!auth.ok) return auth
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_ADMIN_WRITES !== 'true') {
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const hasSupabasePersistence = Boolean(serviceRole)
+  const allowProductionMutations =
+    process.env.ALLOW_IN_MEMORY_ADMIN_WRITES === 'true' ||
+    process.env.ENABLE_ADMIN_MUTATIONS === 'true'
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !allowProductionMutations &&
+    !hasSupabasePersistence
+  ) {
     return {
       ok: false,
       response: NextResponse.json(
         {
           error:
-            'Admin mutations are disabled in production for in-memory storage. Configure persistence or set ALLOW_IN_MEMORY_ADMIN_WRITES=true.',
+            'Admin mutations are disabled in production without Supabase server credentials. Add SUPABASE_SERVICE_ROLE_KEY (Project Settings → API; paste the full JWT with no extra spaces/lines). Or set ENABLE_ADMIN_MUTATIONS=true (or ALLOW_IN_MEMORY_ADMIN_WRITES=true) only if you intentionally run without persistence.',
         },
         { status: 503 },
       ),
