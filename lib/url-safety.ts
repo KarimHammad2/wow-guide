@@ -31,6 +31,8 @@ function hasExplicitNonHttpScheme(normalized: string): boolean {
  */
 function resolveSafeNavigationHref(normalized: string, allowRelative: boolean): string | null {
   if (UNSAFE_SCHEME_PATTERN.test(normalized)) return null
+  // Same-document fragments (#, #section) — valid href targets, used as placeholder in the editor.
+  if (normalized.startsWith('#') && /^#[^#]*$/.test(normalized)) return normalized
   if (allowRelative && isSafeRelativePath(normalized)) return normalized
   if (isSafeHttpUrl(normalized)) {
     try {

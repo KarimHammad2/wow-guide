@@ -50,6 +50,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       categorySlug: row.categorySlug,
       ownerUserId: row.ownerUserId,
       isPublished: row.isPublished,
+      category: row.category,
       /** Merged (inheritance + draft/local), not raw `draft_content` — that would hide inherited blocks. */
       document: resolvedDocument,
       publishedSections: row.content.sections,

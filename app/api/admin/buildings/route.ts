@@ -12,6 +12,7 @@ import {
 import {
   createBuilding,
   deleteBuilding,
+  getBuildingById,
   getExistingBuildingIdSet,
   listBuildings,
   updateBuilding,
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
         city: typeof body.city === 'string' ? body.city.trim() : '',
         appPath: toAppPath(body.appPath, name),
         country: 'Switzerland',
-        imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl : '/images/buildings/kannenfeldstrasse.jpg',
+        imageUrl: typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '',
         emergencyPhone: supportContact.phone,
         supportEmail: supportContact.email,
         welcomeMessage: typeof body.welcomeMessage === 'string' ? body.welcomeMessage : '',
@@ -168,6 +169,18 @@ export async function PUT(request: NextRequest) {
   const googleMapsUrl = typeof body.googleMapsUrl === 'string' ? body.googleMapsUrl.trim() : ''
   const base = body as unknown as Building
   try {
+    const existing = await getBuildingById(validated.data.id!)
+    if (!existing) {
+      return NextResponse.json({ error: 'Building not found.' }, { status: 404 })
+    }
+    const mergedImageUrl =
+      validated.data.imageUrl === undefined ? existing.imageUrl : validated.data.imageUrl.trim()
+    if (mergedImageUrl && !isSafeNavigationTarget(mergedImageUrl)) {
+      return NextResponse.json(
+        { error: 'imageUrl must be a safe relative path or an http(s) URL.' },
+        { status: 400 }
+      )
+    }
     const updated = await updateBuilding({
       ...base,
       name,
@@ -177,6 +190,7 @@ export async function PUT(request: NextRequest) {
       googleMapsUrl,
       quietHours: typeof body.quietHours === 'string' ? body.quietHours.trim() : '',
       goodToKnow: typeof body.goodToKnow === 'string' ? body.goodToKnow : '',
+      imageUrl: mergedImageUrl,
     })
     return NextResponse.json(updated)
   } catch (error) {

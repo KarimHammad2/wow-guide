@@ -276,7 +276,9 @@ export function visualFromGuideContent(content: GuideContent): VisualGuideDocume
               ? section.textLinkUrl
             : section.type === 'links'
               ? section.items?.[0]?.link
-              : section.imageLinkUrl,
+              : section.type === 'image' || section.type === 'media'
+                ? section.imageLinkUrl
+                : undefined,
       mediaUrl:
         section.type === 'video'
           ? section.mediaUrl

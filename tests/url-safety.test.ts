@@ -35,6 +35,12 @@ describe('url safety helpers', () => {
     expect(isSafeNavigationTarget('//stadtzug.ch/foo')).toBe(true)
   })
 
+  it('accepts same-document hash links', () => {
+    expect(isSafeNavigationTarget('#')).toBe(true)
+    expect(isSafeNavigationTarget('#features')).toBe(true)
+    expect(normalizeSafeNavigationTarget('#')).toBe('#')
+  })
+
   it('keeps only safe embed URLs', () => {
     expect(normalizeSafeEmbedUrl('https://www.youtube.com/watch?v=1')).toBe(
       'https://www.youtube.com/watch?v=1'

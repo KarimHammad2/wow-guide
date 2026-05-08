@@ -6,6 +6,17 @@ export type EditorAuthContext = {
   email: string
 }
 
+/** For server-rendered draft preview: same identity check as editor APIs, without returning an HTTP response. */
+export async function getEditorSessionUser(): Promise<EditorAuthContext | null> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  if (error || !user?.email) return null
+  return { userId: user.id, email: user.email }
+}
+
 export async function requireEditorSession(): Promise<
   { ok: true; auth: EditorAuthContext } | { ok: false; response: NextResponse }
 > {

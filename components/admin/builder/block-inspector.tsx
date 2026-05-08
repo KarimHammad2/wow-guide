@@ -29,12 +29,14 @@ export function BlockInspector({ block, onUpdate }: BlockInspectorProps) {
         placeholder="Block title"
         onChange={(event) => onUpdate({ title: event.target.value })}
       />
-      <Textarea
-        value={block.content ?? ''}
-        rows={4}
-        placeholder="Block content"
-        onChange={(event) => onUpdate({ content: event.target.value })}
-      />
+      {block.type !== 'list' && (
+        <Textarea
+          value={block.content ?? ''}
+          rows={4}
+          placeholder="Block content"
+          onChange={(event) => onUpdate({ content: event.target.value })}
+        />
+      )}
 
       {(block.type === 'media' || block.type === 'image') && (
         <MediaEmbedField

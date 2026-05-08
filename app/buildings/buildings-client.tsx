@@ -10,6 +10,19 @@ import { cn } from '@/lib/utils'
 
 function BuildingCardMedia({ src, title }: { src: string; title: string }) {
   const [failed, setFailed] = useState(false)
+  const trimmed = src.trim()
+
+  useEffect(() => {
+    setFailed(false)
+  }, [trimmed])
+
+  if (!trimmed) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-secondary">
+        <Hotel className="h-6 w-6 text-muted-foreground/60" aria-hidden />
+      </div>
+    )
+  }
 
   if (failed) {
     return (
@@ -21,7 +34,7 @@ function BuildingCardMedia({ src, title }: { src: string; title: string }) {
 
   return (
     <Image
-      src={src}
+      src={trimmed}
       alt={title}
       fill
       className="object-cover"

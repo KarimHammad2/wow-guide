@@ -34,6 +34,28 @@ export async function adminRequest<T>(url: string, init?: RequestInit): Promise<
   return data as T
 }
 
+/** Multipart upload for building list images (not JSON). */
+export async function adminUploadBuildingImage(file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch('/api/admin/buildings/image', {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+    body: formData,
+  })
+  const text = await response.text()
+  const data = parseJsonBody(text)
+  if (!response.ok) {
+    const err =
+      data && typeof data === 'object' && data !== null && 'error' in data
+        ? (data as { error?: unknown }).error
+        : undefined
+    throw new Error(typeof err === 'string' && err ? err : 'Upload failed')
+  }
+  return data as { url: string }
+}
+
 /** Multipart upload for category icon images (not JSON). */
 export async function adminUploadCategoryIcon(file: File): Promise<{ url: string }> {
   const formData = new FormData()

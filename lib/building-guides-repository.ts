@@ -457,6 +457,8 @@ export interface EditorCategoryContentRecord {
   categorySlug: string
   ownerUserId: string | null
   isPublished: boolean
+  /** Catalog tile + nav metadata (updates from Categories admin). */
+  category: Category
   /** Merged (live source + local draft or published) for the editor. */
   content: GuideContent
   /** Unmerged published JSON from the database (keeps `contentInheritance` + local snapshot). */
@@ -473,13 +475,16 @@ export async function getEditorCategoryContent(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('building_guide_categories')
-    .select('building_id, category_slug, owner_user_id, is_published, content, draft_content')
+    .select(
+      'building_id, category_slug, owner_user_id, is_published, category, content, draft_content'
+    )
     .eq('building_id', buildingId)
     .eq('category_slug', categorySlug)
     .maybeSingle()
 
   if (error) throw new Error(error.message)
   if (!data) return undefined
+  const category = parseCategory(data.category)
   const contentStored = parseContent(data.content)
   const draftContent =
     data.draft_content && isVisualGuideDocument(data.draft_content as unknown)
@@ -506,6 +511,7 @@ export async function getEditorCategoryContent(
     categorySlug: data.category_slug,
     ownerUserId: data.owner_user_id,
     isPublished: data.is_published,
+    category,
     content,
     contentStored,
     draftContent,

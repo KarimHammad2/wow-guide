@@ -333,6 +333,23 @@ describe('visual-builder-schema', () => {
     expect(error).toBeTruthy()
   })
 
+  test('allows default hash placeholder on link and button blocks', () => {
+    expect(
+      validateVisualDocumentUrls({
+        contentVersion: 2,
+        layout: 'single-column',
+        blocks: [{ id: 'l', type: 'link', title: 'Link', content: 'Open', url: '#' }],
+      })
+    ).toBeNull()
+    expect(
+      validateVisualDocumentUrls({
+        contentVersion: 2,
+        layout: 'single-column',
+        blocks: [{ id: 'b', type: 'button', title: 'CTA', content: 'Go', url: '#' }],
+      })
+    ).toBeNull()
+  })
+
   test('rejects unsafe image link urls', () => {
     const error = validateVisualDocumentUrls({
       contentVersion: 2,

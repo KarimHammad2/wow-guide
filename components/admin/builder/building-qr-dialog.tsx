@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { WowWordmark } from '@/components/site/wow-wordmark'
 import type { Building } from '@/lib/data'
 import { toAbsoluteSiteUrl } from '@/lib/site-url'
 
@@ -92,7 +93,21 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
     const context = canvas.getContext('2d')
     if (!context) return ''
 
-    const [qrImage, logoImage] = await Promise.all([loadImage(qrDataUrl), loadImage('/logo.png')])
+    const [qrImage, logoImage] = await Promise.all([loadImage(qrDataUrl), loadImage('/wow-wordmark.png')])
+    const lw = logoImage.naturalWidth
+    const lh = logoImage.naturalHeight
+    if (!lw || !lh) return ''
+
+    const logoMaxHeight = 120
+    const logoMaxWidth = 420
+    let drawW = logoMaxWidth
+    let drawH = (drawW * lh) / lw
+    if (drawH > logoMaxHeight) {
+      drawH = logoMaxHeight
+      drawW = (drawH * lw) / lh
+    }
+    const logoX = CARD_WIDTH / 2 - drawW / 2
+    const logoY = 120
 
     context.fillStyle = '#f8fafc'
     context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
@@ -103,7 +118,7 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
     context.fillStyle = '#ffffff'
     context.fillRect(86, 86, CARD_WIDTH - 172, CARD_HEIGHT - 172)
 
-    context.drawImage(logoImage, 420, 120, 360, 120)
+    context.drawImage(logoImage, logoX, logoY, drawW, drawH)
 
     context.fillStyle = '#0f172a'
     context.font = '700 58px system-ui, -apple-system, Segoe UI, sans-serif'
@@ -244,8 +259,8 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
 
         <div className="rounded-2xl border bg-slate-50 p-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="relative mx-auto h-8 w-24">
-              <Image src="/logo.png" alt="WOW Guide logo" fill sizes="96px" className="object-contain" />
+            <div className="flex justify-center">
+              <WowWordmark className="mx-auto max-w-none object-center" />
             </div>
             <p className="mt-4 text-center text-lg font-semibold text-slate-900">{building?.name ?? 'Building'}</p>
             <p className="text-center text-sm text-slate-500">Scan to open the building guide</p>

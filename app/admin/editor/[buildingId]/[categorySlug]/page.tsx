@@ -31,7 +31,7 @@ import {
   type VisualBlock,
   type VisualGuideDocument,
 } from '@/lib/visual-builder-schema'
-import type { Building, ContentSection } from '@/lib/data'
+import type { Building, Category, ContentSection } from '@/lib/data'
 import type { BuildingGuideCategory, ContentInheritance } from '@/lib/admin-types'
 import { toast } from '@/hooks/use-toast'
 
@@ -71,12 +71,15 @@ export default function CategoryVisualEditorPage() {
   const [publishing, setPublishing] = useState(false)
   const [hasPendingChanges, setHasPendingChanges] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [previewOpening, setPreviewOpening] = useState(false)
   const [contentInheritance, setContentInheritance] = useState<ContentInheritance | null | undefined>(undefined)
   const [sourceInheritanceAvailable, setSourceInheritanceAvailable] = useState(true)
   const [inheritanceHydrated, setInheritanceHydrated] = useState(false)
   const [sourceCategoryOptions, setSourceCategoryOptions] = useState<BuildingGuideCategory[]>([])
   const [inheritSourceBuilding, setInheritSourceBuilding] = useState<string>(INHERITANCE_NONE)
   const [inheritSourceCategory, setInheritSourceCategory] = useState<string>(INHERITANCE_NONE)
+  /** Matches guest header + Categories admin edits (slug alone is stale for display). */
+  const [guideCategoryMeta, setGuideCategoryMeta] = useState<Category | null>(null)
 
   const contentInheritanceRef = useRef<ContentInheritance | null | undefined>(undefined)
   const inheritanceHydratedRef = useRef(false)
@@ -140,7 +143,7 @@ export default function CategoryVisualEditorPage() {
       if (legacy) base = `/${legacy[1]}`
     }
     if (!base) base = `/${buildingId}`
-    return `${base}/category/${categorySlug}`
+    return `${base}/category/${categorySlug}?preview=draft`
   }, [building?.appPath, buildingId, categorySlug])
 
   useEffect(() => {
@@ -148,6 +151,7 @@ export default function CategoryVisualEditorPage() {
     void Promise.all([adminRequest<Building[]>('/api/admin/buildings'), getEditorDocument(buildingId, categorySlug)])
       .then(([buildingsData, data]) => {
         setBuildings(buildingsData)
+        setGuideCategoryMeta(data.category)
         setDocument(normalizeEditorDocument(data.document))
         setActiveBlockId(data.document.blocks[0]?.id ?? null)
         setContentInheritance(data.contentInheritance)
@@ -166,6 +170,20 @@ export default function CategoryVisualEditorPage() {
         setError(err instanceof Error ? err.message : 'Failed to load editor')
       })
   }, [loading, buildingId, categorySlug, setError])
+
+  useEffect(() => {
+    const refreshCatalogMeta = () => {
+      const doc = globalThis.document
+      if (!doc || doc.visibilityState !== 'visible' || loading || !buildingId || !categorySlug) return
+      void getEditorDocument(buildingId, categorySlug)
+        .then((d) => setGuideCategoryMeta(d.category))
+        .catch(() => {})
+    }
+    const doc = globalThis.document
+    if (!doc) return
+    doc.addEventListener('visibilitychange', refreshCatalogMeta)
+    return () => doc.removeEventListener('visibilitychange', refreshCatalogMeta)
+  }, [buildingId, categorySlug, loading])
 
   const sourceForCategories =
     inheritSourceBuilding && inheritSourceBuilding !== INHERITANCE_NONE ? inheritSourceBuilding : null
@@ -305,6 +323,25 @@ export default function CategoryVisualEditorPage() {
     }
   }
 
+  async function openDraftPreview() {
+    if (!document) return
+    setPreviewOpening(true)
+    setError(null)
+    try {
+      await saveEditorDocument(
+        buildingId,
+        categorySlug,
+        document,
+        inheritanceHydrated ? (contentInheritance === undefined ? null : contentInheritance) : undefined
+      )
+      window.open(publicCategoryHref, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save before preview')
+    } finally {
+      setPreviewOpening(false)
+    }
+  }
+
   if (loading || !document) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading editor...</div>
   }
@@ -312,7 +349,7 @@ export default function CategoryVisualEditorPage() {
   return (
     <AdminShell userEmail={email} canManageTeam={canManageTeam} onLogout={logout}>
       <ModuleHeader
-        title={`Visual Builder · ${building?.name ?? buildingId} · ${categorySlug}`}
+        title={`Visual Builder · ${building?.name ?? buildingId} · ${guideCategoryMeta?.title ?? categorySlug.replaceAll('-', ' ')}`}
         description="Single live canvas: drag blocks in-place on the rendered page."
         actions={
           <div className="flex w-full max-w-full flex-wrap gap-2 sm:w-auto sm:max-w-none sm:justify-end">
@@ -322,11 +359,15 @@ export default function CategoryVisualEditorPage() {
                 Back
               </Button>
             </Link>
-            <Button asChild variant="outline" className="min-w-0 flex-1 gap-2 sm:flex-initial sm:w-auto">
-              <Link href={publicCategoryHref} target="_blank" rel="noopener noreferrer" className="inline-flex w-full justify-center sm:w-auto">
-                <Eye className="h-4 w-4" />
-                Preview
-              </Link>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-w-0 flex-1 gap-2 sm:flex-initial sm:w-auto"
+              disabled={previewOpening}
+              onClick={() => void openDraftPreview()}
+            >
+              <Eye className="h-4 w-4" />
+              {previewOpening ? 'Preparing…' : 'Preview'}
             </Button>
             <Button variant="outline" disabled={saveState === 'saving'} className="min-w-0 flex-1 gap-2 sm:flex-initial sm:w-auto">
               <Save className="h-4 w-4" />
@@ -416,7 +457,12 @@ export default function CategoryVisualEditorPage() {
               <p className="text-sm text-muted-foreground">
                 {building ? `Building: ${building.name}${building.city ? ` — ${building.city}` : ''}` : buildingId}
               </p>
-              <h2 className="text-2xl font-bold tracking-tight">{categorySlug.replaceAll('-', ' ')}</h2>
+              <h2 className="text-2xl font-bold tracking-tight">
+                {guideCategoryMeta?.title ?? categorySlug.replaceAll('-', ' ')}
+              </h2>
+              {guideCategoryMeta?.subtitle?.trim() ? (
+                <p className="text-sm text-muted-foreground mt-1">{guideCategoryMeta.subtitle}</p>
+              ) : null}
               <Textarea
                 rows={2}
                 className="mt-2"
@@ -571,7 +617,7 @@ export default function CategoryVisualEditorPage() {
                             </div>
                           ))}
                         </div>
-                      ) : (
+                      ) : activeBlock.type === 'list' ? null : (
                         <Textarea
                           rows={4}
                           value={activeBlock.content ?? ''}

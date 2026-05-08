@@ -2,6 +2,7 @@
 
 import type { ContentInheritance } from '@/lib/admin-types'
 import type { VisualGuideDocument } from '@/lib/visual-builder-schema'
+import type { Category } from '@/lib/data'
 
 function parseJsonBody(text: string): unknown {
   if (!text.trim()) return undefined
@@ -72,6 +73,8 @@ export interface EditorDocumentResponse {
   categorySlug: string
   ownerUserId: string | null
   isPublished: boolean
+  /** Catalog heading + icons as updated in Categories admin. */
+  category: Category
   document: VisualGuideDocument
   contentInheritance: ContentInheritance | null
   sourceInheritanceAvailable: boolean

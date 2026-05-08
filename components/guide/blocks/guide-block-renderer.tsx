@@ -1062,6 +1062,8 @@ export function GuideBlockRenderer({
                     <Link
                       key={item.id}
                       href={normalizeSafeNavigationTarget(item.link)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className={cn(
                         'flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition-colors min-h-11',
                         hasCustomTextColor(section)

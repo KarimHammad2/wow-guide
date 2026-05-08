@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Hotel, Pencil, Trash2, QrCode, Loader2, Eye } from 'lucide-react'
+import { Plus, Hotel, Pencil, Trash2, QrCode, Loader2, Eye, Upload } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
-import { adminRequest } from '@/components/admin/admin-api'
+import { adminRequest, adminUploadBuildingImage } from '@/components/admin/admin-api'
 import { BuildingQrDialog } from '@/components/admin/builder/building-qr-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,6 +42,103 @@ import {
   QUIET_HOUR_UNSET,
 } from '@/lib/quiet-hours'
 
+function BuildingPhotoField({
+  label,
+  alt,
+  imageUrl,
+  onImageUrlChange,
+  onUploadError,
+  disabled,
+}: {
+  label: string
+  alt: string
+  imageUrl: string
+  onImageUrlChange: (url: string) => void
+  onUploadError?: (message: string) => void
+  disabled?: boolean
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  async function handleFile(files: FileList | null) {
+    const file = files?.[0]
+    if (!file || disabled) return
+    setUploading(true)
+    try {
+      const { url } = await adminUploadBuildingImage(file)
+      onImageUrlChange(url)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Upload failed'
+      onUploadError?.(message)
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const trimmed = imageUrl.trim()
+
+  return (
+    <div className="space-y-1.5 sm:col-span-2">
+      <Label>{label}</Label>
+      <p className="text-xs text-muted-foreground">Optional. Shown on the public buildings list.</p>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-secondary">
+          {trimmed ? (
+            <Image src={trimmed} alt={alt} fill className="object-cover" sizes="96px" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Hotel className="h-9 w-9 text-muted-foreground/55" aria-hidden />
+            </div>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || uploading}
+              className="gap-1.5"
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  Upload image
+                </>
+              )}
+            </Button>
+            {trimmed ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={disabled || uploading}
+                onClick={() => onImageUrlChange('')}
+              >
+                Remove
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="sr-only"
+          onChange={(e) => void handleFile(e.target.files)}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function AdminBuildingsPage() {
   const { email, canManageTeam, canEdit, loading, error, setError, logout } = useAdminSession()
   const [saving, setSaving] = useState(false)
@@ -52,7 +150,7 @@ export default function AdminBuildingsPage() {
     city: '',
     appPath: '',
     country: 'Switzerland',
-    imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
+    imageUrl: '',
     emergencyPhone: '',
     supportEmail: '',
     welcomeMessage: '',
@@ -187,6 +285,7 @@ export default function AdminBuildingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[3.75rem]" />
                 <TableHead>Name</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>URL</TableHead>
@@ -196,6 +295,23 @@ export default function AdminBuildingsPage() {
             <TableBody>
               {buildings.map((building) => (
                 <TableRow key={building.id}>
+                  <TableCell className="p-2 w-[3.75rem]">
+                    <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-border bg-secondary">
+                      {building.imageUrl.trim() ? (
+                        <Image
+                          src={building.imageUrl.trim()}
+                          alt={`${building.name} photo`}
+                          fill
+                          className="object-cover"
+                          sizes="44px"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Hotel className="h-5 w-5 text-muted-foreground/55" aria-hidden />
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{building.name}</TableCell>
                   <TableCell>{building.city}</TableCell>
                   <TableCell>{building.appPath}</TableCell>
@@ -346,6 +462,14 @@ export default function AdminBuildingsPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">Night-time ranges (e.g. 22:00 to 07:00) are allowed.</p>
               </div>
+              <BuildingPhotoField
+                label="Building photo"
+                alt={newBuilding.name.trim() ? `${newBuilding.name.trim()} preview` : 'New building preview'}
+                imageUrl={newBuilding.imageUrl}
+                onImageUrlChange={(url) => setNewBuilding((p) => ({ ...p, imageUrl: url }))}
+                onUploadError={setError}
+                disabled={!canEdit || saving}
+              />
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="add-good">Good to know (optional)</Label>
                 <Textarea
@@ -380,7 +504,7 @@ export default function AdminBuildingsPage() {
                     city: '',
                     appPath: '',
                     country: 'Switzerland',
-                    imageUrl: '/images/buildings/kannenfeldstrasse.jpg',
+                    imageUrl: '',
                     emergencyPhone: '',
                     supportEmail: '',
                     welcomeMessage: '',
@@ -487,6 +611,16 @@ export default function AdminBuildingsPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">Night-time ranges (e.g. 22:00 to 07:00) are allowed.</p>
                 </div>
+                <BuildingPhotoField
+                  label="Building photo"
+                  alt={`${editingBuilding.name} preview`}
+                  imageUrl={editingBuilding.imageUrl}
+                  onImageUrlChange={(url) =>
+                    setEditingBuilding((prev) => (prev ? { ...prev, imageUrl: url } : prev))
+                  }
+                  onUploadError={setError}
+                  disabled={!canEdit || saving}
+                />
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="edit-good">Good to know (optional)</Label>
                   <Textarea

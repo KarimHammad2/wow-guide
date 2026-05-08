@@ -13,7 +13,10 @@ import { getBuildingById } from '@/lib/buildings-repository'
 import {
   getBuildingCategories,
   getBuildingCategoryContent,
+  getEditorCategoryContent,
 } from '@/lib/building-guides-repository'
+import { getEditorSessionUser } from '@/lib/editor-api'
+import { normalizeInternetCategoryGuestContent } from '@/lib/guide-internet-guest-normalize'
 import { getCategoryBySlug, getCategoryContent } from '@/lib/data'
 import type { GuideContent } from '@/lib/admin-types'
 import { cn } from '@/lib/utils'
@@ -21,6 +24,7 @@ import { getLucideIcon, isCategoryIconImageUrl } from '@/lib/icons'
 
 interface CategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string }>
+  searchParams: Promise<{ preview?: string }>
 }
 
 export const dynamic = 'force-dynamic'
@@ -42,8 +46,9 @@ function emergencyGuideFallback(): GuideContent {
   }
 }
 
-export default async function BuildingCategoryPage({ params }: CategoryPageProps) {
+export default async function BuildingCategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug, categorySlug } = await params
+  const { preview: previewQuery } = await searchParams
   const building = await getBuildingById(slug)
 
   if (!building) {
@@ -54,6 +59,29 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
   let category =
     buildingCategories.find((item) => item.slug === categorySlug) ?? null
   let content = (await getBuildingCategoryContent(building.id, categorySlug)) ?? null
+  let draftPreviewActive = false
+
+  /**
+   * Logged-in editors can open ?preview=draft to see the same merged draft as the Visual Builder.
+   * Guests still only see published `content` (unchanged when this param is missing or user is anonymous).
+   */
+  if (previewQuery === 'draft') {
+    const editorUser = await getEditorSessionUser()
+    if (editorUser) {
+      const editorRow = await getEditorCategoryContent(building.id, categorySlug)
+      const allowed =
+        editorRow &&
+        (!editorRow.ownerUserId || editorRow.ownerUserId === editorUser.userId)
+      if (allowed && editorRow) {
+        content = editorRow.content
+        category = editorRow.category
+        draftPreviewActive = true
+        if (categorySlug === 'internet') {
+          content = normalizeInternetCategoryGuestContent(content)
+        }
+      }
+    }
+  }
 
   // Banner and deep links use /category/emergency even when the section was not seeded in DB.
   if (categorySlug === EMERGENCY_SLUG) {
@@ -94,6 +122,18 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
             Back to Guide
           </Link>
         </section>
+
+        {draftPreviewActive && (
+          <section className="guide-shell">
+            <div
+              role="status"
+              className="rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-400/35 dark:bg-amber-950/40 dark:text-amber-50"
+            >
+              Draft preview — this is how the page looks with your saved draft and inheritance merge. Guests only see
+              the last published version until you click Publish in the Visual Builder.
+            </div>
+          </section>
+        )}
 
         <section className="guide-shell space-y-6">
           {!leadIsCatalogBand ? (
@@ -162,8 +202,9 @@ export default async function BuildingCategoryPage({ params }: CategoryPageProps
   )
 }
 
-export async function generateMetadata({ params }: CategoryPageProps) {
+export async function generateMetadata({ params, searchParams }: CategoryPageProps) {
   const { slug, categorySlug } = await params
+  const { preview: previewQuery } = await searchParams
   const building = await getBuildingById(slug)
 
   if (!building) {
@@ -186,5 +227,6 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   return {
     title: `${category.title} - ${building.name} | WOW Guide`,
     description: category.subtitle,
+    ...(previewQuery === 'draft' ? { robots: { index: false, follow: false } as const } : {}),
   }
 }
