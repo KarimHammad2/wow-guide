@@ -634,6 +634,7 @@ export function GuideBlockRenderer({
                 {renderInlineText ? (
                   <RichTextBlockEditor
                     surface={blockEditorSurface(section)}
+                    inheritParentFontSize
                     value={section.richText}
                     plainFallback={section.content ?? ''}
                     onChange={(json, plain) =>
@@ -795,6 +796,7 @@ export function GuideBlockRenderer({
                   <div className={cn(isRow && 'min-h-0 flex-1 overflow-y-auto')}>
                     <ListBlockItemsField
                       surface={blockEditorSurface(section)}
+                      inheritParentFontSize
                       items={(section.items ?? []).map((item) => ({
                         id: item.id,
                         title: item.title,

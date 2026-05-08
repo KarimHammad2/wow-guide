@@ -83,6 +83,11 @@ export interface RichTextBlockEditorProps {
    * `default`: theme background and foreground (admin panel, list row chrome).
    */
   surface?: 'default' | 'inherit'
+  /**
+   * When true, the editable region does not force `text-sm` so `font-size` from a parent block (visual builder)
+   * applies to body copy as well as the title field.
+   */
+  inheritParentFontSize?: boolean
 }
 
 export function RichTextBlockEditor({
@@ -94,6 +99,7 @@ export function RichTextBlockEditor({
   immediatelyRender = false,
   editorScrollMaxClassName,
   surface = 'default',
+  inheritParentFontSize = false,
 }: RichTextBlockEditorProps) {
   const onChangeRef = useRef(onChange)
   useEffect(() => {
@@ -408,7 +414,8 @@ export function RichTextBlockEditor({
         <EditorContent
           editor={editor}
           className={cn(
-            'tiptap-editor min-h-24 max-w-none px-3 py-2 text-sm',
+            'tiptap-editor min-h-24 max-w-none px-3 py-2',
+            !inheritParentFontSize && 'text-sm',
             surface === 'inherit' ? 'text-inherit' : 'text-foreground'
           )}
         />

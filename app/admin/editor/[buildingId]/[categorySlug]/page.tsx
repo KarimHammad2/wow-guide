@@ -962,7 +962,7 @@ export default function CategoryVisualEditorPage() {
                       )}
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-xs text-muted-foreground">
-                          Font size
+                          Font size (title and body)
                           <Input
                             type="number"
                             className="mt-1"

@@ -21,9 +21,16 @@ interface ListBlockItemsFieldProps {
   onChange: (items: ListBlockItemRow[]) => void
   /** Passes through to `RichTextBlockEditor` when the list block uses custom Design colors. */
   surface?: 'default' | 'inherit'
+  /** When true, list row editors inherit the block’s font size from the guide canvas. */
+  inheritParentFontSize?: boolean
 }
 
-export function ListBlockItemsField({ items, onChange, surface = 'default' }: ListBlockItemsFieldProps) {
+export function ListBlockItemsField({
+  items,
+  onChange,
+  surface = 'default',
+  inheritParentFontSize = false,
+}: ListBlockItemsFieldProps) {
   function updateRow(index: number, patch: Partial<ListBlockItemRow>) {
     onChange(items.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
@@ -50,8 +57,9 @@ export function ListBlockItemsField({ items, onChange, surface = 'default' }: Li
           <div className="flex items-start gap-2">
             <RichTextBlockEditor
               toolbar="essential"
-              className="min-w-0 flex-1 text-sm"
+              className={cn('min-w-0 flex-1', !inheritParentFontSize && 'text-sm')}
               surface={surface}
+              inheritParentFontSize={inheritParentFontSize}
               value={row.richText}
               plainFallback={row.title}
               editorScrollMaxClassName="max-h-[min(42vh,280px)]"
