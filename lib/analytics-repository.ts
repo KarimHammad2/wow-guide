@@ -282,18 +282,27 @@ export async function recordBuildingPageVisit(input: RecordBuildingPageVisitInpu
   }
 }
 
-export async function getAnalyticsDashboardData(rangeDaysInput: number | string | undefined = DEFAULT_RANGE_DAYS) {
+export async function getAnalyticsDashboardData(
+  rangeDaysInput: number | string | undefined = DEFAULT_RANGE_DAYS,
+  options?: { buildingId?: string | null }
+) {
   const rangeDays = normalizeRangeDays(rangeDaysInput)
   const now = new Date()
   const start = new Date(now.getTime() - (rangeDays - 1) * DAY_MS)
   const admin = createSupabaseAdmin()
+  const buildingIdFilter = options?.buildingId?.trim() || null
+
+  let visitsQuery = admin
+    .from('building_page_visits')
+    .select('building_id, visitor_id, pathname, page_title, page_type, category_slug, referrer, visited_at')
+    .gte('visited_at', start.toISOString())
+  if (buildingIdFilter) {
+    visitsQuery = visitsQuery.eq('building_id', buildingIdFilter)
+  }
+  visitsQuery = visitsQuery.order('visited_at', { ascending: false })
 
   const [visitsResult, buildingsResult] = await Promise.all([
-    admin
-      .from('building_page_visits')
-      .select('building_id, visitor_id, pathname, page_title, page_type, category_slug, referrer, visited_at')
-      .gte('visited_at', start.toISOString())
-      .order('visited_at', { ascending: false }),
+    visitsQuery,
     admin.from('buildings').select('id, name, app_path').order('name', { ascending: true }),
   ])
 

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   BarChart3,
+  Building2,
+  CalendarDays,
+  Check,
+  ChevronsUpDown,
   Clock3,
   Eye,
   LineChart as LineChartIcon,
@@ -24,11 +28,24 @@ import { AdminShell } from '@/components/admin/admin-shell'
 import { ModuleHeader } from '@/components/admin/module-header'
 import { useAdminSession } from '@/components/admin/use-admin-session'
 import { adminRequest } from '@/components/admin/admin-api'
+import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import type { AnalyticsDashboardData, AnalyticsRangeDays } from '@/lib/analytics-repository'
+import type { Building } from '@/lib/data'
 
 const RANGE_OPTIONS: Array<{ value: AnalyticsRangeDays; label: string }> = [
   { value: 7, label: 'Last 7 days' },
@@ -36,18 +53,121 @@ const RANGE_OPTIONS: Array<{ value: AnalyticsRangeDays; label: string }> = [
   { value: 90, label: 'Last 90 days' },
 ]
 
+const ALL_BUILDINGS_VALUE = '__all__'
+
+function AnalyticsBuildingCombobox({
+  buildings,
+  value,
+  onValueChange,
+}: {
+  buildings: Building[]
+  value: string
+  onValueChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  const label = useMemo(() => {
+    if (value === ALL_BUILDINGS_VALUE) return 'All buildings'
+    return buildings.find((b) => b.id === value)?.name ?? 'Select building…'
+  }, [buildings, value])
+
+  const isAll = value === ALL_BUILDINGS_VALUE
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-10 w-full justify-between rounded-xl border-border/80 bg-background/80 px-3 text-left font-normal shadow-xs hover:bg-background"
+        >
+          <span className={cn('truncate', isAll && 'text-muted-foreground')}>{label}</span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[min(calc(100vw-2rem),22rem)] p-0 shadow-md"
+        align="start"
+        sideOffset={6}
+      >
+        <Command className="rounded-lg">
+          <CommandInput placeholder="Search buildings…" />
+          <CommandList>
+            <CommandEmpty>No building matches.</CommandEmpty>
+            <CommandGroup heading="Scope">
+              <CommandItem
+                value="all-buildings-filter"
+                onSelect={() => {
+                  onValueChange(ALL_BUILDINGS_VALUE)
+                  setOpen(false)
+                }}
+              >
+                <Check className={cn('size-4 shrink-0', isAll ? 'opacity-100' : 'opacity-0')} />
+                <span>All buildings</span>
+              </CommandItem>
+            </CommandGroup>
+            <CommandGroup heading="Properties">
+              {buildings.map((b) => {
+                const selected = value === b.id
+                return (
+                  <CommandItem
+                    key={b.id}
+                    value={`${b.name} ${b.city} ${b.id}`}
+                    keywords={[b.name, b.city, b.address, b.appPath, b.id]}
+                    onSelect={() => {
+                      onValueChange(b.id)
+                      setOpen(false)
+                    }}
+                  >
+                    <Check className={cn('size-4 shrink-0', selected ? 'opacity-100' : 'opacity-0')} />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate font-medium">{b.name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {b.city}
+                        {b.appPath ? ` · ${b.appPath}` : ''}
+                      </span>
+                    </span>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export default function AdminAnalyticsPage() {
   const { email, canManageTeam, loading, error, setError, logout } = useAdminSession()
   const [rangeDays, setRangeDays] = useState<AnalyticsRangeDays>(30)
+  const [buildingIdFilter, setBuildingIdFilter] = useState<string>(ALL_BUILDINGS_VALUE)
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [data, setData] = useState<AnalyticsDashboardData | null>(null)
 
   useEffect(() => {
     if (loading) return
 
+    void adminRequest<Building[]>('/api/admin/buildings')
+      .then(setBuildings)
+      .catch(() => {
+        setBuildings([])
+      })
+  }, [loading])
+
+  useEffect(() => {
+    if (loading) return
+
     setDataLoading(true)
     setError(null)
-    void adminRequest<AnalyticsDashboardData>(`/api/admin/analytics?range=${rangeDays}`)
+    const params = new URLSearchParams({ range: String(rangeDays) })
+    if (buildingIdFilter !== ALL_BUILDINGS_VALUE) {
+      params.set('buildingId', buildingIdFilter)
+    }
+    void adminRequest<AnalyticsDashboardData>(`/api/admin/analytics?${params.toString()}`)
       .then((payload) => {
         setData(payload)
       })
@@ -57,7 +177,7 @@ export default function AdminAnalyticsPage() {
       .finally(() => {
         setDataLoading(false)
       })
-  }, [loading, rangeDays, setError])
+  }, [loading, rangeDays, buildingIdFilter, setError])
 
   const topBuilding = data?.topBuildings[0]
 
@@ -91,24 +211,54 @@ export default function AdminAnalyticsPage() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-3">
-        <div>
-          <p className="text-sm font-medium">Date range</p>
-          <p className="text-xs text-muted-foreground">Choose how much history to include in the charts.</p>
+      <section className="rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-card/90 p-1 shadow-sm">
+        <div className="flex flex-col gap-6 rounded-[14px] bg-card/70 px-4 py-5 backdrop-blur-sm sm:px-5 lg:flex-row lg:items-stretch lg:gap-0">
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:pr-8">
+            <div className="flex items-center gap-2 text-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <CalendarDays className="size-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold leading-tight">Date range</p>
+                <p className="text-xs text-muted-foreground">History window for charts and totals.</p>
+              </div>
+            </div>
+            <Select value={String(rangeDays)} onValueChange={(v) => setRangeDays(Number(v) as AnalyticsRangeDays)}>
+              <SelectTrigger className="h-10 w-full max-w-md rounded-xl border-border/80 bg-background/80 shadow-xs lg:max-w-xs">
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                {RANGE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator orientation="vertical" className="hidden lg:mx-6 lg:block lg:min-h-18 lg:w-px lg:self-center" />
+
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:pl-0">
+            <div className="flex items-center gap-2 text-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Building2 className="size-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold leading-tight">Building</p>
+                <p className="text-xs text-muted-foreground">Search or pick a property to focus metrics.</p>
+              </div>
+            </div>
+            <div className="max-w-md lg:max-w-sm">
+              <AnalyticsBuildingCombobox
+                buildings={buildings}
+                value={buildingIdFilter}
+                onValueChange={setBuildingIdFilter}
+              />
+            </div>
+          </div>
         </div>
-        <Select value={String(rangeDays)} onValueChange={(value) => setRangeDays(Number(value) as AnalyticsRangeDays)}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Select range" />
-          </SelectTrigger>
-          <SelectContent>
-            {RANGE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={String(option.value)}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="rounded-2xl">

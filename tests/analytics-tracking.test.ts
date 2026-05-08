@@ -100,4 +100,20 @@ describe('analytics aggregation', () => {
     expect(day23).toMatchObject({ visits: 2, uniqueVisitors: 2 })
     expect(day22).toMatchObject({ visits: 2, uniqueVisitors: 2 })
   })
+
+  it('matches single-building analytics when visits are pre-filtered', () => {
+    const alphaOnly = visits.filter((v) => v.building_id === 'alpha')
+    const data = aggregateAnalyticsDashboard(alphaOnly, buildings, 7, now)
+
+    expect(data.summary.totalVisits).toBe(3)
+    expect(data.summary.uniqueVisitors).toBe(2)
+    expect(data.summary.trackedBuildings).toBe(1)
+    expect(data.topBuildings).toHaveLength(1)
+    expect(data.topBuildings[0]).toMatchObject({
+      buildingId: 'alpha',
+      buildingName: 'Alpha Residence',
+      visits: 3,
+    })
+    expect(data.topPages.every((p) => p.buildingId === 'alpha')).toBe(true)
+  })
 })

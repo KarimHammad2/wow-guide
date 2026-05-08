@@ -9,9 +9,10 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const range = url.searchParams.get('range') ?? undefined
+  const buildingId = url.searchParams.get('buildingId') ?? undefined
 
   try {
-    const data = await getAnalyticsDashboardData(range)
+    const data = await getAnalyticsDashboardData(range, { buildingId })
     return NextResponse.json(data)
   } catch (error) {
     logApiError('admin-analytics', error)
