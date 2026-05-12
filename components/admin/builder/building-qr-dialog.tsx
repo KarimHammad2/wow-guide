@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { WowWordmark } from '@/components/site/wow-wordmark'
 import type { Building } from '@/lib/data'
 import { toAbsoluteSiteUrl } from '@/lib/site-url'
 
@@ -23,8 +22,22 @@ type BuildingQrDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
-const CARD_WIDTH = 1200
-const CARD_HEIGHT = 1600
+/** Mauve card + white QR (print-style artwork). */
+const QR_CARD_BG = '#946376'
+const QR_CARD_FG = '#ffffff'
+
+const CARD_SIZE = 1200
+
+function displayUrlFromAbsolute(absoluteUrl: string): string {
+  try {
+    const u = new URL(absoluteUrl)
+    const host = u.hostname.toLowerCase()
+    const path = u.pathname.replace(/\/+$/, '') || ''
+    return `${host}${path}`
+  } catch {
+    return absoluteUrl.replace(/^https?:\/\//i, '').toLowerCase()
+  }
+}
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -47,6 +60,11 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
     return toAbsoluteSiteUrl(`/${building.id}`)
   }, [building])
 
+  const displayUrl = useMemo(
+    () => (publicUrl ? displayUrlFromAbsolute(publicUrl) : ''),
+    [publicUrl]
+  )
+
   useEffect(() => {
     if (!open || !building || !publicUrl) return
     let cancelled = false
@@ -55,11 +73,11 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
     setError(null)
     void QRCode.toDataURL(publicUrl, {
       width: 1080,
-      margin: 1,
+      margin: 2,
       errorCorrectionLevel: 'H',
       color: {
-        dark: '#111827',
-        light: '#ffffff',
+        dark: QR_CARD_FG,
+        light: QR_CARD_BG,
       },
     })
       .then((value: string) => {
@@ -88,56 +106,67 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
     if (!building || !publicUrl || !qrDataUrl) return ''
 
     const canvas = document.createElement('canvas')
-    canvas.width = CARD_WIDTH
-    canvas.height = CARD_HEIGHT
+    canvas.width = CARD_SIZE
+    canvas.height = CARD_SIZE
     const context = canvas.getContext('2d')
     if (!context) return ''
 
-    const [qrImage, logoImage] = await Promise.all([loadImage(qrDataUrl), loadImage('/wow-wordmark.png')])
-    const lw = logoImage.naturalWidth
-    const lh = logoImage.naturalHeight
-    if (!lw || !lh) return ''
+    const qrImage = await loadImage(qrDataUrl)
+    const urlLine = displayUrlFromAbsolute(publicUrl)
 
-    const logoMaxHeight = 120
-    const logoMaxWidth = 420
-    let drawW = logoMaxWidth
-    let drawH = (drawW * lh) / lw
-    if (drawH > logoMaxHeight) {
-      drawH = logoMaxHeight
-      drawW = (drawH * lw) / lh
-    }
-    const logoX = CARD_WIDTH / 2 - drawW / 2
-    const logoY = 120
+    context.fillStyle = QR_CARD_BG
+    context.fillRect(0, 0, CARD_SIZE, CARD_SIZE)
 
-    context.fillStyle = '#f8fafc'
-    context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
+    const title = 'WOW GUIDE'
+    const padX = 72
+    const titleBaseline = 132
+    const urlBaseline = CARD_SIZE - 96
+    const qrSize = 700
+    const midY = (titleBaseline + urlBaseline) / 2
+    const qrX = CARD_SIZE / 2 - qrSize / 2
+    const qrY = midY - qrSize / 2
 
-    context.fillStyle = '#111827'
-    context.fillRect(56, 56, CARD_WIDTH - 112, CARD_HEIGHT - 112)
-
-    context.fillStyle = '#ffffff'
-    context.fillRect(86, 86, CARD_WIDTH - 172, CARD_HEIGHT - 172)
-
-    context.drawImage(logoImage, logoX, logoY, drawW, drawH)
-
-    context.fillStyle = '#0f172a'
-    context.font = '700 58px system-ui, -apple-system, Segoe UI, sans-serif'
+    context.fillStyle = QR_CARD_FG
     context.textAlign = 'center'
-    context.fillText(building.name, CARD_WIDTH / 2, 340)
+    context.font = '700 52px Montserrat, system-ui, -apple-system, Segoe UI, sans-serif'
+    context.fillText(title, CARD_SIZE / 2, titleBaseline)
 
-    context.fillStyle = '#475569'
-    context.font = '400 34px system-ui, -apple-system, Segoe UI, sans-serif'
-    context.fillText('Scan to open this building guide', CARD_WIDTH / 2, 400)
+    context.drawImage(qrImage, qrX, qrY, qrSize, qrSize)
 
-    context.fillStyle = '#f1f5f9'
-    context.fillRect(210, 450, 780, 780)
-    context.drawImage(qrImage, 250, 490, 700, 700)
+    const lowerUrl = urlLine.toLowerCase()
+    const slashIdx = lowerUrl.indexOf('/')
+    const maxUrlWidth = CARD_SIZE - padX * 2
 
-    context.fillStyle = '#e2e8f0'
-    context.fillRect(120, 1290, CARD_WIDTH - 240, 180)
-    context.fillStyle = '#64748b'
-    context.font = '600 30px system-ui, -apple-system, Segoe UI, sans-serif'
-    context.fillText('WOW living', CARD_WIDTH / 2, 1390)
+    let urlFontPx = 30
+    const drawUrl = (fontPx: number, lines: string[]) => {
+      context.font = `400 ${fontPx}px Montserrat, system-ui, -apple-system, Segoe UI, sans-serif`
+      const lineGap = Math.round(fontPx * 0.45)
+      const totalH = lines.length * fontPx + (lines.length - 1) * lineGap
+      let y = urlBaseline - (totalH - fontPx)
+      for (const line of lines) {
+        context.fillText(line, CARD_SIZE / 2, y)
+        y += fontPx + lineGap
+      }
+    }
+
+    const lines =
+      slashIdx === -1
+        ? [lowerUrl]
+        : [lowerUrl.slice(0, slashIdx + 1), lowerUrl.slice(slashIdx + 1)].filter(Boolean)
+
+    while (urlFontPx >= 22) {
+      context.font = `400 ${urlFontPx}px Montserrat, system-ui, -apple-system, Segoe UI, sans-serif`
+      const fits = lines.every((line) => context.measureText(line).width <= maxUrlWidth)
+      if (fits) {
+        drawUrl(urlFontPx, lines)
+        break
+      }
+      urlFontPx -= 2
+    }
+    if (urlFontPx < 22) {
+      context.font = '400 22px Montserrat, system-ui, -apple-system, Segoe UI, sans-serif'
+      context.fillText(lowerUrl, CARD_SIZE / 2, urlBaseline)
+    }
 
     return canvas.toDataURL('image/png')
   }
@@ -258,34 +287,36 @@ export function BuildingQrDialog({ building, open, onOpenChange }: BuildingQrDia
         </DialogHeader>
 
         <div className="rounded-2xl border bg-slate-50 p-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex justify-center">
-              <WowWordmark className="mx-auto max-w-none object-center" />
-            </div>
-            <p className="mt-4 text-center text-lg font-semibold text-slate-900">{building?.name ?? 'Building'}</p>
-            <p className="text-center text-sm text-slate-500">Scan to open the building guide</p>
-            <div className="mt-4 grid place-items-center rounded-lg bg-slate-100 p-4">
+          <div
+            className="flex aspect-square w-full max-w-sm flex-col items-center justify-between gap-4 rounded-xl px-5 py-7 shadow-sm mx-auto"
+            style={{ backgroundColor: QR_CARD_BG }}
+          >
+            <p className="text-center font-sans text-sm font-bold uppercase tracking-wide text-white">WOW GUIDE</p>
+            <div className="flex min-h-0 flex-1 items-center justify-center py-2">
               {loadingQr ? (
-                <div className="flex h-[230px] items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                <div className="flex h-48 w-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-white/80" />
                 </div>
               ) : qrDataUrl ? (
                 <Image
                   src={qrDataUrl}
                   alt={`${building?.name ?? 'Building'} QR code`}
-                  width={230}
-                  height={230}
+                  width={220}
+                  height={220}
                   unoptimized
-                  className="rounded-md bg-white p-2"
+                  className="h-auto max-h-[min(50vw,220px)] w-auto max-w-[85%]"
                 />
               ) : (
-                <p className="py-20 text-sm text-slate-500">QR preview unavailable.</p>
+                <p className="py-16 text-sm text-white/70">QR preview unavailable.</p>
               )}
             </div>
-            <p className="mt-4 rounded-md bg-slate-100 px-3 py-2 text-center text-xs text-slate-700">
-              Point your phone camera at the code
+            <p className="max-w-full break-all text-center font-sans text-[11px] font-normal leading-snug text-white [font-variant-ligatures:none] lowercase">
+              {displayUrl || '—'}
             </p>
           </div>
+          {building ? (
+            <p className="mt-3 text-center text-xs text-slate-500">{building.name}</p>
+          ) : null}
         </div>
 
         {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
