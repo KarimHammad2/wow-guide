@@ -5,6 +5,10 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Allow multipart bodies through proxy for admin API routes (category/building uploads).
+    proxyClientMaxBodySize: '25mb',
+  },
   turbopack: {
     root: rootDir,
   },

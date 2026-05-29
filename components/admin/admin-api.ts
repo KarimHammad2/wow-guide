@@ -1,5 +1,7 @@
 'use client'
 
+import { uploadFileViaSignedUrl } from '@/lib/client-signed-upload'
+
 function parseJsonBody(text: string): unknown {
   if (!text.trim()) return undefined
   try {
@@ -34,46 +36,12 @@ export async function adminRequest<T>(url: string, init?: RequestInit): Promise<
   return data as T
 }
 
-/** Multipart upload for building list images (not JSON). */
+/** Signed direct-to-Supabase upload for building list images. */
 export async function adminUploadBuildingImage(file: File): Promise<{ url: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const response = await fetch('/api/admin/buildings/image', {
-    method: 'POST',
-    credentials: 'include',
-    cache: 'no-store',
-    body: formData,
-  })
-  const text = await response.text()
-  const data = parseJsonBody(text)
-  if (!response.ok) {
-    const err =
-      data && typeof data === 'object' && data !== null && 'error' in data
-        ? (data as { error?: unknown }).error
-        : undefined
-    throw new Error(typeof err === 'string' && err ? err : 'Upload failed')
-  }
-  return data as { url: string }
+  return uploadFileViaSignedUrl('/api/admin/buildings/image', file)
 }
 
-/** Multipart upload for category icon images (not JSON). */
+/** Signed direct-to-Supabase upload for category icon images. */
 export async function adminUploadCategoryIcon(file: File): Promise<{ url: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const response = await fetch('/api/admin/categories/icon', {
-    method: 'POST',
-    credentials: 'include',
-    cache: 'no-store',
-    body: formData,
-  })
-  const text = await response.text()
-  const data = parseJsonBody(text)
-  if (!response.ok) {
-    const err =
-      data && typeof data === 'object' && data !== null && 'error' in data
-        ? (data as { error?: unknown }).error
-        : undefined
-    throw new Error(typeof err === 'string' && err ? err : 'Upload failed')
-  }
-  return data as { url: string }
+  return uploadFileViaSignedUrl('/api/admin/categories/icon', file)
 }

@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { requireMutableGuideCategories } from '@/lib/admin-api'
 import {
   getRequestIp,
-  logApiError,
-  serverErrorResponse,
   tooManyRequestsResponse,
 } from '@/lib/api-route-utils'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { parseSignMediaUploadInput, signMediaUpload } from '@/lib/signed-media-upload'
 
 const MAX_BYTES = 5 * 1024 * 1024
+const BUCKET = 'category-icons'
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 
 const extByMime: Record<string, string> = {
@@ -18,6 +17,29 @@ const extByMime: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
   'image/gif': 'gif',
+}
+
+const extFromFileName = (fileName: string): string | null => {
+  const match = fileName.match(/\.([a-z0-9]+)$/i)
+  const ext = match?.[1]?.toLowerCase()
+  if (!ext) return null
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+  if (ext === 'png') return 'image/png'
+  if (ext === 'webp') return 'image/webp'
+  if (ext === 'gif') return 'image/gif'
+  return null
+}
+
+const categoryIconSignConfig = {
+  bucket: BUCKET,
+  maxBytes: MAX_BYTES,
+  extByMime,
+  resolveType: (input: { fileName: string; contentType: string }) => {
+    const type = (input.contentType || 'application/octet-stream').trim().toLowerCase()
+    if (ALLOWED_TYPES.has(type)) return type
+    return extFromFileName(input.fileName)
+  },
+  buildObjectPath: ({ ext }: { ext: string }) => `uploads/${crypto.randomUUID()}.${ext}`,
 }
 
 export async function POST(request: NextRequest) {
@@ -30,51 +52,22 @@ export async function POST(request: NextRequest) {
   })
   if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
 
-  let formData: FormData
+  let body: unknown
   try {
-    formData = await request.formData()
+    body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Expected multipart form data.' }, { status: 400 })
+    return NextResponse.json({ error: 'Expected JSON body with file metadata.' }, { status: 400 })
   }
 
-  const file = formData.get('file')
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: 'Missing file field.' }, { status: 400 })
+  const input = parseSignMediaUploadInput(body)
+  if (!input) {
+    return NextResponse.json({ error: 'Invalid upload metadata.' }, { status: 400 })
   }
 
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'File too large (max 5MB).' }, { status: 400 })
+  const signed = await signMediaUpload(categoryIconSignConfig, input, {})
+  if ('error' in signed) {
+    return NextResponse.json({ error: signed.error }, { status: signed.status })
   }
 
-  const type = file.type || 'application/octet-stream'
-  if (!ALLOWED_TYPES.has(type)) {
-    return NextResponse.json({ error: 'Unsupported image type.' }, { status: 400 })
-  }
-
-  const ext = extByMime[type] ?? 'bin'
-  const path = `uploads/${crypto.randomUUID()}.${ext}`
-
-  try {
-    const admin = createSupabaseAdmin()
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const { error: uploadError } = await admin.storage.from('category-icons').upload(path, buffer, {
-      contentType: type,
-      upsert: false,
-    })
-
-    if (uploadError) {
-      logApiError('admin-category-icon-upload-storage', uploadError)
-      return serverErrorResponse('Upload failed.')
-    }
-
-    const { data: pub } = admin.storage.from('category-icons').getPublicUrl(path)
-    if (!pub?.publicUrl) {
-      return serverErrorResponse('Could not resolve public URL.')
-    }
-
-    return NextResponse.json({ url: pub.publicUrl })
-  } catch (err) {
-    logApiError('admin-category-icon-upload', err)
-    return serverErrorResponse('Upload failed.')
-  }
+  return NextResponse.json(signed)
 }

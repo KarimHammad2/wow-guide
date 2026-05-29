@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { requireEditorSession } from '@/lib/editor-api'
 import {
   ensureGuideMediaBucket,
@@ -8,7 +7,6 @@ import {
   GUIDE_MEDIA_MAX_BYTES,
   resolveGuideMediaContentType,
   resolveGuideMediaPath,
-  sniffGuideMediaContentType,
 } from '@/lib/editor-media'
 import {
   getRequestIp,
@@ -17,8 +15,8 @@ import {
   tooManyRequestsResponse,
 } from '@/lib/api-route-utils'
 import { checkRateLimit } from '@/lib/rate-limit'
-
-const MAX_BYTES = GUIDE_MEDIA_MAX_BYTES
+import { createSupabaseAdmin } from '@/lib/supabase/admin'
+import { parseSignMediaUploadInput, signMediaUpload } from '@/lib/signed-media-upload'
 
 const extByMime: Record<string, string> = {
   'image/png': 'png',
@@ -27,6 +25,17 @@ const extByMime: Record<string, string> = {
   'image/gif': 'gif',
   'video/mp4': 'mp4',
   'video/webm': 'webm',
+}
+
+const guideMediaSignConfig = {
+  bucket: GUIDE_MEDIA_BUCKET,
+  maxBytes: GUIDE_MEDIA_MAX_BYTES,
+  extByMime,
+  resolveType: (input: { fileName: string; contentType: string }) =>
+    resolveGuideMediaContentType(new File([], input.fileName, { type: input.contentType })),
+  buildObjectPath: ({ ext, userId }: { ext: string; userId?: string }) =>
+    `${userId ?? 'anonymous'}/${crypto.randomUUID()}.${ext}`,
+  ensureBucket: ensureGuideMediaBucket,
 }
 
 export async function POST(request: NextRequest) {
@@ -39,53 +48,24 @@ export async function POST(request: NextRequest) {
   })
   if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
 
-  let formData: FormData
+  let body: unknown
   try {
-    formData = await request.formData()
+    body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Expected multipart form data.' }, { status: 400 })
+    return NextResponse.json({ error: 'Expected JSON body with file metadata.' }, { status: 400 })
   }
 
-  const file = formData.get('file')
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: 'Missing file field.' }, { status: 400 })
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'File too large (max 25MB).' }, { status: 400 })
-  }
-  let type = resolveGuideMediaContentType(file)
-  if (!type) {
-    const head = new Uint8Array(await file.slice(0, 32).arrayBuffer())
-    type = sniffGuideMediaContentType(head)
-  }
-  if (!type) {
-    return NextResponse.json({ error: 'Unsupported file type.' }, { status: 400 })
+  const input = parseSignMediaUploadInput(body)
+  if (!input) {
+    return NextResponse.json({ error: 'Invalid upload metadata.' }, { status: 400 })
   }
 
-  const ext = extByMime[type] ?? 'bin'
-  const path = `${auth.auth.userId}/${crypto.randomUUID()}.${ext}`
-
-  try {
-    const admin = createSupabaseAdmin()
-    await ensureGuideMediaBucket(admin)
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const { error: uploadError } = await admin.storage.from(GUIDE_MEDIA_BUCKET).upload(path, buffer, {
-      contentType: type,
-      upsert: false,
-    })
-    if (uploadError) {
-      logApiError('editor-media-upload-storage', uploadError)
-      return serverErrorResponse('Upload failed.')
-    }
-    const { data: pub } = admin.storage.from(GUIDE_MEDIA_BUCKET).getPublicUrl(path)
-    if (!pub?.publicUrl) {
-      return serverErrorResponse('Could not resolve public URL.')
-    }
-    return NextResponse.json({ url: pub.publicUrl })
-  } catch (error) {
-    logApiError('editor-media-upload', error)
-    return serverErrorResponse('Upload failed.')
+  const signed = await signMediaUpload(guideMediaSignConfig, input, { userId: auth.auth.userId })
+  if ('error' in signed) {
+    return NextResponse.json({ error: signed.error }, { status: signed.status })
   }
+
+  return NextResponse.json(signed)
 }
 
 export async function DELETE(request: NextRequest) {

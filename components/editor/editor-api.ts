@@ -1,5 +1,6 @@
 'use client'
 
+import { uploadFileViaSignedUrl } from '@/lib/client-signed-upload'
 import type { ContentInheritance } from '@/lib/admin-types'
 import type { VisualGuideDocument } from '@/lib/visual-builder-schema'
 import type { Category } from '@/lib/data'
@@ -19,18 +20,6 @@ function editorMediaUrl(): string {
     return new URL('/api/editor/media', window.location.origin).toString()
   }
   return '/api/editor/media'
-}
-
-function xhrPostFormData(pathOrUrl: string, formData: FormData): Promise<{ status: number; text: string }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', pathOrUrl)
-    xhr.withCredentials = true
-    xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText })
-    xhr.onerror = () => reject(new TypeError('Failed to connect'))
-    xhr.onabort = () => reject(new TypeError('Failed to connect'))
-    xhr.send(formData)
-  })
 }
 
 function xhrJsonDelete(pathOrUrl: string, body: unknown): Promise<{ status: number; text: string }> {
@@ -117,32 +106,16 @@ export async function publishEditorDocument(buildingId: string, categorySlug: st
 }
 
 export async function uploadEditorMedia(file: File): Promise<{ url: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-  let text: string
-  let status: number
   try {
-    ;({ status, text } = await xhrPostFormData(editorMediaUrl(), formData))
+    return await uploadFileViaSignedUrl(editorMediaUrl(), file)
   } catch (err) {
     if (err instanceof TypeError) {
       throw new Error(
         'Could not reach media upload service. If this keeps happening, try a private window or turn off browser extensions (some break file uploads on localhost).'
       )
     }
-    throw new Error('Could not reach media upload service.')
+    throw err instanceof Error ? err : new Error('Upload failed')
   }
-  const data = parseJsonBody(text)
-  if (status < 200 || status >= 300) {
-    const err =
-      data && typeof data === 'object' && data !== null && 'error' in data
-        ? (data as { error?: unknown }).error
-        : undefined
-    throw new Error(typeof err === 'string' && err ? err : 'Upload failed')
-  }
-  if (!data || typeof data !== 'object' || !('url' in data) || typeof (data as { url: unknown }).url !== 'string') {
-    throw new Error('Upload failed')
-  }
-  return { url: (data as { url: string }).url }
 }
 
 export async function deleteEditorMedia(url: string): Promise<{ ok: true }> {
