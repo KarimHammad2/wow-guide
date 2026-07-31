@@ -10,6 +10,14 @@ const QUIET_HOUR_SET = new Set(QUIET_HOUR_OPTIONS.map((o) => o.value))
 /** Sentinel for “not chosen yet” in admin selects. */
 export const QUIET_HOUR_UNSET = '__unset__'
 
+/** Default quiet-hours range for new buildings (matches seeded building copy). */
+export const DEFAULT_QUIET_HOURS_FROM = '22:00'
+export const DEFAULT_QUIET_HOURS_TO = '07:00'
+
+export function hasValidQuietHoursRange(from: string, to: string): boolean {
+  return isValidQuietHourSlot(from) && isValidQuietHourSlot(to)
+}
+
 /**
  * Parse stored quiet hours like "22:00–07:00" or "22:00 - 07:00".
  * Returns normalized HH:00 strings when recognized.

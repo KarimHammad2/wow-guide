@@ -36,10 +36,12 @@ import type { Building } from '@/lib/data'
 import type { City } from '@/lib/admin-types'
 import { QuietHourPicker } from '@/components/admin/quiet-hour-picker'
 import {
+  DEFAULT_QUIET_HOURS_FROM,
+  DEFAULT_QUIET_HOURS_TO,
   formatQuietHoursRange,
+  hasValidQuietHoursRange,
   isValidQuietHourSlot,
   parseQuietHoursRange,
-  QUIET_HOUR_UNSET,
 } from '@/lib/quiet-hours'
 
 function BuildingPhotoField({
@@ -163,8 +165,8 @@ export default function AdminBuildingsPage() {
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null)
   const [deletingBuilding, setDeletingBuilding] = useState<Building | null>(null)
   const [qrBuilding, setQrBuilding] = useState<Building | null>(null)
-  const [quietFrom, setQuietFrom] = useState(QUIET_HOUR_UNSET)
-  const [quietTo, setQuietTo] = useState(QUIET_HOUR_UNSET)
+  const [quietFrom, setQuietFrom] = useState(DEFAULT_QUIET_HOURS_FROM)
+  const [quietTo, setQuietTo] = useState(DEFAULT_QUIET_HOURS_TO)
   const [quietEditFrom, setQuietEditFrom] = useState('')
   const [quietEditTo, setQuietEditTo] = useState('')
 
@@ -194,14 +196,18 @@ export default function AdminBuildingsPage() {
     return v === '' || isValidAppPath(v)
   }
 
+  function resetNewBuildingQuietHours() {
+    setQuietFrom(DEFAULT_QUIET_HOURS_FROM)
+    setQuietTo(DEFAULT_QUIET_HOURS_TO)
+  }
+
   function canSubmitNewBuilding(b: Omit<Building, 'id'>) {
     return (
       Boolean(b.name.trim()) &&
       Boolean(b.address.trim()) &&
       Boolean(b.city.trim()) &&
       Boolean(b.googleMapsUrl.trim()) &&
-      quietFrom !== QUIET_HOUR_UNSET &&
-      quietTo !== QUIET_HOUR_UNSET &&
+      hasValidQuietHoursRange(quietFrom, quietTo) &&
       isOptionalAppPathOk(b.appPath)
     )
   }
@@ -271,8 +277,7 @@ export default function AdminBuildingsPage() {
             className="gap-1.5 w-full sm:w-auto shrink-0"
             disabled={!canEdit}
             onClick={() => {
-              setQuietFrom(QUIET_HOUR_UNSET)
-              setQuietTo(QUIET_HOUR_UNSET)
+              resetNewBuildingQuietHours()
               setAddOpen(true)
             }}
           >
@@ -375,7 +380,13 @@ export default function AdminBuildingsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open)
+          if (open) resetNewBuildingQuietHours()
+        }}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Building</DialogTitle>
@@ -447,16 +458,14 @@ export default function AdminBuildingsPage() {
                   <QuietHourPicker
                     id="add-quiet-from"
                     placeholder="From"
-                    unset
-                    value={quietFrom === QUIET_HOUR_UNSET ? undefined : quietFrom}
+                    value={quietFrom}
                     onValueChange={setQuietFrom}
                   />
                   <span className="text-sm text-muted-foreground">to</span>
                   <QuietHourPicker
                     id="add-quiet-to"
                     placeholder="To"
-                    unset
-                    value={quietTo === QUIET_HOUR_UNSET ? undefined : quietTo}
+                    value={quietTo}
                     onValueChange={setQuietTo}
                   />
                 </div>
@@ -488,7 +497,7 @@ export default function AdminBuildingsPage() {
               disabled={!canEdit || saving || !canSubmitNewBuilding(newBuilding)}
               onClick={() =>
                 mutate(async () => {
-                  if (quietFrom === QUIET_HOUR_UNSET || quietTo === QUIET_HOUR_UNSET) return
+                  if (!hasValidQuietHoursRange(quietFrom, quietTo)) return
                   const payload: Omit<Building, 'id'> = {
                     ...newBuilding,
                     quietHours: formatQuietHoursRange(quietFrom, quietTo),
@@ -512,8 +521,8 @@ export default function AdminBuildingsPage() {
                     quietHours: '',
                     goodToKnow: '',
                   })
-                  setQuietFrom(QUIET_HOUR_UNSET)
-                  setQuietTo(QUIET_HOUR_UNSET)
+                  setQuietFrom(DEFAULT_QUIET_HOURS_FROM)
+                  setQuietTo(DEFAULT_QUIET_HOURS_TO)
                   setAddOpen(false)
                 })
               }

@@ -29,7 +29,7 @@ export function QuietHourPicker({
   const showUnset = unset && !value
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -52,8 +52,9 @@ export function QuietHourPicker({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="z-100 w-[min(100vw-2rem,20rem)] p-3 shadow-lg"
+        className="z-[100] w-[min(100vw-2rem,20rem)] p-3 shadow-lg"
         sideOffset={6}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <p className="sr-only">Choose an hour</p>
         <div className="grid grid-cols-6 gap-1">

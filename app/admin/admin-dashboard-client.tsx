@@ -24,10 +24,12 @@ import type { Building as BuildingType, Category, ContentSection } from '@/lib/d
 import type { City, EmergencyInfo, TeamMember } from '@/lib/admin-types'
 import { QuietHourPicker } from '@/components/admin/quiet-hour-picker'
 import {
+  DEFAULT_QUIET_HOURS_FROM,
+  DEFAULT_QUIET_HOURS_TO,
   formatQuietHoursRange,
+  hasValidQuietHoursRange,
   isValidQuietHourSlot,
   parseQuietHoursRange,
-  QUIET_HOUR_UNSET,
 } from '@/lib/quiet-hours'
 
 type BuildingSectionRecord = {
@@ -79,8 +81,8 @@ export function AdminDashboardClient() {
     quietHours: '',
     goodToKnow: '',
   })
-  const [dashQuietFrom, setDashQuietFrom] = useState(QUIET_HOUR_UNSET)
-  const [dashQuietTo, setDashQuietTo] = useState(QUIET_HOUR_UNSET)
+  const [dashQuietFrom, setDashQuietFrom] = useState(DEFAULT_QUIET_HOURS_FROM)
+  const [dashQuietTo, setDashQuietTo] = useState(DEFAULT_QUIET_HOURS_TO)
   const [newEmergency, setNewEmergency] = useState<Omit<EmergencyInfo, 'id'>>({
     label: 'Emergency contact',
     phone: '',
@@ -212,8 +214,7 @@ export function AdminDashboardClient() {
       Boolean(b.address.trim()) &&
       Boolean(b.city.trim()) &&
       Boolean(b.googleMapsUrl.trim()) &&
-      dashQuietFrom !== QUIET_HOUR_UNSET &&
-      dashQuietTo !== QUIET_HOUR_UNSET &&
+      hasValidQuietHoursRange(dashQuietFrom, dashQuietTo) &&
       isOptionalAppPathOk(b.appPath)
     )
   }
@@ -528,15 +529,13 @@ export function AdminDashboardClient() {
                     <div className="flex flex-wrap items-center gap-2">
                       <QuietHourPicker
                         placeholder="From"
-                        unset
-                        value={dashQuietFrom === QUIET_HOUR_UNSET ? undefined : dashQuietFrom}
+                        value={dashQuietFrom}
                         onValueChange={setDashQuietFrom}
                       />
                       <span className="text-sm text-muted-foreground">to</span>
                       <QuietHourPicker
                         placeholder="To"
-                        unset
-                        value={dashQuietTo === QUIET_HOUR_UNSET ? undefined : dashQuietTo}
+                        value={dashQuietTo}
                         onValueChange={setDashQuietTo}
                       />
                     </div>
@@ -549,7 +548,7 @@ export function AdminDashboardClient() {
                 </div>
                 <Textarea placeholder="Welcome message" rows={2} value={newBuilding.welcomeMessage} onChange={(e) => setNewBuilding((p) => ({ ...p, welcomeMessage: e.target.value }))} />
                 <Button className="gap-1.5" size="sm" disabled={!canEdit || saving || !canSubmitNewBuilding(newBuilding)} onClick={() => mutate(async () => {
-                  if (dashQuietFrom === QUIET_HOUR_UNSET || dashQuietTo === QUIET_HOUR_UNSET) return
+                  if (!hasValidQuietHoursRange(dashQuietFrom, dashQuietTo)) return
                   const created = await request<BuildingType>('/api/admin/buildings', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -573,8 +572,8 @@ export function AdminDashboardClient() {
                     quietHours: '',
                     goodToKnow: '',
                   })
-                  setDashQuietFrom(QUIET_HOUR_UNSET)
-                  setDashQuietTo(QUIET_HOUR_UNSET)
+                  setDashQuietFrom(DEFAULT_QUIET_HOURS_FROM)
+                  setDashQuietTo(DEFAULT_QUIET_HOURS_TO)
                 })}><Plus className="w-3.5 h-3.5" />Add Building</Button>
               </div>
             </CardContent>
