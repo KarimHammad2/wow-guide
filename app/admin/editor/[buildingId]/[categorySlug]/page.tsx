@@ -703,7 +703,7 @@ export default function CategoryVisualEditorPage() {
                               without forcing a permanent crop behavior on your uploaded media.
                             </p>
                           )}
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 pt-2">
                             <label
                               className={`inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm ${
                                 mediaUploadState === 'uploading' ? 'pointer-events-none opacity-60' : ''
