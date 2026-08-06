@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ShieldCheck, Lock, Mail, ArrowRight, Shield, Zap } from 'lucide-react'
+import { ShieldCheck, Lock, Mail, ArrowRight, Shield, Zap, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ export function AdminLoginClient() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -152,14 +153,26 @@ export function AdminLoginClient() {
                   <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Enter your password"
-                    className="h-11 rounded-lg pl-10"
+                    className="h-11 rounded-lg pl-10 pr-10"
                     aria-invalid={invalid}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" aria-hidden />
+                    ) : (
+                      <Eye className="w-4 h-4" aria-hidden />
+                    )}
+                  </button>
                 </div>
               </div>
 

@@ -63,14 +63,15 @@ export async function signMediaUpload(
       return { error: 'Could not prepare upload.', status: 500 }
     }
 
-    const { data: pub } = admin.storage.from(config.bucket).getPublicUrl(path)
+    const objectPath = data.path ?? path
+    const { data: pub } = admin.storage.from(config.bucket).getPublicUrl(objectPath)
     if (!pub?.publicUrl) {
       return { error: 'Could not resolve public URL.', status: 500 }
     }
 
     return {
       url: pub.publicUrl,
-      path: data.path,
+      path: objectPath,
       token: data.token,
       bucket: config.bucket,
     }

@@ -625,15 +625,45 @@ export default function CategoryVisualEditorPage() {
                           onChange={(event) => updateBlock(activeBlock.id, { content: event.target.value })}
                         />
                       )}
-                      {(activeBlock.type === 'image' ||
-                        activeBlock.type === 'video' ||
-                        activeBlock.type === 'button' ||
+                      {(activeBlock.type === 'button' ||
                         activeBlock.type === 'link' ||
                         activeBlock.type === 'text') && (
                         <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">
+                            {activeBlock.type === 'text' ? 'Block link (optional)' : 'URL'}
+                            <Input
+                              value={activeBlock.url ?? ''}
+                              placeholder="https://..."
+                              title={
+                                activeBlock.type === 'text'
+                                  ? 'Optional: makes the whole block a link. Prefer the editor Link control for inline links inside the text.'
+                                  : undefined
+                              }
+                              className="mt-1"
+                              onChange={(event) => updateBlock(activeBlock.id, { url: event.target.value })}
+                            />
+                          </label>
+                        </div>
+                      )}
+                      {(activeBlock.type === 'image' || activeBlock.type === 'video') && (
+                        <div className="space-y-2">
+                          {activeBlock.type === 'image' && activeBlock.mediaUrl?.trim() ? (
+                            <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                              <img
+                                src={activeBlock.mediaUrl.trim()}
+                                alt={activeBlock.title ?? 'Uploaded image preview'}
+                                className="max-h-40 w-full object-contain"
+                              />
+                            </div>
+                          ) : activeBlock.type === 'image' ? (
+                            <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                              No image uploaded yet. Use Upload media below or drag an image onto the block in the
+                              canvas.
+                            </p>
+                          ) : null}
                           {activeBlock.type === 'image' ? (
                             <label className="text-xs text-muted-foreground">
-                              Image link URL (optional)
+                              Click-through link (optional)
                               <Input
                                 value={activeBlock.imageLinkUrl ?? ''}
                                 placeholder="https://..."
@@ -642,29 +672,11 @@ export default function CategoryVisualEditorPage() {
                                   updateBlock(activeBlock.id, { imageLinkUrl: event.target.value })
                                 }
                               />
+                              <span className="mt-1 block text-[11px] text-muted-foreground/90">
+                                Opens when guests click the image. This is not the image file URL.
+                              </span>
                             </label>
-                          ) : (
-                            <>
-                              <label className="text-xs text-muted-foreground">
-                                {activeBlock.type === 'text' ? 'Block link (optional)' : 'URL'}
-                                <Input
-                                  value={activeBlock.url ?? ''}
-                                  placeholder="https://..."
-                                  title={
-                                    activeBlock.type === 'text'
-                                      ? 'Optional: makes the whole block a link. Prefer the editor Link control for inline links inside the text.'
-                                      : undefined
-                                  }
-                                  className="mt-1"
-                                  onChange={(event) => updateBlock(activeBlock.id, { url: event.target.value })}
-                                />
-                              </label>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {(activeBlock.type === 'image' || activeBlock.type === 'video') && (
-                        <div className="space-y-2">
+                          ) : null}
                           {activeBlock.type === 'image' && (
                             <label className="text-xs text-muted-foreground">
                               Image fit

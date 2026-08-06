@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { resolveGuideMediaContentType, sniffGuideMediaContentType } from '@/lib/editor-media'
 
 function parseJsonBody(text: string): unknown {
   if (!text.trim()) return undefined
@@ -15,6 +16,15 @@ export async function uploadFileViaSignedUrl(
   signEndpoint: string,
   file: File
 ): Promise<{ url: string }> {
+  let contentType = resolveGuideMediaContentType(file)
+  if (!contentType) {
+    const head = new Uint8Array(await file.slice(0, 32).arrayBuffer())
+    contentType = sniffGuideMediaContentType(head)
+  }
+  if (!contentType) {
+    throw new Error('Unsupported file type. Use PNG, JPEG, WebP, GIF, MP4, or WebM.')
+  }
+
   const signResponse = await fetch(signEndpoint, {
     method: 'POST',
     credentials: 'include',
@@ -22,7 +32,7 @@ export async function uploadFileViaSignedUrl(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       fileName: file.name,
-      contentType: file.type,
+      contentType,
       size: file.size,
     }),
   })
@@ -65,11 +75,23 @@ export async function uploadFileViaSignedUrl(
 
   const supabase = createClient()
   const { error: uploadError } = await supabase.storage.from(bucket).uploadToSignedUrl(path, token, file, {
-    contentType: file.type || undefined,
+    contentType,
   })
 
   if (uploadError) {
     throw new Error(uploadError.message || 'Upload failed')
+  }
+
+  try {
+    const check = await fetch(url, { method: 'HEAD', cache: 'no-store' })
+    if (!check.ok) {
+      throw new Error('Upload completed but the file is not publicly accessible yet. Try again in a moment.')
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('not publicly accessible')) {
+      throw err
+    }
+    // Some storage/CDN setups block HEAD; the upload itself succeeded.
   }
 
   return { url }
