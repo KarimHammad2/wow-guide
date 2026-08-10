@@ -16,7 +16,8 @@
     "test": "vitest run",
     "seed:bristenweg-checkin": "npx tsx --tsconfig tsconfig.json scripts/apply-bristenweg-10-check-in.ts",
     "seed:bristenweg-internet": "npx tsx --tsconfig tsconfig.json scripts/apply-bristenweg-10-internet.ts",
-    "seed:bristenweg-sport": "npx tsx --tsconfig tsconfig.json scripts/apply-bristenweg-10-sport-activity.ts"
+    "seed:bristenweg-sport": "npx tsx --tsconfig tsconfig.json scripts/apply-bristenweg-10-sport-activity.ts",
+    "clean:media-urls": "npx tsx --tsconfig tsconfig.json scripts/clean-stale-media-urls.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

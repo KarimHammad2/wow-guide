@@ -82,16 +82,9 @@ export async function uploadFileViaSignedUrl(
     throw new Error(uploadError.message || 'Upload failed')
   }
 
-  try {
-    const check = await fetch(url, { method: 'HEAD', cache: 'no-store' })
-    if (!check.ok) {
-      throw new Error('Upload completed but the file is not publicly accessible yet. Try again in a moment.')
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('not publicly accessible')) {
-      throw err
-    }
-    // Some storage/CDN setups block HEAD; the upload itself succeeded.
+  const check = await fetch(url, { cache: 'no-store' })
+  if (!check.ok) {
+    throw new Error(`Upload did not persist (server returned ${check.status}). Please try again.`)
   }
 
   return { url }
