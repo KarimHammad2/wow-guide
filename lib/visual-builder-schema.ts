@@ -81,6 +81,8 @@ export const visualGuideDocumentSchema = z.object({
     .object({
       devicePreview: z.enum(['desktop', 'tablet', 'mobile']).optional(),
       intro: z.string().optional(),
+      /** Block ids removed in this building/category; hides inherited blocks on merge. */
+      deletedBlockIds: z.array(z.string().min(1)).optional(),
     })
     .optional(),
 })

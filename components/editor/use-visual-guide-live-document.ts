@@ -56,6 +56,27 @@ export function createDefaultBlock(type: VisualBlock['type']): VisualBlock {
   return { id, type, title: `${type[0]?.toUpperCase()}${type.slice(1)}`, content: '' }
 }
 
+function isShellImageBlock(block: VisualBlock): boolean {
+  return (
+    block.type === 'image' &&
+    !block.title?.trim() &&
+    !block.content?.trim() &&
+    !block.imageLinkUrl?.trim()
+  )
+}
+
+function removeBlockFromDocument(document: VisualGuideDocument, blockId: string): VisualGuideDocument {
+  const deletedBlockIds = [...new Set([...(document.settings?.deletedBlockIds ?? []), blockId])]
+  return {
+    ...document,
+    blocks: document.blocks.filter((block) => block.id !== blockId),
+    settings: {
+      ...document.settings,
+      deletedBlockIds,
+    },
+  }
+}
+
 export function useVisualGuideLiveDocumentHandlers(
   document: VisualGuideDocument | null,
   setDocument: Dispatch<SetStateAction<VisualGuideDocument | null>>,
@@ -176,7 +197,15 @@ export function useVisualGuideLiveDocumentHandlers(
     const previousUrl = targetBlock.mediaUrl?.trim() ?? ''
     if (!previousUrl) return
 
-    updateBlock(blockId, { mediaUrl: undefined })
+    const shouldRemoveBlock = targetBlock.type === 'image' && isShellImageBlock(targetBlock)
+
+    if (shouldRemoveBlock) {
+      setDocument((prev) => (prev ? removeBlockFromDocument(prev, blockId) : prev))
+      setActiveBlockId(null)
+    } else {
+      updateBlock(blockId, { mediaUrl: undefined })
+    }
+
     setMediaUploadState('uploading')
     setMediaUploadMessage(null)
 
@@ -302,10 +331,7 @@ export function useVisualGuideLiveDocumentHandlers(
   }
 
   function deleteBlock(blockId: string) {
-    setDocument((prev) => {
-      if (!prev) return prev
-      return { ...prev, blocks: prev.blocks.filter((block) => block.id !== blockId) }
-    })
+    setDocument((prev) => (prev ? removeBlockFromDocument(prev, blockId) : prev))
     setActiveBlockId(null)
   }
 

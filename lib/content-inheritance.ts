@@ -16,7 +16,11 @@ export const contentInheritancePayloadSchema = z
   })
   .nullable()
 
-function mergeBlockPair(baseBlock: VisualBlock, overlayBlock: VisualBlock): VisualBlock {
+function mergeBlockPair(
+  baseBlock: VisualBlock,
+  overlayBlock: VisualBlock,
+  deletedBlockIds?: string[]
+): VisualBlock {
   const hasChildren = Boolean(
     (baseBlock.children && baseBlock.children.length > 0) ||
       (overlayBlock.children && overlayBlock.children.length > 0) ||
@@ -26,26 +30,33 @@ function mergeBlockPair(baseBlock: VisualBlock, overlayBlock: VisualBlock): Visu
   if (hasChildren) {
     return {
       ...overlayBlock,
-      children: mergeBlockLists(baseBlock.children ?? [], overlayBlock.children ?? []),
+      children: mergeBlockLists(baseBlock.children ?? [], overlayBlock.children ?? [], deletedBlockIds),
     }
   }
   return overlayBlock
 }
 
 /** Preserves base order, overlay wins on id match, appends overlay-only blocks. Merges `children` recursively. */
-export function mergeBlockLists(baseBlocks: VisualBlock[], overlayBlocks: VisualBlock[]): VisualBlock[] {
+export function mergeBlockLists(
+  baseBlocks: VisualBlock[],
+  overlayBlocks: VisualBlock[],
+  deletedBlockIds?: string[]
+): VisualBlock[] {
+  const deleted = new Set(deletedBlockIds ?? [])
   const baseIdSet = new Set(baseBlocks.map((b) => b.id))
   const overlayById = new Map(overlayBlocks.map((b) => [b.id, b]))
   const out: VisualBlock[] = []
   for (const baseBlock of baseBlocks) {
+    if (deleted.has(baseBlock.id)) continue
     const overlay = overlayById.get(baseBlock.id)
     if (overlay) {
-      out.push(mergeBlockPair(baseBlock, overlay))
+      out.push(mergeBlockPair(baseBlock, overlay, deletedBlockIds))
     } else {
       out.push(baseBlock)
     }
   }
   for (const overlay of overlayBlocks) {
+    if (deleted.has(overlay.id)) continue
     if (!baseIdSet.has(overlay.id)) {
       out.push(overlay)
     }
@@ -69,14 +80,18 @@ function mergeSettings(
     ...overlay,
     devicePreview: overlay?.devicePreview ?? base?.devicePreview,
     intro: introOverride,
+    deletedBlockIds: overlay?.deletedBlockIds?.length
+      ? overlay.deletedBlockIds
+      : base?.deletedBlockIds,
   }
 }
 
 export function mergeVisualDocuments(base: VisualGuideDocument, overlay: VisualGuideDocument): VisualGuideDocument {
+  const deletedBlockIds = overlay.settings?.deletedBlockIds
   return {
     contentVersion: 2,
     layout: overlay.layout ?? base.layout,
-    blocks: mergeBlockLists(base.blocks ?? [], overlay.blocks ?? []),
+    blocks: mergeBlockLists(base.blocks ?? [], overlay.blocks ?? [], deletedBlockIds),
     settings: mergeSettings(base.settings, overlay.settings),
   }
 }

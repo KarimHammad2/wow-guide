@@ -46,6 +46,20 @@ describe('mergeBlockLists', () => {
     expect(m.map((b) => b.id)).toEqual(['a', 'c'])
   })
 
+  it('skips base blocks listed in deletedBlockIds', () => {
+    const base = [block('a'), block('b'), block('c')]
+    const overlay = [block('a')]
+    const m = mergeBlockLists(base, overlay, ['b'])
+    expect(m.map((b) => b.id)).toEqual(['a', 'c'])
+  })
+
+  it('skips overlay-only blocks listed in deletedBlockIds', () => {
+    const base = [block('a')]
+    const overlay = [block('a'), block('x')]
+    const m = mergeBlockLists(base, overlay, ['x'])
+    expect(m.map((b) => b.id)).toEqual(['a'])
+  })
+
   it('merges children recursively in containers', () => {
     const base = [block('root', 'container', { children: [block('inner-1'), block('inner-2')] })]
     const overlay = [block('root', 'container', { children: [block('inner-1', 'text', { title: 'in1' })] })]
@@ -100,6 +114,25 @@ describe('mergeGuideWithInheritance', () => {
     expect(r.contentInheritance).toEqual(local.contentInheritance)
     expect(r.visualDocument?.blocks.map((b) => b.id)).toEqual(['a', 'b'])
     expect(r.visualDocument?.blocks[0]!.title).toBe('child')
+  })
+
+  it('respects deletedBlockIds when merging inherited blocks', () => {
+    const base: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: vdoc([block('a'), block('image-block', 'text', { type: 'image' })]),
+    }
+    const local: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: {
+        ...vdoc([block('a')]),
+        settings: { deletedBlockIds: ['image-block'] },
+      },
+      contentInheritance: { sourceBuildingId: 'b1', sourceCategorySlug: 'cat' } satisfies ContentInheritance,
+    }
+    const r = mergeGuideWithInheritance(base, local)
+    expect(r.visualDocument?.blocks.map((b) => b.id)).toEqual(['a'])
   })
 })
 
