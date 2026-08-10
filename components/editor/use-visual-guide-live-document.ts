@@ -173,19 +173,24 @@ export function useVisualGuideLiveDocumentHandlers(
       return
     }
 
-    if (!targetBlock.mediaUrl) return
+    const previousUrl = targetBlock.mediaUrl?.trim() ?? ''
+    if (!previousUrl) return
 
+    updateBlock(blockId, { mediaUrl: undefined })
     setMediaUploadState('uploading')
     setMediaUploadMessage(null)
 
     try {
-      await deleteEditorMedia(targetBlock.mediaUrl)
-      updateBlock(blockId, { mediaUrl: undefined })
+      await deleteEditorMedia(previousUrl)
       setMediaUploadState('idle')
       setMediaUploadMessage(null)
     } catch (err) {
-      setMediaUploadState('error')
-      setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
+      setMediaUploadState('warning')
+      setMediaUploadMessage(
+        err instanceof Error
+          ? `Removed from the page, but the stored file could not be deleted: ${err.message}`
+          : 'Removed from the page, but the stored file could not be deleted.'
+      )
     }
   }
 
