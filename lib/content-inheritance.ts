@@ -29,11 +29,21 @@ function mergeBlockPair(
   )
   if (hasChildren) {
     return {
+      ...baseBlock,
       ...overlayBlock,
+      mediaUrl: overlayBlock.mediaUrl ?? baseBlock.mediaUrl,
+      sideImageUrl: overlayBlock.sideImageUrl ?? baseBlock.sideImageUrl,
+      imageLinkUrl: overlayBlock.imageLinkUrl ?? baseBlock.imageLinkUrl,
       children: mergeBlockLists(baseBlock.children ?? [], overlayBlock.children ?? [], deletedBlockIds),
     }
   }
-  return overlayBlock
+  return {
+    ...baseBlock,
+    ...overlayBlock,
+    mediaUrl: overlayBlock.mediaUrl ?? baseBlock.mediaUrl,
+    sideImageUrl: overlayBlock.sideImageUrl ?? baseBlock.sideImageUrl,
+    imageLinkUrl: overlayBlock.imageLinkUrl ?? baseBlock.imageLinkUrl,
+  }
 }
 
 /** Preserves base order, overlay wins on id match, appends overlay-only blocks. Merges `children` recursively. */

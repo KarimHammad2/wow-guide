@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type Dispatch, type SetStateAction } from 'react'
-import { deleteEditorMedia, uploadEditorMedia } from '@/components/editor/editor-api'
+import { deleteEditorMedia, uploadEditorMedia, type EditorMediaDeleteOptions } from '@/components/editor/editor-api'
 import { EMPTY_RICH_TEXT_DOC } from '@/lib/tiptap/empty-doc'
 import {
   contentItemToVisualListItem,
@@ -77,13 +77,42 @@ function removeBlockFromDocument(document: VisualGuideDocument, blockId: string)
   }
 }
 
+export type MediaDeleteContext = EditorMediaDeleteOptions
+
 export function useVisualGuideLiveDocumentHandlers(
   document: VisualGuideDocument | null,
   setDocument: Dispatch<SetStateAction<VisualGuideDocument | null>>,
-  setActiveBlockId: Dispatch<SetStateAction<string | null>>
+  setActiveBlockId: Dispatch<SetStateAction<string | null>>,
+  mediaDeleteContext?: MediaDeleteContext
 ) {
   const [mediaUploadState, setMediaUploadState] = useState<'idle' | 'uploading' | 'error' | 'warning'>('idle')
   const [mediaUploadMessage, setMediaUploadMessage] = useState<string | null>(null)
+
+  async function safeDeleteStoredMedia(url: string, currentDocument: VisualGuideDocument | null) {
+    if (!url.trim()) return
+    setMediaUploadState('uploading')
+    setMediaUploadMessage(null)
+    try {
+      const result = await deleteEditorMedia(url, {
+        ...mediaDeleteContext,
+        currentDocument: currentDocument ?? undefined,
+      })
+      if (result.stillReferenced) {
+        setMediaUploadState('warning')
+        setMediaUploadMessage('This file is still used on another page, so it was kept in storage.')
+        return
+      }
+      setMediaUploadState('warning')
+      setMediaUploadMessage('Marked for cleanup — will be permanently removed in 14 days if unused')
+    } catch (err) {
+      setMediaUploadState('warning')
+      setMediaUploadMessage(
+        err instanceof Error
+          ? `Removed from this page, but the stored file could not be marked for cleanup: ${err.message}`
+          : 'Removed from this page, but the stored file could not be marked for cleanup.'
+      )
+    }
+  }
 
   function getBlockById(blockId: string) {
     return document?.blocks.find((block) => block.id === blockId) ?? null
@@ -134,18 +163,21 @@ export function useVisualGuideLiveDocumentHandlers(
       const pos = options?.side ?? targetBlock.sideImagePosition ?? 'right'
       try {
         const uploaded = await uploadEditorMedia(file)
-        updateBlock(blockId, { sideImageUrl: uploaded.url, sideImagePosition: pos })
+        const nextDocument = document
+          ? {
+              ...document,
+              blocks: document.blocks.map((block) =>
+                block.id === blockId ? { ...block, sideImageUrl: uploaded.url, sideImagePosition: pos } : block
+              ),
+            }
+          : null
+        setDocument(nextDocument)
         if (previousUrl && previousUrl !== uploaded.url) {
-          try {
-            await deleteEditorMedia(previousUrl)
-          } catch {
-            setMediaUploadState('warning')
-            setMediaUploadMessage('The image was replaced, but the old file could not be removed.')
-            return
-          }
+          await safeDeleteStoredMedia(previousUrl, nextDocument)
+        } else {
+          setMediaUploadState('idle')
+          setMediaUploadMessage(null)
         }
-        setMediaUploadState('idle')
-        setMediaUploadMessage(null)
       } catch (err) {
         setMediaUploadState('error')
         setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
@@ -166,27 +198,28 @@ export function useVisualGuideLiveDocumentHandlers(
 
     try {
       const uploaded = await uploadEditorMedia(file)
-      updateBlock(blockId, { mediaUrl: uploaded.url })
-
+      const nextDocument = document
+        ? {
+            ...document,
+            blocks: document.blocks.map((block) =>
+              block.id === blockId ? { ...block, mediaUrl: uploaded.url } : block
+            ),
+          }
+        : null
+      setDocument(nextDocument)
       if (previousUrl && previousUrl !== uploaded.url) {
-        try {
-          await deleteEditorMedia(previousUrl)
-        } catch {
-          setMediaUploadState('warning')
-          setMediaUploadMessage('The media was replaced, but the old file could not be removed.')
-          return
-        }
+        await safeDeleteStoredMedia(previousUrl, nextDocument)
+      } else {
+        setMediaUploadState('idle')
+        setMediaUploadMessage(null)
       }
-
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
     } catch (err) {
       setMediaUploadState('error')
       setMediaUploadMessage(err instanceof Error ? err.message : 'Upload failed')
     }
   }
 
-  async function removeMedia(blockId: string) {
+  function removeMedia(blockId: string) {
     const targetBlock = getBlockById(blockId)
     if (!targetBlock || (targetBlock.type !== 'image' && targetBlock.type !== 'video')) {
       setMediaUploadState('error')
@@ -198,72 +231,66 @@ export function useVisualGuideLiveDocumentHandlers(
     if (!previousUrl) return
 
     const shouldRemoveBlock = targetBlock.type === 'image' && isShellImageBlock(targetBlock)
+    const nextDocument = shouldRemoveBlock
+      ? document
+        ? removeBlockFromDocument(document, blockId)
+        : null
+      : document
+        ? {
+            ...document,
+            blocks: document.blocks.map((block) =>
+              block.id === blockId ? { ...block, mediaUrl: undefined } : block
+            ),
+          }
+        : null
 
     if (shouldRemoveBlock) {
-      setDocument((prev) => (prev ? removeBlockFromDocument(prev, blockId) : prev))
+      setDocument(nextDocument)
       setActiveBlockId(null)
     } else {
-      updateBlock(blockId, { mediaUrl: undefined })
+      setDocument(nextDocument)
     }
 
-    setMediaUploadState('uploading')
-    setMediaUploadMessage(null)
-
-    try {
-      await deleteEditorMedia(previousUrl)
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
-    } catch (err) {
-      setMediaUploadState('warning')
-      setMediaUploadMessage(
-        err instanceof Error
-          ? `Removed from the page, but the stored file could not be deleted: ${err.message}`
-          : 'Removed from the page, but the stored file could not be deleted.'
-      )
-    }
+    void safeDeleteStoredMedia(previousUrl, nextDocument)
   }
 
-  async function removeBlockSideImage(blockId: string) {
+  function removeBlockSideImage(blockId: string) {
     const target = getBlockById(blockId)
     if (!target || (target.type !== 'text' && target.type !== 'list') || !target.sideImageUrl?.trim()) {
       return
     }
-    const url = target.sideImageUrl.trim()
-    setMediaUploadState('uploading')
-    setMediaUploadMessage(null)
-    try {
-      await deleteEditorMedia(url)
-      updateBlock(blockId, { sideImageUrl: undefined, sideImagePosition: undefined })
-      setMediaUploadState('idle')
-      setMediaUploadMessage(null)
-    } catch (err) {
-      setMediaUploadState('error')
-      setMediaUploadMessage(err instanceof Error ? err.message : 'Delete failed')
-    }
+    const previousUrl = target.sideImageUrl.trim()
+    const nextDocument = document
+      ? {
+          ...document,
+          blocks: document.blocks.map((block) =>
+            block.id === blockId
+              ? { ...block, sideImageUrl: undefined, sideImagePosition: undefined }
+              : block
+          ),
+        }
+      : null
+    setDocument(nextDocument)
+    void safeDeleteStoredMedia(previousUrl, nextDocument)
   }
 
   function dropBlockOnBlock(sourceBlockId: string, targetBlockId: string, options?: { side?: 'left' | 'right' }) {
     const preSource = getBlockById(sourceBlockId)
     const preTarget = getBlockById(targetBlockId)
+    const sourceImageUrl = preSource?.mediaUrl?.trim() || preSource?.url?.trim()
     const mergeInBlockImage =
       preSource?.type === 'image' &&
       (preTarget?.type === 'text' || preTarget?.type === 'list') &&
-      Boolean(preSource?.url?.trim())
+      Boolean(sourceImageUrl)
 
     if (mergeInBlockImage) {
-      const url = preSource!.url!.trim()
+      const url = sourceImageUrl!
       const side = options?.side === 'left' || options?.side === 'right' ? options.side : 'right'
       setDocument((prev) => {
         if (!prev) return prev
         const withoutSource = prev.blocks.filter((b) => b.id !== sourceBlockId)
         const ti = withoutSource.findIndex((b) => b.id === targetBlockId)
         if (ti < 0) return prev
-        const previousSide = withoutSource[ti].sideImageUrl?.trim()
-        if (previousSide && previousSide !== url) {
-          void deleteEditorMedia(previousSide).catch(() => {
-            // best-effort cleanup; merge still applied
-          })
-        }
         const next = [...withoutSource]
         next[ti] = {
           ...next[ti],

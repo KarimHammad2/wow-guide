@@ -17,7 +17,8 @@ import type { Database, Json } from '@/lib/database.types'
 import type { ContentSection } from '@/lib/data'
 import type { GuideContent } from '@/lib/admin-types'
 import { GUIDE_MEDIA_BUCKET, resolveGuideMediaPath } from '@/lib/editor-media'
-import { isVisualGuideDocument, type VisualBlock, type VisualGuideDocument } from '@/lib/visual-builder-schema'
+import { walkVisualBlocks } from '@/lib/guide-media-references'
+import { isVisualGuideDocument, type VisualGuideDocument } from '@/lib/visual-builder-schema'
 
 function loadEnvLocal() {
   const p = resolve(process.cwd(), '.env.local')
@@ -53,13 +54,6 @@ function isStaleGuideMediaUrl(url: string, validPaths: Set<string>): boolean {
   return !validPaths.has(path)
 }
 
-function walkBlocks(blocks: VisualBlock[], visit: (block: VisualBlock) => void) {
-  for (const block of blocks) {
-    visit(block)
-    if (block.children?.length) walkBlocks(block.children, visit)
-  }
-}
-
 function cleanVisualDocument(
   doc: VisualGuideDocument,
   validPaths: Set<string>,
@@ -68,7 +62,7 @@ function cleanVisualDocument(
   const next = structuredClone(doc)
   const changes: Change[] = []
 
-  walkBlocks(next.blocks ?? [], (block) => {
+  walkVisualBlocks(next.blocks ?? [], (block) => {
     if (block.mediaUrl?.trim() && isStaleGuideMediaUrl(block.mediaUrl, validPaths)) {
       changes.push({ source, blockId: block.id, field: 'mediaUrl', oldUrl: block.mediaUrl.trim() })
       block.mediaUrl = undefined

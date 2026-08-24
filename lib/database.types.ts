@@ -320,6 +320,30 @@ export type Database = {
         }
         Relationships: []
       }
+      guide_media_orphans: {
+        Row: {
+          path: string
+          first_orphaned_at: string
+          last_seen_url: string | null
+          requested_by: string | null
+          category_ref: Json | null
+        }
+        Insert: {
+          path: string
+          first_orphaned_at?: string
+          last_seen_url?: string | null
+          requested_by?: string | null
+          category_ref?: Json | null
+        }
+        Update: {
+          path?: string
+          first_orphaned_at?: string
+          last_seen_url?: string | null
+          requested_by?: string | null
+          category_ref?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       staff_directory: {

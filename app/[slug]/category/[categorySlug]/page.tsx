@@ -15,7 +15,7 @@ import {
   getBuildingCategoryContent,
   getEditorCategoryContent,
 } from '@/lib/building-guides-repository'
-import { getEditorSessionUser } from '@/lib/editor-api'
+import { getStaffDraftPreviewUser } from '@/lib/editor-api'
 import { normalizeInternetCategoryGuestContent } from '@/lib/guide-internet-guest-normalize'
 import { getCategoryBySlug, getCategoryContent } from '@/lib/data'
 import type { GuideContent } from '@/lib/admin-types'
@@ -24,7 +24,7 @@ import { getLucideIcon, isCategoryIconImageUrl } from '@/lib/icons'
 
 interface CategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string }>
-  searchParams: Promise<{ preview?: string }>
+  searchParams: Promise<{ preview?: string | string[] }>
 }
 
 export const dynamic = 'force-dynamic'
@@ -48,7 +48,10 @@ function emergencyGuideFallback(): GuideContent {
 
 export default async function BuildingCategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const { preview: previewQuery } = await searchParams
+  const rawSearchParams = await searchParams
+  const previewQuery = Array.isArray(rawSearchParams.preview)
+    ? rawSearchParams.preview[0]
+    : rawSearchParams.preview
   const building = await getBuildingById(slug)
 
   if (!building) {
@@ -60,26 +63,28 @@ export default async function BuildingCategoryPage({ params, searchParams }: Cat
     buildingCategories.find((item) => item.slug === categorySlug) ?? null
   let content = (await getBuildingCategoryContent(building.id, categorySlug)) ?? null
   let draftPreviewActive = false
+  let draftPreviewFailed = false
 
   /**
-   * Logged-in editors can open ?preview=draft to see the same merged draft as the Visual Builder.
+   * Logged-in staff can open ?preview=draft to see the same merged draft as the Visual Builder.
    * Guests still only see published `content` (unchanged when this param is missing or user is anonymous).
    */
   if (previewQuery === 'draft') {
-    const editorUser = await getEditorSessionUser()
-    if (editorUser) {
+    const staffUser = await getStaffDraftPreviewUser()
+    if (staffUser) {
       const editorRow = await getEditorCategoryContent(building.id, categorySlug)
-      const allowed =
-        editorRow &&
-        (!editorRow.ownerUserId || editorRow.ownerUserId === editorUser.userId)
-      if (allowed && editorRow) {
+      if (editorRow) {
         content = editorRow.content
         category = editorRow.category
         draftPreviewActive = true
         if (categorySlug === 'internet') {
           content = normalizeInternetCategoryGuestContent(content)
         }
+      } else {
+        draftPreviewFailed = true
       }
+    } else {
+      draftPreviewFailed = true
     }
   }
 
@@ -131,6 +136,18 @@ export default async function BuildingCategoryPage({ params, searchParams }: Cat
             >
               Draft preview — this is how the page looks with your saved draft and inheritance merge. Guests only see
               the last published version until you click Publish in the Visual Builder.
+            </div>
+          </section>
+        )}
+
+        {draftPreviewFailed && (
+          <section className="guide-shell">
+            <div
+              role="alert"
+              className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            >
+              Could not load draft preview — showing the last published version. Sign in to the admin panel again, or
+              click Publish in the Visual Builder to update the guest page.
             </div>
           </section>
         )}
@@ -204,7 +221,10 @@ export default async function BuildingCategoryPage({ params, searchParams }: Cat
 
 export async function generateMetadata({ params, searchParams }: CategoryPageProps) {
   const { slug, categorySlug } = await params
-  const { preview: previewQuery } = await searchParams
+  const rawSearchParams = await searchParams
+  const previewQuery = Array.isArray(rawSearchParams.preview)
+    ? rawSearchParams.preview[0]
+    : rawSearchParams.preview
   const building = await getBuildingById(slug)
 
   if (!building) {

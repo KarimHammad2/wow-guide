@@ -130,7 +130,10 @@ export default function CategoryVisualEditorPage() {
     getBlockById,
     updateBlock,
     updateBlockStyles,
-  } = useVisualGuideLiveDocumentHandlers(document, setDocument, setActiveBlockId)
+  } = useVisualGuideLiveDocumentHandlers(document, setDocument, setActiveBlockId, {
+    excludeBuildingId: buildingId,
+    excludeCategorySlug: categorySlug,
+  })
 
   /** Public guest guide URL for this category (same route as end users). */
   const publicCategoryHref = useMemo(() => {
@@ -334,7 +337,12 @@ export default function CategoryVisualEditorPage() {
         document,
         inheritanceHydrated ? (contentInheritance === undefined ? null : contentInheritance) : undefined
       )
-      window.open(publicCategoryHref, '_blank', 'noopener,noreferrer')
+      const guestPreviewUrl = `${publicCategoryHref}&t=${Date.now()}`
+      const adminPreviewUrl = `/admin/preview/${encodeURIComponent(buildingId)}/${encodeURIComponent(categorySlug)}`
+      const guestTab = window.open(guestPreviewUrl, '_blank', 'noopener,noreferrer')
+      if (!guestTab) {
+        window.open(adminPreviewUrl, '_blank', 'noopener,noreferrer')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save before preview')
     } finally {

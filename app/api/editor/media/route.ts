@@ -17,6 +17,13 @@ import {
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { parseSignMediaUploadInput, signMediaUpload } from '@/lib/signed-media-upload'
+import {
+  clearGuideMediaOrphan,
+  loadGuideMediaReferenceScan,
+  orphanGuideMediaIfUnreferenced,
+  isMissingOrphansTableError,
+} from '@/lib/guide-media-orphans'
+import { isVisualGuideDocument, type VisualGuideDocument } from '@/lib/visual-builder-schema'
 
 const extByMime: Record<string, string> = {
   'image/png': 'png',
@@ -65,6 +72,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: signed.error }, { status: signed.status })
   }
 
+  try {
+    const admin = createSupabaseAdmin()
+    const cleared = await clearGuideMediaOrphan(admin, signed.path)
+    if (cleared.error) {
+      logApiError('editor-media-upload-clear-orphan', cleared.error)
+    }
+  } catch (error) {
+    logApiError('editor-media-upload-clear-orphan', error)
+  }
+
   return NextResponse.json(signed)
 }
 
@@ -78,9 +95,16 @@ export async function DELETE(request: NextRequest) {
   })
   if (!limiter.allowed) return tooManyRequestsResponse(limiter.retryAfterSeconds)
 
-  let body: { url?: unknown; path?: unknown }
+  let body: {
+    url?: unknown
+    path?: unknown
+    excludeBuildingId?: unknown
+    excludeCategorySlug?: unknown
+    excludeSitePageSlug?: unknown
+    currentDocument?: unknown
+  }
   try {
-    body = (await request.json()) as { url?: unknown; path?: unknown }
+    body = (await request.json()) as typeof body
   } catch {
     return NextResponse.json({ error: 'Expected JSON body.' }, { status: 400 })
   }
@@ -91,15 +115,54 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid media URL.' }, { status: 400 })
   }
 
+  const excludeBuildingId = typeof body.excludeBuildingId === 'string' ? body.excludeBuildingId : undefined
+  const excludeCategorySlug = typeof body.excludeCategorySlug === 'string' ? body.excludeCategorySlug : undefined
+  const excludeSitePageSlug = typeof body.excludeSitePageSlug === 'string' ? body.excludeSitePageSlug : undefined
+  const currentDocument =
+    body.currentDocument && isVisualGuideDocument(body.currentDocument)
+      ? (body.currentDocument as VisualGuideDocument)
+      : undefined
+
   try {
     const admin = createSupabaseAdmin()
     await ensureGuideMediaBucket(admin)
-    const { error: removeError } = await admin.storage.from(GUIDE_MEDIA_BUCKET).remove([path])
-    if (removeError) {
-      logApiError('editor-media-delete-storage', removeError)
+
+    const loaded = await loadGuideMediaReferenceScan(admin)
+    if ('error' in loaded) {
+      logApiError(
+        loaded.source === 'categories' ? 'editor-media-delete-categories' : 'editor-media-delete-site-pages',
+        loaded.error
+      )
       return serverErrorResponse('Delete failed.')
     }
-    return NextResponse.json({ ok: true })
+
+    const result = await orphanGuideMediaIfUnreferenced(admin, {
+      path,
+      url: candidate,
+      requestedBy: auth.auth.userId,
+      scan: loaded.scan,
+      exclude: {
+        buildingId: excludeBuildingId,
+        categorySlug: excludeCategorySlug,
+        sitePageSlug: excludeSitePageSlug,
+        currentDocument,
+      },
+      categoryRef: {
+        buildingId: excludeBuildingId,
+        categorySlug: excludeCategorySlug,
+        sitePageSlug: excludeSitePageSlug,
+      },
+    })
+
+    if (result.error) {
+      logApiError('editor-media-orphan', result.error)
+      if (isMissingOrphansTableError(result.error)) {
+        return NextResponse.json({ deleted: true, stillReferenced: false })
+      }
+      return serverErrorResponse('Delete failed.')
+    }
+
+    return NextResponse.json({ deleted: result.deleted, stillReferenced: result.stillReferenced })
   } catch (error) {
     logApiError('editor-media-delete', error)
     return serverErrorResponse('Delete failed.')

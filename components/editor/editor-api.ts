@@ -118,11 +118,32 @@ export async function uploadEditorMedia(file: File): Promise<{ url: string }> {
   }
 }
 
-export async function deleteEditorMedia(url: string): Promise<{ ok: true }> {
+export type EditorMediaDeleteOptions = {
+  excludeBuildingId?: string
+  excludeCategorySlug?: string
+  excludeSitePageSlug?: string
+  currentDocument?: VisualGuideDocument
+}
+
+export type EditorMediaDeleteResult = {
+  deleted: boolean
+  stillReferenced: boolean
+}
+
+export async function deleteEditorMedia(
+  url: string,
+  options?: EditorMediaDeleteOptions
+): Promise<EditorMediaDeleteResult> {
   let text: string
   let status: number
   try {
-    ;({ status, text } = await xhrJsonDelete(editorMediaUrl(), { url }))
+    ;({ status, text } = await xhrJsonDelete(editorMediaUrl(), {
+      url,
+      excludeBuildingId: options?.excludeBuildingId,
+      excludeCategorySlug: options?.excludeCategorySlug,
+      excludeSitePageSlug: options?.excludeSitePageSlug,
+      currentDocument: options?.currentDocument,
+    }))
   } catch (err) {
     if (err instanceof TypeError) {
       throw new Error(
@@ -139,5 +160,17 @@ export async function deleteEditorMedia(url: string): Promise<{ ok: true }> {
         : undefined
     throw new Error(typeof err === 'string' && err ? err : 'Delete failed')
   }
-  return (data as { ok: true }) ?? { ok: true }
+  if (
+    data &&
+    typeof data === 'object' &&
+    'deleted' in data &&
+    typeof (data as { deleted: unknown }).deleted === 'boolean'
+  ) {
+    const result = data as { deleted: boolean; stillReferenced?: boolean }
+    return {
+      deleted: result.deleted,
+      stillReferenced: result.stillReferenced === true,
+    }
+  }
+  return { deleted: true, stillReferenced: false }
 }

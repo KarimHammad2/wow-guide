@@ -134,6 +134,36 @@ describe('mergeGuideWithInheritance', () => {
     const r = mergeGuideWithInheritance(base, local)
     expect(r.visualDocument?.blocks.map((b) => b.id)).toEqual(['a'])
   })
+
+  it('preserves overlay mediaUrl on inherited image blocks', () => {
+    const base: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: vdoc([
+        block('img-1', 'text', { type: 'image', mediaUrl: 'https://example.com/old.jpg' }),
+      ]),
+    }
+    const local: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: vdoc([
+        block('img-1', 'text', { type: 'image', mediaUrl: 'https://example.com/new.jpg' }),
+      ]),
+      contentInheritance: { sourceBuildingId: 'b1', sourceCategorySlug: 'cat' } satisfies ContentInheritance,
+    }
+    const r = mergeGuideWithInheritance(base, local)
+    expect(r.visualDocument?.blocks[0]?.mediaUrl).toBe('https://example.com/new.jpg')
+  })
+})
+
+describe('mergeBlockLists media fields', () => {
+  it('keeps base mediaUrl when overlay block omits it', () => {
+    const base = [block('img-1', 'text', { type: 'image', mediaUrl: 'https://example.com/base.jpg', title: 'Base' })]
+    const overlay = [block('img-1', 'text', { type: 'image', title: 'Updated title' })]
+    const m = mergeBlockLists(base, overlay)
+    expect(m[0]?.mediaUrl).toBe('https://example.com/base.jpg')
+    expect(m[0]?.title).toBe('Updated title')
+  })
 })
 
 describe('assertInheritanceSaveAllowed', () => {

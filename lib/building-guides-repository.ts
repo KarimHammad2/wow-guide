@@ -13,6 +13,12 @@ import {
 import { normalizeInternetCategoryGuestContent } from '@/lib/guide-internet-guest-normalize'
 import { assertInheritanceSaveAllowed, mergeGuideWithInheritance } from '@/lib/content-inheritance'
 import type { ContentInheritance } from '@/lib/admin-types'
+import {
+  buildCategoryAdminDbUpdate,
+  mergeGuideContentForCategoryAdminUpdate,
+} from '@/lib/category-admin-content'
+
+export { buildCategoryAdminDbUpdate, mergeGuideContentForCategoryAdminUpdate } from '@/lib/category-admin-content'
 
 function parseCategory(json: Json): Category {
   const raw = json as unknown as Category
@@ -357,26 +363,20 @@ export async function updateBuildingGuideCategory(
       color: input.color,
       order: input.order ?? existing.category.order,
     },
-    content: {
-      ...existing.content,
+    content: mergeGuideContentForCategoryAdminUpdate(existing.content, {
       intro: input.intro,
       alert: input.alert,
-      sections: cloneSections(input.sections),
+      sections: input.sections,
       contentInheritance: nextInheritance,
-    },
+    }),
   }
 
   const admin = createSupabaseAdmin()
-  const updatePayload = {
-    sort_order: updated.category.order,
-    ...(input.quickAccessOrder !== undefined ? { quick_access_order: input.quickAccessOrder } : {}),
-    category: updated.category as unknown as Json,
-    content: updated.content as unknown as Json,
-    /** Published JSON is source of truth for guests; drop stale visual drafts so the editor reloads from content. */
-    draft_content: null,
-    is_published: true,
-    updated_at: new Date().toISOString(),
-  }
+  const updatePayload = buildCategoryAdminDbUpdate({
+    category: updated.category,
+    content: updated.content,
+    quickAccessOrder: input.quickAccessOrder,
+  })
 
   const withQuick = await admin
     .from('building_guide_categories')
@@ -577,11 +577,21 @@ export async function publishEditorCategoryDraft(
   let publishedContent = parseContent(row.content)
   if (row.draft_content && isVisualGuideDocument(row.draft_content as unknown)) {
     const doc = row.draft_content as unknown as VisualGuideDocument
-    publishedContent = {
+    const draftMaterialized: GuideContent = {
       ...publishedContent,
       intro: doc.settings?.intro ?? publishedContent.intro,
       sections: sectionsFromVisualDocument(doc),
       visualDocument: doc,
+    }
+    const inheritance = publishedContent.contentInheritance
+    if (inheritance) {
+      const source = await getBuildingGuideCategoryAdmin(
+        inheritance.sourceBuildingId,
+        inheritance.sourceCategorySlug
+      )
+      publishedContent = mergeGuideWithInheritance(source?.content, draftMaterialized)
+    } else {
+      publishedContent = draftMaterialized
     }
   }
 

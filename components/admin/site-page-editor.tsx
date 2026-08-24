@@ -61,7 +61,9 @@ export function SitePageEditor({
     applyMediaFile,
     removeBlockSideImage,
     updateBlockStyles,
-  } = useVisualGuideLiveDocumentHandlers(document, setDocument, setActiveBlockId)
+  } = useVisualGuideLiveDocumentHandlers(document, setDocument, setActiveBlockId, {
+    excludeSitePageSlug: originalSlug ?? undefined,
+  })
 
   const sections = useMemo(
     () => (document ? sectionsFromVisualDocument(document) : []),
