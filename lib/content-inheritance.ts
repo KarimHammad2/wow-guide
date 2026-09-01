@@ -46,31 +46,52 @@ function mergeBlockPair(
   }
 }
 
-/** Preserves base order, overlay wins on id match, appends overlay-only blocks. Merges `children` recursively. */
+function insertIndexAfterBasePredecessor(
+  baseBlocks: VisualBlock[],
+  parentOnlyId: string,
+  currentOut: VisualBlock[]
+): number {
+  const baseIndex = baseBlocks.findIndex((b) => b.id === parentOnlyId)
+  if (baseIndex < 0) return currentOut.length
+
+  const outIdToIndex = new Map(currentOut.map((b, i) => [b.id, i]))
+  for (let i = baseIndex - 1; i >= 0; i--) {
+    const predecessorIndex = outIdToIndex.get(baseBlocks[i]!.id)
+    if (predecessorIndex !== undefined) {
+      return predecessorIndex + 1
+    }
+  }
+  return 0
+}
+
+/** Preserves overlay order, merges fields by id, inserts parent-only blocks by parent-neighbor position. Merges `children` recursively. */
 export function mergeBlockLists(
   baseBlocks: VisualBlock[],
   overlayBlocks: VisualBlock[],
   deletedBlockIds?: string[]
 ): VisualBlock[] {
   const deleted = new Set(deletedBlockIds ?? [])
-  const baseIdSet = new Set(baseBlocks.map((b) => b.id))
-  const overlayById = new Map(overlayBlocks.map((b) => [b.id, b]))
+  const baseById = new Map(baseBlocks.map((b) => [b.id, b]))
+  const overlayIdSet = new Set(overlayBlocks.map((b) => b.id))
   const out: VisualBlock[] = []
-  for (const baseBlock of baseBlocks) {
-    if (deleted.has(baseBlock.id)) continue
-    const overlay = overlayById.get(baseBlock.id)
-    if (overlay) {
-      out.push(mergeBlockPair(baseBlock, overlay, deletedBlockIds))
-    } else {
-      out.push(baseBlock)
-    }
-  }
+
   for (const overlay of overlayBlocks) {
     if (deleted.has(overlay.id)) continue
-    if (!baseIdSet.has(overlay.id)) {
+    const baseBlock = baseById.get(overlay.id)
+    if (baseBlock) {
+      out.push(mergeBlockPair(baseBlock, overlay, deletedBlockIds))
+    } else {
       out.push(overlay)
     }
   }
+
+  for (const baseBlock of baseBlocks) {
+    if (deleted.has(baseBlock.id)) continue
+    if (overlayIdSet.has(baseBlock.id)) continue
+    const insertAt = insertIndexAfterBasePredecessor(baseBlocks, baseBlock.id, out)
+    out.splice(insertAt, 0, baseBlock)
+  }
+
   return out
 }
 

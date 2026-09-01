@@ -69,6 +69,41 @@ describe('mergeBlockLists', () => {
     expect(ch?.map((b) => b.id)).toEqual(['inner-1', 'inner-2'])
     expect(ch?.[0]!.title).toBe('in1')
   })
+
+  it('uses overlay order when shared ids are reordered', () => {
+    const base = [block('a'), block('b')]
+    const overlay = [block('b'), block('a')]
+    const m = mergeBlockLists(base, overlay)
+    expect(m.map((b) => b.id)).toEqual(['b', 'a'])
+  })
+
+  it('keeps child-only blocks in overlay position', () => {
+    const base = [block('a'), block('b')]
+    const overlay = [block('a'), block('x'), block('b')]
+    const m = mergeBlockLists(base, overlay)
+    expect(m.map((b) => b.id)).toEqual(['a', 'x', 'b'])
+  })
+
+  it('inserts parent-only blocks after nearest preceding parent sibling when overlay reordered', () => {
+    const base = [block('a'), block('e'), block('b')]
+    const overlay = [block('b'), block('a')]
+    const m = mergeBlockLists(base, overlay)
+    expect(m.map((b) => b.id)).toEqual(['b', 'a', 'e'])
+  })
+
+  it('reorders container children using overlay order', () => {
+    const base = [block('root', 'container', { children: [block('inner-1'), block('inner-2')] })]
+    const overlay = [
+      block('root', 'container', {
+        children: [block('inner-2', 'text', { title: 'second' }), block('inner-1', 'text', { title: 'first' })],
+      }),
+    ]
+    const m = mergeBlockLists(base, overlay)
+    const ch = m[0]!.children
+    expect(ch?.map((b) => b.id)).toEqual(['inner-2', 'inner-1'])
+    expect(ch?.[0]!.title).toBe('second')
+    expect(ch?.[1]!.title).toBe('first')
+  })
 })
 
 describe('mergeVisualDocuments', () => {
@@ -153,6 +188,22 @@ describe('mergeGuideWithInheritance', () => {
     }
     const r = mergeGuideWithInheritance(base, local)
     expect(r.visualDocument?.blocks[0]?.mediaUrl).toBe('https://example.com/new.jpg')
+  })
+
+  it('preserves overlay block order when merging inherited content', () => {
+    const base: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: vdoc([block('checkout'), block('apartment')]),
+    }
+    const local: GuideContent = {
+      intro: '',
+      sections: [],
+      visualDocument: vdoc([block('apartment'), block('checkout')]),
+      contentInheritance: { sourceBuildingId: 'b1', sourceCategorySlug: 'cat' } satisfies ContentInheritance,
+    }
+    const r = mergeGuideWithInheritance(base, local)
+    expect(r.visualDocument?.blocks.map((b) => b.id)).toEqual(['apartment', 'checkout'])
   })
 })
 
