@@ -691,11 +691,11 @@ export const popularTopics = [
 export const supportContacts = {
   general: {
     email: 'mail@wowliving.ch',
-    phone: '+41 552 33 33',
+    phone: '+41 41 552 33 33',
     hours: 'Monday - Friday, 09:00 - 18:00',
   },
   emergency: {
-    phone: '+41 552 33 33',
+    phone: '+41 41 552 33 33',
     available: 'Outside office hours (urgent only)',
   },
 }
