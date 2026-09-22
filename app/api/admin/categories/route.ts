@@ -17,6 +17,11 @@ import {
   listGuideCategoriesForBuilding,
   updateGuideCategoryForBuilding,
 } from '@/lib/guide-categories-repository'
+import {
+  categorySlugConflictMessage,
+  isCategorySlugConflictError,
+  normalizeCategorySlug,
+} from '@/lib/category-slug'
 
 const categoryColorSchema = z.enum(['primary', 'accent', 'muted'])
 
@@ -33,6 +38,7 @@ const buildingSchema = z.object({
 const createCategorySchema = buildingSchema
   .extend({
     title: z.string().trim().min(1).max(180),
+    slug: z.string().trim().max(180).optional(),
     shortDescription: z.string().trim().max(500).optional().default(''),
     iconName: z.string().trim().min(1).max(80).nullable(),
     iconImageUrl: z.string().trim().nullable(),
@@ -50,6 +56,7 @@ const createCategorySchema = buildingSchema
 const updateCategorySchema = buildingSchema
   .extend({
     slug: z.string().trim().min(1).max(180),
+    newSlug: z.string().trim().max(180).optional(),
     title: z.string().trim().min(1).max(180),
     shortDescription: z.string().trim().max(500).optional().default(''),
     iconName: z.string().trim().min(1).max(80).nullable(),
@@ -103,8 +110,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    let normalizedSlug: string
+    try {
+      normalizedSlug = normalizeCategorySlug(body.data.slug, body.data.title)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid category URL path.'
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+
     const created = await createGuideCategoryForBuilding(body.data.buildingId, {
       title: body.data.title,
+      slug: normalizedSlug,
       shortDescription: body.data.shortDescription,
       iconName: body.data.iconName?.trim() ? body.data.iconName.trim() : null,
       iconImageUrl: body.data.iconImageUrl?.trim() ? body.data.iconImageUrl.trim() : null,
@@ -112,6 +128,9 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json(created)
   } catch (err) {
+    if (isCategorySlugConflictError(err)) {
+      return NextResponse.json({ error: categorySlugConflictMessage() }, { status: 409 })
+    }
     logApiError('admin-guide-categories-create', err)
     return serverErrorResponse('Failed to create guide category.')
   }
@@ -135,8 +154,19 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
+    let nextSlug: string | undefined
+    if (body.data.newSlug !== undefined) {
+      try {
+        nextSlug = normalizeCategorySlug(body.data.newSlug, body.data.title)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Invalid category URL path.'
+        return NextResponse.json({ error: message }, { status: 400 })
+      }
+    }
+
     const updated = await updateGuideCategoryForBuilding(body.data.buildingId, body.data.slug, {
       title: body.data.title,
+      newSlug: nextSlug && nextSlug !== body.data.slug ? nextSlug : undefined,
       shortDescription: body.data.shortDescription,
       iconName: body.data.iconName?.trim() ? body.data.iconName.trim() : null,
       iconImageUrl: body.data.iconImageUrl?.trim() ? body.data.iconImageUrl.trim() : null,
@@ -144,6 +174,9 @@ export async function PUT(request: NextRequest) {
     })
     return NextResponse.json(updated)
   } catch (err) {
+    if (isCategorySlugConflictError(err)) {
+      return NextResponse.json({ error: categorySlugConflictMessage() }, { status: 409 })
+    }
     logApiError('admin-guide-categories-update', err)
     return serverErrorResponse('Failed to update guide category.')
   }

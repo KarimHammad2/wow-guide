@@ -10,6 +10,7 @@ import {
   getBuildingGuideCategory,
   listBuildingGuideSections,
   updateBuildingGuideCategory,
+  updateBuildingGuideCategorySlug,
 } from '@/lib/building-guides-repository'
 
 type GuideCategoryRow = Database['public']['Tables']['guide_categories']['Row']
@@ -47,6 +48,7 @@ export async function createGuideCategoryForBuilding(
   buildingId: string,
   input: {
     title: string
+    slug?: string
     shortDescription?: string
     iconName: string | null
     iconImageUrl: string | null
@@ -56,7 +58,7 @@ export async function createGuideCategoryForBuilding(
   }
 ): Promise<BuildingGuideCategory> {
   return createBuildingGuideCategory(buildingId, {
-    slug: slugify(input.title),
+    slug: input.slug?.trim() ? input.slug.trim() : slugify(input.title),
     title: input.title.trim(),
     subtitle: (input.shortDescription ?? '').trim(),
     icon: catalogIconToCategoryIconField({
@@ -74,6 +76,7 @@ export async function updateGuideCategoryForBuilding(
   categorySlug: string,
   input: {
     title: string
+    newSlug?: string
     shortDescription?: string
     iconName: string | null
     iconImageUrl: string | null
@@ -87,7 +90,13 @@ export async function updateGuideCategoryForBuilding(
     throw new Error('Guide section not found')
   }
 
-  return updateBuildingGuideCategory(buildingId, categorySlug, {
+  let activeSlug = categorySlug
+  if (input.newSlug && input.newSlug !== categorySlug) {
+    await updateBuildingGuideCategorySlug(buildingId, categorySlug, input.newSlug)
+    activeSlug = input.newSlug
+  }
+
+  return updateBuildingGuideCategory(buildingId, activeSlug, {
     title: input.title.trim(),
     subtitle: (input.shortDescription ?? existing.category.subtitle).trim(),
     icon: catalogIconToCategoryIconField({

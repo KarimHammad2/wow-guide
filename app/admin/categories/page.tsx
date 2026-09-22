@@ -41,11 +41,13 @@ import type { BuildingGuideCategory } from '@/lib/admin-types'
 import type { Building, Category } from '@/lib/data'
 import { getLucideIcon } from '@/lib/icons'
 import { ADMIN_CATEGORY_ICON_OPTIONS } from '@/lib/category-lucide-icons'
+import { isValidCategorySlugPath } from '@/lib/category-slug'
 
 type IconMode = 'lucide' | 'image'
 
 const defaultCreate = {
   title: '',
+  urlPath: '',
   shortDescription: '',
   iconMode: 'lucide' as IconMode,
   iconName: 'BookOpen',
@@ -71,6 +73,7 @@ export default function AdminCategoriesPage() {
   const [editCategory, setEditCategory] = useState<BuildingGuideCategory | null>(null)
   const [editForm, setEditForm] = useState({
     title: '',
+    urlPath: '',
     shortDescription: '',
     iconMode: 'lucide' as IconMode,
     iconName: 'BookOpen',
@@ -132,12 +135,17 @@ export default function AdminCategoriesPage() {
     const isImage = Boolean(cat.category.icon?.trim().match(/^https?:\/\//))
     setEditForm({
       title: cat.category.title,
+      urlPath: `/${cat.category.slug}`,
       shortDescription: cat.category.subtitle,
       iconMode: isImage ? 'image' : 'lucide',
       iconName: isImage ? 'BookOpen' : cat.category.icon ?? 'BookOpen',
       iconImageUrl: isImage ? cat.category.icon : '',
       categoryColor: cat.category.color ?? 'primary',
     })
+  }
+
+  function isOptionalCategoryUrlPathOk(value: string) {
+    return isValidCategorySlugPath(value)
   }
 
   function payloadFromForm(f: typeof createForm | typeof editForm) {
@@ -165,6 +173,15 @@ export default function AdminCategoriesPage() {
     () => buildings.find((building) => building.id === selectedBuildingId) ?? null,
     [buildings, selectedBuildingId]
   )
+
+  const buildingPublicBasePath = useMemo(() => {
+    if (!selectedBuilding) return ''
+    const p = selectedBuilding.appPath.trim()
+    if (/^\/[a-z0-9-]+$/i.test(p)) return p
+    const legacy = p.match(/^\/building\/([a-z0-9-]+)$/i)
+    if (legacy) return `/${legacy[1]}`
+    return `/${selectedBuilding.id}`
+  }, [selectedBuilding])
 
   if (loading) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading...</div>
@@ -283,6 +300,15 @@ export default function AdminCategoriesPage() {
                           {cat.category.subtitle}
                         </div>
                       ) : null}
+                      <Link
+                        href={`${buildingPublicBasePath}/category/${cat.category.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground mt-0.5 font-mono truncate block hover:text-primary hover:underline"
+                        title="Open public category page"
+                      >
+                        {buildingPublicBasePath}/category/{cat.category.slug}
+                      </Link>
                     </TableCell>
                     <TableCell className="w-[1%] whitespace-nowrap">
                       {cat.category.icon && /^https?:\/\//.test(cat.category.icon) ? (
@@ -381,6 +407,18 @@ export default function AdminCategoriesPage() {
                 value={createForm.title}
                 onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-url-path">URL path (optional)</Label>
+              <Input
+                id="cat-url-path"
+                placeholder="/internet"
+                value={createForm.urlPath}
+                onChange={(e) => setCreateForm((p) => ({ ...p, urlPath: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use a path derived from the title.
+              </p>
             </div>
             <div className="space-y-3">
               <Label>
@@ -525,6 +563,7 @@ export default function AdminCategoriesPage() {
                 saving ||
                 !selectedBuildingId ||
                 !createForm.title.trim() ||
+                !isOptionalCategoryUrlPathOk(createForm.urlPath) ||
                 (createForm.iconMode === 'image' && !createForm.iconImageUrl.trim())
               }
               onClick={() =>
@@ -535,6 +574,7 @@ export default function AdminCategoriesPage() {
                     body: JSON.stringify({
                       buildingId: selectedBuildingId,
                       title: createForm.title,
+                      slug: createForm.urlPath.trim() || undefined,
                       shortDescription: createForm.shortDescription.trim() || '',
                       iconName: icons.iconName,
                       iconImageUrl: icons.iconImageUrl,
@@ -570,6 +610,18 @@ export default function AdminCategoriesPage() {
                     value={editForm.title}
                     onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-cat-url-path">URL path (optional)</Label>
+                  <Input
+                    id="edit-cat-url-path"
+                    placeholder="/internet"
+                    value={editForm.urlPath}
+                    onChange={(e) => setEditForm((p) => ({ ...p, urlPath: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to use a path derived from the title.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Short description (optional)</Label>
@@ -702,17 +754,21 @@ export default function AdminCategoriesPage() {
                     saving ||
                     !selectedBuildingId ||
                     !editForm.title.trim() ||
+                    !isOptionalCategoryUrlPathOk(editForm.urlPath) ||
                     (editForm.iconMode === 'image' && !editForm.iconImageUrl.trim())
                   }
                   onClick={() =>
                     mutate(async () => {
                       if (!editCategory) return
                       const icons = payloadFromForm(editForm)
+                      const currentPath = `/${editCategory.category.slug}`
+                      const nextPath = editForm.urlPath.trim()
                       await adminRequest<BuildingGuideCategory>('/api/admin/categories', {
                         method: 'PUT',
                         body: JSON.stringify({
                           buildingId: selectedBuildingId,
                           slug: editCategory.category.slug,
+                          newSlug: nextPath && nextPath !== currentPath ? nextPath : undefined,
                           title: editForm.title,
                           shortDescription: editForm.shortDescription.trim() || '',
                           iconName: icons.iconName,

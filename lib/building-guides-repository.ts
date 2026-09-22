@@ -315,6 +315,54 @@ export async function createBuildingGuideCategory(
   return created
 }
 
+export async function updateBuildingGuideCategorySlug(
+  buildingId: string,
+  oldSlug: string,
+  newSlug: string
+): Promise<void> {
+  if (oldSlug === newSlug) return
+
+  await assertBuildingExists(buildingId)
+  const existing = await getBuildingGuideCategoryAdmin(buildingId, oldSlug)
+  if (!existing) {
+    throw new Error('Guide section not found')
+  }
+
+  const admin = createSupabaseAdmin()
+  const { data: dup } = await admin
+    .from('building_guide_categories')
+    .select('category_slug')
+    .eq('building_id', buildingId)
+    .eq('category_slug', newSlug)
+    .maybeSingle()
+
+  if (dup) {
+    throw new Error('Section slug already exists for this building')
+  }
+
+  const updatedCategory: Category = {
+    ...existing.category,
+    id: `${buildingId}-${newSlug}`,
+    slug: newSlug,
+  }
+
+  const { error } = await admin
+    .from('building_guide_categories')
+    .update({
+      category_slug: newSlug,
+      category: updatedCategory as unknown as Json,
+    })
+    .eq('building_id', buildingId)
+    .eq('category_slug', oldSlug)
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Section slug already exists for this building')
+    }
+    throw new Error(error.message)
+  }
+}
+
 export async function updateBuildingGuideCategory(
   buildingId: string,
   categorySlug: string,
